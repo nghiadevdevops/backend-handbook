@@ -1,0 +1,16 @@
+
+v26.13.0
+== pg: SERIALIZABLE + retry
+deposit +10: attempts=1
+deposit +20: attempts=2
+final balance = 130 (expected 130)
+== pg: SERIALIZABLE, maxAttempts=1
+deposit +10: ok
+deposit +20: code=40001 retryable=true
+final balance = 110
+== pg: SELECT ... FOR UPDATE
+final balance = 130 (expected 130)
+== drizzle: transaction({ isolationLevel: 'serializable' }) + retry
+deposit +10: attempts=1
+deposit +20: attempts=2
+final balance = 130 (expected 130)

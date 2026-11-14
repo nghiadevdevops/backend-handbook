@@ -1,0 +1,3 @@
+
+A đếm cat=x trước / sau UPDATE; số dòng flag=1|2|2|2
+ANOMALY:no

@@ -1,0 +1,470 @@
+openapi: 3.2.0
+info:
+  title: Orders API
+  version: 1.0.0
+  summary: API đặt hàng mẫu cho cuốn "API Design cho developer backend".
+  description: |
+    Ví dụ xuyên suốt: tạo đơn với Idempotency-Key, đọc đơn với ETag,
+    sửa đơn với If-Match, phân trang cursor, lỗi theo RFC 9457.
+  contact:
+    name: API Support
+    email: api-support@acme-orders.dev
+  license:
+    name: MIT
+    identifier: MIT
+servers:
+  - url: https://api.acme-orders.dev/v1
+    description: Production (ví dụ)
+tags:
+  - name: orders
+    description: Quản lý đơn hàng
+security:
+  - bearerAuth: []
+paths:
+  /orders:
+    get:
+      tags: [orders]
+      operationId: listOrders
+      summary: Liệt kê đơn hàng (phân trang cursor)
+      description: Sắp xếp theo id tăng dần. Dùng `next_cursor` để lấy trang kế tiếp.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: status
+          in: query
+          description: Lọc theo trạng thái.
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+      responses:
+        '200':
+          description: Một trang đơn hàng.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderList'
+              example:
+                data:
+                  - id: ord_0001
+                    status: pending
+                    note: null
+                    items: [{sku: BOOK-1, quantity: 2, unit_price: 150000}]
+                    total: 300000
+                    version: 1
+                    created_at: '2026-11-08T05:24:41+00:00'
+                next_cursor: b3JkXzAwMDE
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+    post:
+      tags: [orders]
+      operationId: createOrder
+      summary: Tạo đơn hàng (idempotent qua Idempotency-Key)
+      description: |
+        Gửi lại cùng key và cùng body trả lại đúng response gốc kèm
+        `Idempotent-Replayed: true`. Cùng key, body khác trả 422.
+        Request gốc còn đang xử lý trả 409.
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewOrder'
+            example:
+              items: [{sku: BOOK-1, quantity: 2, unit_price: 150000}]
+              note: giao gio hanh chinh
+      responses:
+        '201':
+          description: Đã tạo (hoặc phát lại kết quả tạo trước đó).
+          headers:
+            Location:
+              description: URI của đơn vừa tạo.
+              schema:
+                type: string
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Idempotent-Replayed:
+              description: Có mặt và bằng `true` khi đây là bản phát lại.
+              schema:
+                type: boolean
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableContent'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+  /orders/{order_id}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [orders]
+      operationId: getOrder
+      summary: Đọc một đơn hàng
+      description: Trả ETag; gửi lại qua If-None-Match để nhận 304 khi không đổi.
+      parameters:
+        - name: If-None-Match
+          in: header
+          description: ETag đã có; khớp thì server trả 304.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Đơn hàng.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+            Cache-Control:
+              description: Chính sách cache.
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '304':
+          description: Không đổi so với ETag client gửi.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [orders]
+      operationId: updateOrder
+      summary: Sửa ghi chú đơn hàng (bắt buộc If-Match)
+      description: JSON Merge Patch đơn giản. Thiếu If-Match trả 428, ETag lệch trả 412.
+      parameters:
+        - $ref: '#/components/parameters/IfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderPatch'
+            example:
+              note: A sua
+      responses:
+        '200':
+          description: Đã cập nhật.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
+  /orders/{order_id}/cancel:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    post:
+      tags: [orders]
+      operationId: cancelOrder
+      summary: Hủy đơn hàng
+      description: Idempotent tự nhiên. Hủy đơn đã hủy trả lại 200.
+      responses:
+        '200':
+          description: Đơn đã ở trạng thái cancelled.
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+webhooks:
+  orderCancelled:
+    post:
+      tags: [orders]
+      operationId: onOrderCancelled
+      summary: Sự kiện order.cancelled gửi tới endpoint của đối tác
+      description: Ký theo Standard Webhooks (headers webhook-id, webhook-timestamp, webhook-signature).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderEvent'
+      responses:
+        '204':
+          description: Đã nhận. Mọi mã khác 2xx bị coi là thất bại và được retry.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Access token OAuth 2.0 (JWT hoặc opaque). Scope orders:read cho GET, orders:write cho POST/PATCH (kiểm ở server, không biểu diễn được trong scheme http).
+  headers:
+    ETag:
+      description: Định danh phiên bản của representation (strong ETag).
+      schema:
+        type: string
+        examples: ['"815d7eb1fab1431a"']
+  parameters:
+    OrderId:
+      name: order_id
+      in: path
+      required: true
+      description: ID đơn hàng.
+      schema:
+        type: string
+        pattern: '^ord_[0-9]{4}$'
+    Limit:
+      name: limit
+      in: query
+      description: Số phần tử mỗi trang.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 2
+    Cursor:
+      name: cursor
+      in: query
+      description: Cursor mờ lấy từ `next_cursor` của trang trước.
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Chuỗi duy nhất cho mỗi thao tác logic (khuyến nghị UUID).
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 255
+    IfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: ETag lấy từ GET gần nhất. Thiếu thì 428, lệch thì 412.
+      schema:
+        type: string
+  schemas:
+    OrderStatus:
+      type: string
+      description: Trạng thái đơn (client phải chịu được giá trị mới trong tương lai).
+      enum: [pending, paid, shipped, cancelled]
+    OrderItem:
+      type: object
+      required: [sku, quantity, unit_price]
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+        unit_price:
+          type: integer
+          minimum: 0
+          description: Đơn vị nhỏ nhất của tiền tệ (VND).
+    NewOrder:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        note:
+          type: [string, 'null']
+    OrderPatch:
+      type: object
+      properties:
+        note:
+          type: [string, 'null']
+    Order:
+      type: object
+      required: [id, status, items, total, version, created_at]
+      properties:
+        id:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        note:
+          type: [string, 'null']
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderItem'
+        total:
+          type: integer
+        version:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+    OrderList:
+      type: object
+      required: [data, next_cursor]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        next_cursor:
+          type: [string, 'null']
+          description: null khi hết dữ liệu.
+    OrderEvent:
+      type: object
+      required: [type, id, timestamp, data]
+      properties:
+        type:
+          type: string
+          examples: [order.cancelled]
+        id:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        data:
+          type: object
+          properties:
+            order_id:
+              type: string
+            status:
+              $ref: '#/components/schemas/OrderStatus'
+    Problem:
+      type: object
+      description: Problem Details theo RFC 9457.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+    ValidationProblem:
+      allOf:
+        - $ref: '#/components/schemas/Problem'
+        - type: object
+          properties:
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  pointer:
+                    type: string
+                    description: JSON Pointer (RFC 6901) tới field lỗi trong body.
+                  parameter:
+                    type: string
+                  detail:
+                    type: string
+  responses:
+    BadRequest:
+      description: Request sai cấu trúc (JSON hỏng, thiếu Idempotency-Key, cursor/tham số sai).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          example:
+            type: https://api.example.com/problems/idempotency-key-missing
+            title: Thiếu Idempotency-Key
+            status: 400
+            detail: POST /orders yêu cầu header Idempotency-Key.
+            instance: /orders
+    Unauthorized:
+      description: Thiếu hoặc sai access token.
+      headers:
+        WWW-Authenticate:
+          description: Cách xác thực.
+          schema:
+            type: string
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    NotFound:
+      description: Không tìm thấy resource.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: Xung đột trạng thái hoặc request gốc cùng Idempotency-Key đang xử lý.
+      headers:
+        Retry-After:
+          description: Số giây nên chờ trước khi thử lại.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionFailed:
+      description: If-Match không khớp ETag hiện tại (lost update bị chặn).
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    PreconditionRequired:
+      description: Thiếu If-Match.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    UnprocessableContent:
+      description: Lỗi validation hoặc Idempotency-Key dùng lại với payload khác.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblem'
+          example:
+            type: https://api.example.com/problems/validation-error
+            title: Dữ liệu không hợp lệ
+            status: 422
+            detail: Có 1 lỗi validation.
+            instance: /orders
+            errors:
+              - pointer: /items/0/quantity
+                detail: quantity phải là số nguyên >= 1
+    TooManyRequests:
+      description: Vượt rate limit.
+      headers:
+        Retry-After:
+          description: Số giây nên chờ.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'

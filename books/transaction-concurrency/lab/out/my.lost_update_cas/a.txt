@@ -1,0 +1,2 @@
+A: số dòng cập nhật được (CAS lần 1)	0
+A: CAS lần 2 (chỉ chạy nếu lần 1 = 0), số dòng	1

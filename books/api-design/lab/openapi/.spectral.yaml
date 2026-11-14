@@ -1,0 +1,11 @@
+extends: ["spectral:oas"]
+rules:
+  # Quy ước riêng của cuốn sách: path không chứa động từ phổ biến kiểu CRUD
+  no-crud-verbs-in-path:
+    description: Path không nên chứa get/create/delete/update.
+    severity: error
+    given: $.paths[*]~
+    then:
+      function: pattern
+      functionOptions:
+        notMatch: "/(get|create|delete|update)[A-Z/_-]"

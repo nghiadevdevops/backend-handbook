@@ -1,0 +1,15 @@
+-- @setup
+DROP TABLE IF EXISTS jobs; CREATE TABLE jobs(id INT AUTO_INCREMENT PRIMARY KEY, state VARCHAR(10) NOT NULL DEFAULT 'new', worker VARCHAR(5)) ENGINE=InnoDB;
+INSERT INTO jobs(state) VALUES ('new'),('new'),('new'),('new'),('new'),('new');
+-- @a
+START TRANSACTION;
+SELECT id FROM jobs WHERE state='new' ORDER BY id LIMIT 2 FOR UPDATE SKIP LOCKED;
+UPDATE jobs SET state='running', worker='A' WHERE id IN (1,2);
+DO SLEEP(4);
+COMMIT;
+-- @b
+DO SLEEP(2);
+START TRANSACTION;
+SELECT id FROM jobs WHERE state='new' ORDER BY id LIMIT 2 FOR UPDATE SKIP LOCKED;
+COMMIT;
+SELECT 'ANOMALY:no';

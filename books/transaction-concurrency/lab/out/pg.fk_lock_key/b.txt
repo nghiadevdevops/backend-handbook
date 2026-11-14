@@ -1,0 +1,5 @@
+
+ERROR:  canceling statement due to lock timeout
+CONTEXT:  while locking tuple (0,1) in relation "parent"
+SQL statement "SELECT 1 FROM ONLY "public"."parent" x WHERE "id" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x"
+ANOMALY:no

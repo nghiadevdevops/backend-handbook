@@ -1,0 +1,105 @@
+# promtool test rules /rules/tests/slo-orders.test.yml
+rule_files:
+  - ../slo-orders.yml
+
+evaluation_interval: 1m
+
+tests:
+  # Ca 1: loi on dinh 10% (>> 14.4*0.5% = 7.2%) trong 100 phut -> ca 3 alert deu phai chay.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_UNSET"}'
+        values: '0+540x120'
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}'
+        values: '0+60x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels: {severity: page, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 14.4 lan (het 2% budget thang trong 1 gio)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnSlow
+        exp_alerts:
+          - exp_labels: {severity: page, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 6 lan (het 5% budget thang trong 6 gio)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnTicket
+        exp_alerts:
+          - exp_labels: {severity: ticket, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 1 lan (het 10% budget thang trong 3 ngay)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"
+
+  # Ca 2: loi 0.33% (< budget 0.5%) -> khong alert nao.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_UNSET"}'
+        values: '0+598x120'
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}'
+        values: '0+2x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnFast
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnSlow
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnTicket
+        exp_alerts: []
+
+  # Ca 3: su co ngan (phut 50-62: ~100% loi) roi tu hoi phuc.
+  #  - phut 56: dang giua su co -> Fast chay.
+  #  - phut 75: da hoi phuc 12 phut -> cua so 5m sach nen Fast TAT (du cua so 1h con cao),
+  #    nhung Slow (6h & 30m) van chay vi 30m gan nhat con chua su co.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_UNSET"}'
+        values: '0+600x50 30000+0x12 30000+600x30'
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}'
+        values: '0+0x50 0+600x12 7200+0x30'
+    alert_rule_test:
+      - eval_time: 56m
+        alertname: OrdersErrorBudgetBurnFast
+        exp_alerts:
+          - exp_labels: {severity: page, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 14.4 lan (het 2% budget thang trong 1 gio)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"
+      - eval_time: 75m
+        alertname: OrdersErrorBudgetBurnFast
+        exp_alerts: []
+      - eval_time: 75m
+        alertname: OrdersErrorBudgetBurnSlow
+        exp_alerts:
+          - exp_labels: {severity: page, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 6 lan (het 5% budget thang trong 6 gio)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"
+
+  # Ca 4: loi ri ri 1% (burn rate 2x): khong dang dem cho page, chi du de mo ticket.
+  - interval: 1m
+    input_series:
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_UNSET"}'
+        values: '0+594x120'
+      - series: 'traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}'
+        values: '0+6x120'
+    alert_rule_test:
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnFast
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnSlow
+        exp_alerts: []
+      - eval_time: 100m
+        alertname: OrdersErrorBudgetBurnTicket
+        exp_alerts:
+          - exp_labels: {severity: ticket, slo: orders-availability}
+            exp_annotations:
+              summary: "orders-api dot error budget gap 1 lan (het 10% budget thang trong 3 ngay)"
+              runbook_url: "https://example.internal/runbooks/orders-error-budget"

@@ -1,0 +1,2 @@
+số booking phòng 1 (kỳ vọng 1)	1
+ANOMALY:no

@@ -1,0 +1,175 @@
+=================== pg lost_update [READ COMMITTED]
+--- a
+
+--- b
+
+
+--- final
+số dư cuối (kỳ vọng 130)|110
+ANOMALY:yes
+pg | lost_update | READ COMMITTED | CÓ
+=================== pg lost_update_cas [READ COMMITTED]
+--- a
+
+A: số dòng cập nhật được (CAS lần 1)|0
+A: CAS lần 2 sau khi đọc lại|1
+--- b
+
+
+B: số dòng cập nhật được|1
+--- final
+số dư cuối (kỳ vọng 130), ver|130|2
+ANOMALY:no
+pg | lost_update_cas | READ COMMITTED | không
+=================== pg deadlock [READ COMMITTED]
+--- a
+
+--- b
+
+
+ERROR:  deadlock detected
+DETAIL:  Process 10384 waits for ShareLock on transaction 1424; blocked by process 10382.
+Process 10382 waits for ShareLock on transaction 1425; blocked by process 10384.
+HINT:  See server log for query details.
+CONTEXT:  while updating tuple (0,1) in relation "acct"
+--- final
+tổng tiền (kỳ vọng 200)|200
+ANOMALY:no
+pg | deadlock | READ COMMITTED | LỖI: 40P01 deadlock
+=================== pg deadlock_ordered [READ COMMITTED]
+--- a
+1
+2
+
+--- b
+
+1
+2
+--- final
+tổng tiền (kỳ vọng 200)|200
+ANOMALY:no
+pg | deadlock_ordered | READ COMMITTED | không
+=================== pg lock_timeout [READ COMMITTED]
+--- a
+
+--- b
+
+ERROR:  canceling statement due to lock timeout
+CONTEXT:  while updating tuple (0,1) in relation "acct"
+ANOMALY:no
+--- final
+pg | lock_timeout | READ COMMITTED | LỖI: 55P03 lock_timeout
+=================== pg skip_locked [READ COMMITTED]
+--- a
+A nhận job|1
+A nhận job|2
+
+--- b
+
+B nhận job|3
+B nhận job|4
+--- final
+1|running|A
+2|running|A
+3|running|B
+4|running|B
+5|new|
+6|new|
+ANOMALY:no
+pg | skip_locked | READ COMMITTED | không
+=================== pg nowait [READ COMMITTED]
+--- a
+1
+
+--- b
+
+ERROR:  could not obtain lock on row in relation "jobs"
+ANOMALY:no
+--- final
+pg | nowait | READ COMMITTED | LỖI: 55P03 NOWAIT
+=================== pg fk_lock [READ COMMITTED]
+--- a
+
+--- b
+
+B insert child xong, khong phai cho
+ANOMALY:no
+--- final
+pg | fk_lock | READ COMMITTED | không
+=================== pg fk_lock_key [READ COMMITTED]
+--- a
+1
+
+--- b
+
+ERROR:  canceling statement due to lock timeout
+CONTEXT:  while locking tuple (0,1) in relation "parent"
+SQL statement "SELECT 1 FROM ONLY "public"."parent" x WHERE "id" OPERATOR(pg_catalog.=) $1 FOR KEY SHARE OF x"
+ANOMALY:no
+--- final
+pg | fk_lock_key | READ COMMITTED | LỖI: 55P03 lock_timeout
+=================== pg booking_exclusion [READ COMMITTED]
+--- a
+
+ERROR:  conflicting key value violates exclusion constraint "booking_room_int4range_excl"
+DETAIL:  Key (room, int4range(s, e))=(1, [10,12)) conflicts with existing key (room, int4range(s, e))=(1, [9,11)).
+--- b
+
+
+--- final
+số booking phòng 1 (kỳ vọng 1)|1
+ANOMALY:no
+pg | booking_exclusion | READ COMMITTED | LỖI: 23P01 exclusion violation
+=================== pg lock_view [READ COMMITTED]
+--- a
+
+pg_locks|relation|acct|RowExclusiveLock|t|t
+pg_locks|relation|acct|RowExclusiveLock|t|f
+pg_locks|transactionid|1492|ExclusiveLock|t|t
+pg_locks|transactionid|1492|ShareLock|f|f
+pg_locks|transactionid|1493|ExclusiveLock|t|f
+pg_locks|tuple|acct|ExclusiveLock|t|f
+blocking|10812|{10811}|Lock|transactionid|UPDATE acct SET bal=bal+1 WHERE id=1;
+--- b
+
+--- final
+ANOMALY:no
+pg | lock_view | READ COMMITTED | không
+=================== pg mvcc_long_txn [READ COMMITTED]
+--- a
+A giữ snapshot, count =|1000
+
+--- b
+
+B: VACUUM khi A còn mở
+INFO:  vacuuming "lab.public.mv"
+INFO:  finished vacuuming "lab.public.mv": index scans: 0
+pages: 0 removed, 9 remain, 9 scanned (100.00% of total), 0 eagerly scanned
+tuples: 0 removed, 2000 remain, 1000 are dead but not yet removable
+removable cutoff: 1500, which was 1 XIDs old when operation ended
+new relfrozenxid: 1498, which is 1 XIDs ahead of previous value
+frozen: 0 pages from table (0.00% of total) had 0 tuples frozen
+visibility map: 0 pages set all-visible, 0 pages set all-frozen (0 were all-visible)
+index scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed
+avg read rate: 0.000 MB/s, avg write rate: 16.276 MB/s
+buffer usage: 39 hits, 0 reads, 3 dirtied
+WAL usage: 4 records, 3 full page images, 25030 bytes, 0 buffers full
+system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+
+B: VACUUM sau khi A đã commit
+INFO:  vacuuming "lab.public.mv"
+INFO:  finished vacuuming "lab.public.mv": index scans: 1
+pages: 0 removed, 9 remain, 9 scanned (100.00% of total), 0 eagerly scanned
+tuples: 1000 removed, 1000 remain, 0 are dead but not yet removable
+removable cutoff: 1501, which was 0 XIDs old when operation ended
+new relfrozenxid: 1500, which is 2 XIDs ahead of previous value
+frozen: 0 pages from table (0.00% of total) had 0 tuples frozen
+visibility map: 9 pages set all-visible, 4 pages set all-frozen (0 were all-visible)
+index scan needed: 5 pages from table (55.56% of total) had 1000 dead item identifiers removed
+index "mv_pkey": pages: 8 in total, 0 newly deleted, 0 currently deleted, 0 reusable
+avg read rate: 0.000 MB/s, avg write rate: 2.962 MB/s
+buffer usage: 58 hits, 0 reads, 1 dirtied
+WAL usage: 27 records, 1 full page images, 19025 bytes, 0 buffers full
+system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+--- final
+pg | mvcc_long_txn | READ COMMITTED | ?

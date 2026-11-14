@@ -1,0 +1,29 @@
+{
+  "name": "bookcheck-testts-lab",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=26" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "start": "node src/server.ts"
+  },
+  "dependencies": {
+    "fastify": "5.12.8",
+    "pg": "8.23.1"
+  },
+  "devDependencies": {
+    "@pact-foundation/pact": "17.1.4",
+    "@playwright/test": "1.65.0",
+    "@stryker-mutator/core": "10.1.1",
+    "@stryker-mutator/typescript-checker": "10.1.1",
+    "@stryker-mutator/vitest-runner": "10.1.1",
+    "@types/node": "26.6.6",
+    "@types/pg": "8.23.1",
+    "@types/supertest": "7.2.1",
+    "fast-check": "4.10.2",
+    "supertest": "7.3.2",
+    "typescript": "6.0.3",
+    "vitest": "5.1.0"
+  }
+}

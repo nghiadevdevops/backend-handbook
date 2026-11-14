@@ -1,0 +1,70 @@
+# Compose cho dev/test cua lab. Khong map port ra host: dung `docker compose exec`.
+name: bookcheck-deploygo
+services:
+  app:
+    build:
+      context: ./go-app
+      args:
+        APP_VERSION: dev
+    image: bookcheck-deploygo-go:dev
+    environment:
+      APP_ENV: local
+      DB_HOST: db
+      DB_NAME: app
+      DB_USER: app
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [net]
+  web:
+    build:
+      context: ./node-app
+      args:
+        APP_VERSION: dev
+    image: bookcheck-deploygo-node:dev
+    environment:
+      APP_ENV: local
+      DB_HOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    init: true   # tini as PID 1: reaps zombies and forwards signals
+    networks: [net]
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: app
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    secrets:
+      - db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - dbdata:/var/lib/postgresql
+    networks: [net]
+  # Profile "test": chi chay khi goi ro `--profile test`; chay unit test Go trong container golang
+  tests:
+    profiles: ["test"]
+    image: golang:1.27-alpine
+    working_dir: /src
+    volumes:
+      - ./go-app:/src
+    command: ["go", "test", "./..."]
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [net]
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+volumes:
+  dbdata:
+networks:
+  net:

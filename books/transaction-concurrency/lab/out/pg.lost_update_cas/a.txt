@@ -1,0 +1,3 @@
+
+A: số dòng cập nhật được (CAS lần 1)|0
+A: CAS lần 2 sau khi đọc lại|1

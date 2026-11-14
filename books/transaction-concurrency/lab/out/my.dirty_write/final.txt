@@ -1,0 +1,3 @@
+ANOMALY:no
+owner	1	B
+owner	2	B

@@ -1,0 +1,4 @@
+B: history list length ban đầu	19
+B: khi A còn mở (sau 5 UPDATE toàn bảng)	24
+B: sau khi A đã commit 5 giây (purge)	25
+B: sau thêm 10 giây	25

@@ -1,0 +1,42 @@
+CREATE EXTENSION
+CREATE TABLE
+INSERT 0 3
+    label     | cosine_sim 
+--------------+------------
+ hoan tien    |      0.996
+ lay lai tien |      0.996
+ doi mat khau |      0.077
+(3 rows)
+
+        l2         |     cosine_dist      | neg_inner_product | l1 
+-------------------+----------------------+-------------------+----
+ 5.196152422706632 | 0.025368153802923787 |               -32 |  9
+(1 row)
+
+ bytes_vector3 | bytes_halfvec3 
+---------------+----------------
+            20 |             14
+(1 row)
+
+CREATE TABLE
+INSERT 0 5
+CREATE INDEX
+PREPARE
+--- truy van: A1029 (vector gan "hoan tien", tu khoa la ma don)
+ id |                         content                          | vec_rank | kw_rank |   rrf   
+----+----------------------------------------------------------+----------+---------+---------
+  4 | Ma don A1029 giao tai kho Ha Noi                         |        3 |       1 | 0.03227
+  1 | Chinh sach hoan tien trong 7 ngay ke tu ngay nhan hang   |        1 |         | 0.01639
+  2 | San pham giam gia tren 50 phan tram khong duoc hoan tien |        2 |         | 0.01613
+  3 | Huong dan doi mat khau tai khoan                         |        4 |         | 0.01563
+(4 rows)
+
+--- truy van: hoan tien
+ id |                         content                          | vec_rank | kw_rank |   rrf   
+----+----------------------------------------------------------+----------+---------+---------
+  1 | Chinh sach hoan tien trong 7 ngay ke tu ngay nhan hang   |        1 |       1 | 0.03279
+  2 | San pham giam gia tren 50 phan tram khong duoc hoan tien |        2 |       2 | 0.03226
+  4 | Ma don A1029 giao tai kho Ha Noi                         |        3 |         | 0.01587
+  3 | Huong dan doi mat khau tai khoan                         |        4 |         | 0.01563
+(4 rows)
+

@@ -1,0 +1,8 @@
+
+pg_locks|relation|acct|RowExclusiveLock|t|t
+pg_locks|relation|acct|RowExclusiveLock|t|f
+pg_locks|transactionid|1492|ExclusiveLock|t|t
+pg_locks|transactionid|1492|ShareLock|f|f
+pg_locks|transactionid|1493|ExclusiveLock|t|f
+pg_locks|tuple|acct|ExclusiveLock|t|f
+blocking|10812|{10811}|Lock|transactionid|UPDATE acct SET bal=bal+1 WHERE id=1;

@@ -1,0 +1,2 @@
+B insert id=15 xong
+ANOMALY:no

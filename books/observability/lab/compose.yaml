@@ -1,0 +1,72 @@
+# Lab "Observability & van hanh production" - khong map port ra host.
+# Moi ten container/network/volume deu co tien to bookcheck-obsgo-.
+name: bookcheck-obsgo
+
+services:
+  jaeger:
+    image: jaegertracing/jaeger:2.23.0
+    container_name: bookcheck-obsgo-jaeger
+    mem_limit: 256m
+    networks: [obs]
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.165.0
+    container_name: bookcheck-obsgo-otel-collector
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./otel/collector.yaml:/etc/otelcol/config.yaml:ro
+    mem_limit: 256m
+    depends_on: [jaeger]
+    networks: [obs]
+
+  prometheus:
+    image: prom/prometheus:v3.16.0
+    container_name: bookcheck-obsgo-prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=2h
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./rules:/etc/prometheus/rules:ro
+    mem_limit: 256m
+    networks: [obs]
+
+  inventory:
+    build: ./app
+    image: bookcheck-obsgo-app:lab
+    container_name: bookcheck-obsgo-inventory
+    environment:
+      ROLE: inventory
+      ERROR_RATE: "0.05"
+      SLOW_RATE: "0.05"
+      OTEL_SERVICE_NAME: inventory-svc
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    mem_limit: 96m
+    depends_on: [otel-collector]
+    networks: [obs]
+
+  orders:
+    image: bookcheck-obsgo-app:lab
+    container_name: bookcheck-obsgo-orders
+    environment:
+      ROLE: orders
+      INVENTORY_URL: http://inventory:8080
+      OTEL_SERVICE_NAME: orders-api
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      OTEL_EXPORTER_OTLP_PROTOCOL: http/protobuf
+    mem_limit: 96m
+    depends_on: [inventory]
+    networks: [obs]
+
+  # Grafana tuy chon (tiet kiem RAM): docker compose --profile grafana up -d
+  grafana:
+    profiles: [grafana]
+    image: grafana/grafana:latest
+    container_name: bookcheck-obsgo-grafana
+    mem_limit: 384m
+    networks: [obs]
+
+networks:
+  obs:
+    name: bookcheck-obsgo-net

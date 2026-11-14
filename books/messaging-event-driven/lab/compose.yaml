@@ -1,0 +1,37 @@
+# Lab "Messaging & Event-driven". Không map port ra host; mọi thao tác qua `docker exec`
+# hoặc container trong network bookcheck-msg-net (consumer Go/TS).
+name: bookcheck-msg
+services:
+  kafka:
+    image: apache/kafka:latest          # lab chạy với image chứa Kafka 4.3.1 (KRaft, 1 node)
+    container_name: bookcheck-msg-kafka
+    mem_limit: 1g
+    environment:
+      KAFKA_HEAP_OPTS: "-Xms256m -Xmx512m"
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      # advertise theo tên container để client trong network (Go/TS) kết nối được
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://bookcheck-msg-kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+    networks: [net]
+  postgres:
+    image: postgres:18-alpine
+    container_name: bookcheck-msg-pg
+    mem_limit: 256m
+    environment:
+      POSTGRES_PASSWORD: lab
+    tmpfs: [/var/lib/postgresql]
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks: [net]
+networks:
+  net:
+    name: bookcheck-msg-net

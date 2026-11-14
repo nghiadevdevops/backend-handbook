@@ -1,0 +1,65 @@
+# SLO: 99.5% request cua orders-api thanh cong (30 ngay).  Error budget = 0.5% = 0.005.
+# Nguon SLI: metric sinh tu span boi spanmetrics connector cua Collector.
+# Burn rate N co nghia la dang dot error budget nhanh gap N lan toc do "vua du het budget sau 30 ngay".
+groups:
+  - name: orders-sli-recording
+    rules:
+      # Ti le loi theo tung cua so. "or vector(0)" de khi khong co loi nao ti le van la 0 (khong bi mat series).
+      - record: service:orders_error_ratio:rate5m
+        expr: |
+          (sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[5m])) or vector(0))
+          / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[5m]))
+      - record: service:orders_error_ratio:rate30m
+        expr: |
+          (sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[30m])) or vector(0))
+          / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[30m]))
+      - record: service:orders_error_ratio:rate1h
+        expr: |
+          (sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[1h])) or vector(0))
+          / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[1h]))
+      - record: service:orders_error_ratio:rate6h
+        expr: |
+          (sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[6h])) or vector(0))
+          / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[6h]))
+      - record: service:orders_error_ratio:rate3d
+        expr: |
+          (sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER",status_code="STATUS_CODE_ERROR"}[3d])) or vector(0))
+          / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[3d]))
+
+  - name: orders-slo-burn-rate-alerts
+    rules:
+      # Bang cua SRE Workbook (chuong 5): 14.4x (1h & 5m) -> page; 6x (6h & 30m) -> page; 1x (3d & 6h) -> ticket.
+      # Moi alert can CA cua so dai (da ton nhieu budget) LAN cua so ngan (van dang chay) cung vuot nguong.
+      - alert: OrdersErrorBudgetBurnFast
+        expr: |
+          service:orders_error_ratio:rate1h > (14.4 * 0.005)
+          and
+          service:orders_error_ratio:rate5m > (14.4 * 0.005)
+        labels:
+          severity: page
+          slo: orders-availability
+        annotations:
+          summary: "orders-api dot error budget gap 14.4 lan (het 2% budget thang trong 1 gio)"
+          runbook_url: "https://example.internal/runbooks/orders-error-budget"
+      - alert: OrdersErrorBudgetBurnSlow
+        expr: |
+          service:orders_error_ratio:rate6h > (6 * 0.005)
+          and
+          service:orders_error_ratio:rate30m > (6 * 0.005)
+        labels:
+          severity: page
+          slo: orders-availability
+        annotations:
+          summary: "orders-api dot error budget gap 6 lan (het 5% budget thang trong 6 gio)"
+          runbook_url: "https://example.internal/runbooks/orders-error-budget"
+      - alert: OrdersErrorBudgetBurnTicket
+        expr: |
+          service:orders_error_ratio:rate3d > (1 * 0.005)
+          and
+          service:orders_error_ratio:rate6h > (1 * 0.005)
+        labels:
+          severity: ticket
+          slo: orders-availability
+        annotations:
+          summary: "orders-api dot error budget gap 1 lan (het 10% budget thang trong 3 ngay)"
+          runbook_url: "https://example.internal/runbooks/orders-error-budget"

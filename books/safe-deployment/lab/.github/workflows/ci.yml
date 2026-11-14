@@ -1,0 +1,85 @@
+name: ci
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: go-app
+    steps:
+      # Thuc te: pin theo SHA 40 ky tu day du, kem comment ve phien ban
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go-app/go.mod
+          cache-dependency-path: go-app/go.mod
+      - run: go vet ./...
+      - run: go test ./...
+      - run: CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o /tmp/app .
+
+  node:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: node-app
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: node-app/package-lock.json
+      - run: npm ci
+      - run: npx tsc
+      - run: node --test dist/
+
+  image:
+    needs: [go, node]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Lint Dockerfiles
+        run: |
+          docker run --rm -i hadolint/hadolint < go-app/Dockerfile
+          docker run --rm -i hadolint/hadolint < node-app/Dockerfile
+      - name: Build images
+        run: |
+          docker build -t demo-go:${{ github.sha }} go-app
+          docker build -t demo-node:${{ github.sha }} node-app
+
+  push:
+    needs: image
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write   # cho OIDC va cosign keyless
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Dang nhap registry
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin

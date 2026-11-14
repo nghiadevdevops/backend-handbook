@@ -1,0 +1,18 @@
+{
+  "id": "snap-1",
+  "status": "placed",
+  "total": 160000,
+  "currency": "VND",
+  "lines": [
+    {
+      "sku": "SKU-1",
+      "quantity": 1,
+      "unitPrice": 100000
+    },
+    {
+      "sku": "SKU-2",
+      "quantity": 2,
+      "unitPrice": 30000
+    }
+  ]
+}

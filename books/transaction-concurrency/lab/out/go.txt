@@ -1,0 +1,45 @@
+PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit
+
+== 1. lost update, READ COMMITTED, plain SELECT (expected 130)
+final balance = 120
+
+== 2. SELECT ... FOR UPDATE
+deposit +10: attempts=1 err=<nil>
+deposit +20: attempts=1 err=<nil>
+final balance = 130
+
+== 3. optimistic locking with a version column
+deposit +10: tries=1 err=<nil>
+deposit +20: tries=2 err=<nil>
+final balance = 130, ver = 2
+
+== 4. SERIALIZABLE + retry on 40001
+deposit +10: attempts=1 err=<nil>
+deposit +20: attempts=2 err=<nil>
+final balance = 130
+
+== 4b. SERIALIZABLE without retry (maxAttempts=1)
+deposit +10: err=<nil>
+deposit +20: err=after 1 attempts: ERROR: could not serialize access due to concurrent update (SQLSTATE 40001)
+final balance = 110 (the failed deposit is not applied, no silent corruption)
+
+== 5. opposite transfers, unordered locks -> deadlock 40P01, retried
+transfer 2->1: attempts=1 err=<nil>
+transfer 1->2: attempts=2 err=<nil>
+total = 200 (expected 200)
+
+== 6. opposite transfers, ordered locks -> no deadlock
+transfer 2->1: attempts=1 err=<nil>
+transfer 1->2: attempts=1 err=<nil>
+total = 200 (expected 200)
+
+== 7. job claimer, 3 workers x 2 jobs of 6, SKIP LOCKED
+W1 claimed [1 2] err=<nil>
+W3 claimed [3 4] err=<nil>
+W2 claimed [5 6] err=<nil>
+running=6 workers=3 (expected 6 and 3)
+
+== 8. MySQL: SERIALIZABLE + retry on 1213
+mysql deposit +10: attempts=1 err=<nil>
+mysql deposit +20: attempts=2 err=<nil>
+mysql final balance = 130 (expected 130)

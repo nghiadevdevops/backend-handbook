@@ -1,0 +1,45 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 150
+    spike_limit_mib: 30
+  batch:
+    timeout: 1s
+
+connectors:
+  # Generates RED metrics (calls, duration) from spans: no need to hand-write them.
+  span_metrics:
+    histogram:
+      explicit:
+        buckets: [10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s, 2500ms]
+
+exporters:
+  otlp_grpc/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+  prometheus:
+    endpoint: 0.0.0.0:8889
+  debug:
+    verbosity: basic
+
+# Go processes are long-lived and export cumulative metrics (SDK default),
+# so no delta_to_cumulative or resource stripping is needed here.
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_grpc/jaeger, span_metrics]
+    metrics:
+      receivers: [otlp, span_metrics]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]

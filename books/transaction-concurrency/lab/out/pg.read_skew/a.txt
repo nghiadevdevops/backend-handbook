@@ -1,0 +1,3 @@
+
+A thấy acct1, acct2, tổng|50|50|100
+ANOMALY:no

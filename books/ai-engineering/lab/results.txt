@@ -1,0 +1,108 @@
+=== 03a-exact-hnsw16 ===
+SET
+SET
+SET
+INSERT 0 1
+RESET
+CREATE INDEX
+SET
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+RESET
+RESET
+DROP INDEX
+             config             | build_s | index_mb | recall | avg_ms | p95_ms | avg_rows 
+--------------------------------+---------+----------+--------+--------+--------+----------
+ exact (seq scan)               |       0 |        0 |  1.000 | 130.01 | 241.92 |     10.0
+ hnsw m=16 efc=64 ef_search=10  |    58.7 |     97.7 |  0.824 |   2.79 |  12.17 |     10.0
+ hnsw m=16 efc=64 ef_search=40  |    58.7 |     97.7 |  0.899 |   4.35 |  14.31 |     10.0
+ hnsw m=16 efc=64 ef_search=100 |    58.7 |     97.7 |  0.930 |   3.82 |  13.47 |     10.0
+(4 rows)
+
+=== 03b-hnsw32-filter ===
+SET
+SET
+CREATE INDEX
+SET
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+SET
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+RESET
+RESET
+RESET
+DROP INDEX
+CREATE INDEX
+ANALYZE
+INSERT 0 1
+DROP INDEX
+                config                | build_s | index_mb | recall | avg_ms | p95_ms | avg_rows 
+--------------------------------------+---------+----------+--------+--------+--------+----------
+ exact (seq scan)                     |       0 |        0 |  1.000 | 130.01 | 241.92 |     10.0
+ hnsw m=16 efc=64 ef_search=10        |    58.7 |     97.7 |  0.824 |   2.79 |  12.17 |     10.0
+ hnsw m=16 efc=64 ef_search=40        |    58.7 |     97.7 |  0.899 |   4.35 |  14.31 |     10.0
+ hnsw m=16 efc=64 ef_search=100       |    58.7 |     97.7 |  0.930 |   3.82 |  13.47 |     10.0
+ hnsw m=32 efc=128 ef_search=40       |   111.5 |    101.4 |  0.987 |   1.11 |   1.83 |     10.0
+ hnsw m=32 efc=128 ef_search=100      |   111.5 |    101.4 |  0.987 |   1.89 |   3.35 |     10.0
+ FILTER hnsw m=32 ef=40 iterative=off |   111.5 |    101.4 |  0.000 |   1.42 |   2.22 |      0.0
+ FILTER hnsw m=32 ef=40 relaxed_order |   111.5 |    101.4 |  0.592 | 187.28 | 415.76 |     10.0
+ FILTER hnsw m=32 ef=40 strict_order  |   111.5 |    101.4 |  0.331 | 138.34 | 269.00 |     10.0
+ FILTER btree(category) + exact sort  |       0 |      0.4 |  1.000 |   1.97 |   9.84 |     10.0
+(10 rows)
+
+=== 03c-ivfflat ===
+SET
+SET
+CREATE INDEX
+SET
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+RESET
+RESET
+DROP INDEX
+CREATE INDEX
+SET
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+SET
+INSERT 0 1
+RESET
+RESET
+DROP INDEX
+                config                | build_s | index_mb | recall | avg_ms | p95_ms | avg_rows 
+--------------------------------------+---------+----------+--------+--------+--------+----------
+ exact (seq scan)                     |       0 |        0 |  1.000 | 130.01 | 241.92 |     10.0
+ hnsw m=16 efc=64 ef_search=10        |    58.7 |     97.7 |  0.824 |   2.79 |  12.17 |     10.0
+ hnsw m=16 efc=64 ef_search=40        |    58.7 |     97.7 |  0.899 |   4.35 |  14.31 |     10.0
+ hnsw m=16 efc=64 ef_search=100       |    58.7 |     97.7 |  0.930 |   3.82 |  13.47 |     10.0
+ hnsw m=32 efc=128 ef_search=40       |   111.5 |    101.4 |  0.987 |   1.11 |   1.83 |     10.0
+ hnsw m=32 efc=128 ef_search=100      |   111.5 |    101.4 |  0.987 |   1.89 |   3.35 |     10.0
+ FILTER hnsw m=32 ef=40 iterative=off |   111.5 |    101.4 |  0.000 |   1.42 |   2.22 |      0.0
+ FILTER hnsw m=32 ef=40 relaxed_order |   111.5 |    101.4 |  0.592 | 187.28 | 415.76 |     10.0
+ FILTER hnsw m=32 ef=40 strict_order  |   111.5 |    101.4 |  0.331 | 138.34 | 269.00 |     10.0
+ FILTER btree(category) + exact sort  |       0 |      0.4 |  1.000 |   1.97 |   9.84 |     10.0
+ ivfflat lists=50 probes=1            |     3.0 |     78.2 |  1.000 |   1.90 |   3.59 |     10.0
+ ivfflat lists=50 probes=10           |     3.0 |     78.2 |  1.000 |  13.60 |  21.86 |     10.0
+ ivfflat lists=50 probes=25           |     3.0 |     78.2 |  1.000 |  39.61 |  56.94 |     10.0
+ ivfflat lists=224 probes=1           |     4.8 |     78.7 |  0.969 |   1.10 |   2.39 |     10.0
+ ivfflat lists=224 probes=15          |     4.8 |     78.7 |  1.000 |   5.44 |   8.99 |     10.0
+ ivfflat lists=224 probes=50          |     4.8 |     78.7 |  1.000 |  16.41 |  24.61 |     10.0
+(16 rows)
+

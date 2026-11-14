@@ -1,0 +1,17 @@
+-- @setup
+DROP TABLE IF EXISTS listing; CREATE TABLE listing(id INT PRIMARY KEY, buyer VARCHAR(10)) ENGINE=InnoDB; INSERT INTO listing VALUES (1,'none'),(2,'none');
+-- @a
+SET TRANSACTION ISOLATION LEVEL __LEVEL__; START TRANSACTION;
+UPDATE listing SET buyer='A' WHERE id=1;
+DO SLEEP(4);
+UPDATE listing SET buyer='A' WHERE id=2;
+COMMIT;
+-- @b
+DO SLEEP(2);
+SET TRANSACTION ISOLATION LEVEL __LEVEL__; START TRANSACTION;
+UPDATE listing SET buyer='B' WHERE id=1;
+UPDATE listing SET buyer='B' WHERE id=2;
+COMMIT;
+-- @final
+SELECT IF(COUNT(DISTINCT buyer)>1,'ANOMALY:yes','ANOMALY:no') FROM listing;
+SELECT 'owner', id, buyer FROM listing ORDER BY id;

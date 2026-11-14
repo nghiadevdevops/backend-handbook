@@ -1,0 +1,11 @@
+{
+  "name": "bookcheck-sec-snippets",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "argon2": "0.45.2",
+    "jose": "6.2.15",
+    "pino": "10.4.0",
+    "undici": "8.12.4"
+  }
+}

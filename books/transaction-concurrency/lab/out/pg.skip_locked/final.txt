@@ -1,0 +1,7 @@
+1|running|A
+2|running|A
+3|running|B
+4|running|B
+5|new|
+6|new|
+ANOMALY:no

@@ -1,0 +1,16 @@
+# Tùy chọn: chỉ dựng server. KHÔNG map port ra host.
+# Gọi thử: docker run --rm --network bookcheck-apits-net curlimages/curl -si http://bookcheck-apits-server:8080/orders
+# Dọn:     docker compose down
+services:
+  api:
+    image: node:26-alpine
+    container_name: bookcheck-apits-server
+    working_dir: /src
+    volumes:
+      - ./api:/src:ro
+    command: ["sh", "/src/start.sh"]
+    networks: [bookcheck-apits-net]
+    mem_limit: 256m
+networks:
+  bookcheck-apits-net:
+    name: bookcheck-apits-net

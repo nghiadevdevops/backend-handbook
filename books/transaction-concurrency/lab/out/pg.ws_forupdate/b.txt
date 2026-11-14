@@ -1,0 +1,5 @@
+
+ERROR:  could not serialize access due to concurrent update
+ERROR:  syntax error at or near ":"
+LINE 1: UPDATE doctors SET on_call=false WHERE id=2 AND :b_c >= 2;
+                                                        ^

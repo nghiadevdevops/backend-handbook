@@ -1,0 +1,2 @@
+ERROR 1205 (HY000) at line 4: Lock wait timeout exceeded; try restarting transaction
+ANOMALY:no

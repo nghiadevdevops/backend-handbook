@@ -1,0 +1,17 @@
+{
+  "name": "backend-handbook",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Backend Handbook: thư viện 14 cuốn học backend bằng tiếng Việt",
+  "scripts": {
+    "docs:dev": "vitepress dev --host 0.0.0.0",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview --host 0.0.0.0 --port 4173"
+  },
+  "devDependencies": {
+    "mermaid": "12.3.0",
+    "vitepress": "1.6.4",
+    "vue": "3.5.45"
+  }
+}

@@ -1,0 +1,3 @@
+
+ERROR:  conflicting key value violates exclusion constraint "booking_room_int4range_excl"
+DETAIL:  Key (room, int4range(s, e))=(1, [10,12)) conflicts with existing key (room, int4range(s, e))=(1, [9,11)).

@@ -1,0 +1,51 @@
+my | dirty_write | READ UNCOMMITTED | không
+my | dirty_write | READ COMMITTED | không
+my | dirty_write | REPEATABLE READ | không
+my | dirty_write | SERIALIZABLE | không
+my | dirty_read | READ UNCOMMITTED | CÓ
+my | dirty_read | READ COMMITTED | không
+my | dirty_read | REPEATABLE READ | không
+my | dirty_read | SERIALIZABLE | không
+my | non_repeatable | READ UNCOMMITTED | CÓ
+my | non_repeatable | READ COMMITTED | CÓ
+my | non_repeatable | REPEATABLE READ | không
+my | non_repeatable | SERIALIZABLE | không
+my | phantom | READ UNCOMMITTED | CÓ
+my | phantom | READ COMMITTED | CÓ
+my | phantom | REPEATABLE READ | không
+my | phantom | SERIALIZABLE | không
+my | phantom_update | READ UNCOMMITTED | CÓ
+my | phantom_update | READ COMMITTED | CÓ
+my | phantom_update | REPEATABLE READ | CÓ
+my | phantom_update | SERIALIZABLE | không
+my | read_skew | READ UNCOMMITTED | CÓ
+my | read_skew | READ COMMITTED | CÓ
+my | read_skew | REPEATABLE READ | không
+my | read_skew | SERIALIZABLE | không
+my | lost_update | READ UNCOMMITTED | CÓ
+my | lost_update | READ COMMITTED | CÓ
+my | lost_update | REPEATABLE READ | CÓ
+my | lost_update | SERIALIZABLE | LỖI: 1213 deadlock
+my | write_skew | READ UNCOMMITTED | CÓ
+my | write_skew | READ COMMITTED | CÓ
+my | write_skew | REPEATABLE READ | CÓ
+my | write_skew | SERIALIZABLE | LỖI: 1213 deadlock
+my | booking | READ UNCOMMITTED | CÓ
+my | booking | READ COMMITTED | CÓ
+my | booking | REPEATABLE READ | CÓ
+my | booking | SERIALIZABLE | LỖI: 1213 deadlock
+my | lost_update_atomic | READ COMMITTED | không
+my | lost_update_atomic | REPEATABLE READ | không
+my | lost_update_atomic | SERIALIZABLE | không
+my | lost_update_forupdate | READ COMMITTED | không
+my | lost_update_forupdate | REPEATABLE READ | không
+my | lost_update_forupdate | SERIALIZABLE | không
+my | lost_update_cas | READ COMMITTED | không
+my | lost_update_cas | REPEATABLE READ | không
+my | lost_update_cas | SERIALIZABLE | không
+my | ws_forupdate | READ COMMITTED | không
+my | ws_forupdate | REPEATABLE READ | không
+my | ws_forupdate | SERIALIZABLE | không
+my | ws_materialize | READ COMMITTED | không
+my | ws_materialize | REPEATABLE READ | không
+my | ws_materialize | SERIALIZABLE | không

@@ -1,0 +1,16 @@
+{
+  "name": "deploy-demo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=26" },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "node --test dist/"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  }
+}

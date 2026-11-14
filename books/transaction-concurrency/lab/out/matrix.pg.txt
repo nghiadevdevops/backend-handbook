@@ -1,0 +1,42 @@
+pg | dirty_write | READ COMMITTED | không
+pg | dirty_write | REPEATABLE READ | LỖI: 40001 serialization (concurrent update)
+pg | dirty_write | SERIALIZABLE | LỖI: 40001 serialization (concurrent update)
+pg | dirty_read | READ COMMITTED | không
+pg | dirty_read | REPEATABLE READ | không
+pg | dirty_read | SERIALIZABLE | không
+pg | non_repeatable | READ COMMITTED | CÓ
+pg | non_repeatable | REPEATABLE READ | không
+pg | non_repeatable | SERIALIZABLE | không
+pg | phantom | READ COMMITTED | CÓ
+pg | phantom | REPEATABLE READ | không
+pg | phantom | SERIALIZABLE | không
+pg | phantom_update | READ COMMITTED | CÓ
+pg | phantom_update | REPEATABLE READ | không
+pg | phantom_update | SERIALIZABLE | không
+pg | read_skew | READ COMMITTED | CÓ
+pg | read_skew | REPEATABLE READ | không
+pg | read_skew | SERIALIZABLE | không
+pg | lost_update | READ COMMITTED | CÓ
+pg | lost_update | REPEATABLE READ | LỖI: 40001 serialization (concurrent update)
+pg | lost_update | SERIALIZABLE | LỖI: 40001 serialization (concurrent update)
+pg | write_skew | READ COMMITTED | CÓ
+pg | write_skew | REPEATABLE READ | CÓ
+pg | write_skew | SERIALIZABLE | LỖI: 40001 serialization (SSI r/w dependencies)
+pg | booking | READ COMMITTED | CÓ
+pg | booking | REPEATABLE READ | CÓ
+pg | booking | SERIALIZABLE | LỖI: 40001 serialization (SSI r/w dependencies)
+pg | lost_update_atomic | READ COMMITTED | không
+pg | lost_update_atomic | REPEATABLE READ | LỖI: 40001 serialization (concurrent update)
+pg | lost_update_atomic | SERIALIZABLE | LỖI: 40001 serialization (concurrent update)
+pg | lost_update_forupdate | READ COMMITTED | không
+pg | lost_update_forupdate | REPEATABLE READ | LỖI: 40001 serialization (concurrent update)
+pg | lost_update_forupdate | SERIALIZABLE | LỖI: 40001 serialization (concurrent update)
+pg | lost_update_cas | READ COMMITTED | không
+pg | lost_update_cas | REPEATABLE READ | không
+pg | lost_update_cas | SERIALIZABLE | không
+pg | ws_forupdate | READ COMMITTED | không
+pg | ws_forupdate | REPEATABLE READ | LỖI: 40001 serialization (concurrent update)
+pg | ws_forupdate | SERIALIZABLE | LỖI: 40001 serialization (concurrent update)
+pg | ws_materialize | READ COMMITTED | không
+pg | ws_materialize | REPEATABLE READ | CÓ
+pg | ws_materialize | SERIALIZABLE | LỖI: 40001 serialization (SSI r/w dependencies)

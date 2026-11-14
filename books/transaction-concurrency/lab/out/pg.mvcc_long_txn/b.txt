@@ -1,0 +1,31 @@
+
+B: VACUUM khi A còn mở
+INFO:  vacuuming "lab.public.mv"
+INFO:  finished vacuuming "lab.public.mv": index scans: 0
+pages: 0 removed, 9 remain, 9 scanned (100.00% of total), 0 eagerly scanned
+tuples: 0 removed, 2000 remain, 1000 are dead but not yet removable
+removable cutoff: 1500, which was 1 XIDs old when operation ended
+new relfrozenxid: 1498, which is 1 XIDs ahead of previous value
+frozen: 0 pages from table (0.00% of total) had 0 tuples frozen
+visibility map: 0 pages set all-visible, 0 pages set all-frozen (0 were all-visible)
+index scan not needed: 0 pages from table (0.00% of total) had 0 dead item identifiers removed
+avg read rate: 0.000 MB/s, avg write rate: 16.276 MB/s
+buffer usage: 39 hits, 0 reads, 3 dirtied
+WAL usage: 4 records, 3 full page images, 25030 bytes, 0 buffers full
+system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s
+
+B: VACUUM sau khi A đã commit
+INFO:  vacuuming "lab.public.mv"
+INFO:  finished vacuuming "lab.public.mv": index scans: 1
+pages: 0 removed, 9 remain, 9 scanned (100.00% of total), 0 eagerly scanned
+tuples: 1000 removed, 1000 remain, 0 are dead but not yet removable
+removable cutoff: 1501, which was 0 XIDs old when operation ended
+new relfrozenxid: 1500, which is 2 XIDs ahead of previous value
+frozen: 0 pages from table (0.00% of total) had 0 tuples frozen
+visibility map: 9 pages set all-visible, 4 pages set all-frozen (0 were all-visible)
+index scan needed: 5 pages from table (55.56% of total) had 1000 dead item identifiers removed
+index "mv_pkey": pages: 8 in total, 0 newly deleted, 0 currently deleted, 0 reusable
+avg read rate: 0.000 MB/s, avg write rate: 2.962 MB/s
+buffer usage: 58 hits, 0 reads, 1 dirtied
+WAL usage: 27 records, 1 full page images, 19025 bytes, 0 buffers full
+system usage: CPU: user: 0.00 s, system: 0.00 s, elapsed: 0.00 s

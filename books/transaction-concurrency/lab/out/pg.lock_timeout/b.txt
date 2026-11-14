@@ -1,0 +1,4 @@
+
+ERROR:  canceling statement due to lock timeout
+CONTEXT:  while updating tuple (0,1) in relation "acct"
+ANOMALY:no

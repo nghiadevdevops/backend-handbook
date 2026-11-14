@@ -1,0 +1,96 @@
+=================== my lost_update [REPEATABLE READ]
+--- a
+--- b
+--- final
+số dư cuối (kỳ vọng 130)	110
+ANOMALY:yes
+my | lost_update | REPEATABLE READ | CÓ
+=================== my lost_update_cas [REPEATABLE READ]
+--- a
+A: số dòng cập nhật được (CAS lần 1)	0
+A: CAS lần 2 (chỉ chạy nếu lần 1 = 0), số dòng	1
+--- b
+B: số dòng cập nhật được	1
+--- final
+số dư cuối (kỳ vọng 130), ver	130	2
+ANOMALY:no
+my | lost_update_cas | REPEATABLE READ | không
+=================== my deadlock [REPEATABLE READ]
+--- a
+--- b
+ERROR 1213 (40001) at line 6: Deadlock found when trying to get lock; try restarting transaction
+--- final
+tổng tiền (kỳ vọng 200)	200
+ANOMALY:no
+my | deadlock | REPEATABLE READ | LỖI: 1213 deadlock
+=================== my deadlock_ordered [REPEATABLE READ]
+--- a
+1
+2
+--- b
+1
+2
+--- final
+tổng tiền (kỳ vọng 200)	200
+ANOMALY:no
+my | deadlock_ordered | REPEATABLE READ | không
+=================== my lock_timeout [REPEATABLE READ]
+--- a
+--- b
+ERROR 1205 (HY000) at line 4: Lock wait timeout exceeded; try restarting transaction
+ANOMALY:no
+--- final
+my | lock_timeout | REPEATABLE READ | LỖI: 1205 lock wait timeout
+=================== my skip_locked [REPEATABLE READ]
+--- a
+1
+2
+--- b
+3
+4
+ANOMALY:no
+--- final
+my | skip_locked | REPEATABLE READ | không
+=================== my nowait [REPEATABLE READ]
+--- a
+1
+--- b
+ERROR 3572 (HY000) at line 3: Statement aborted because lock(s) could not be acquired immediately and NOWAIT is set.
+ANOMALY:no
+--- final
+my | nowait | REPEATABLE READ | LỖI: 3572 NOWAIT
+=================== my gap_lock [REPEATABLE READ]
+--- a
+data_locks	PRIMARY	RECORD	X,GAP,INSERT_INTENTION	WAITING	30
+data_locks	NULL	TABLE	IX	GRANTED	NULL
+data_locks	NULL	TABLE	IX	GRANTED	NULL
+data_locks	PRIMARY	RECORD	X,GAP	GRANTED	30
+--- b
+B insert id=15 xong
+ANOMALY:no
+--- final
+my | gap_lock | REPEATABLE READ | không
+=================== my gap_lock [READ COMMITTED]
+--- a
+data_locks	NULL	TABLE	IX	GRANTED	NULL
+--- b
+B insert id=15 xong
+ANOMALY:no
+--- final
+my | gap_lock | READ COMMITTED | không
+=================== my booking_slots [REPEATABLE READ]
+--- a
+ERROR 1062 (23000) at line 5: Duplicate entry '1-10' for key 'slot.PRIMARY'
+--- b
+--- final
+số slot (kỳ vọng 2)	2
+ANOMALY:no
+my | booking_slots | REPEATABLE READ | LỖI: 1062 duplicate key
+=================== my mvcc_long_txn [REPEATABLE READ]
+--- a
+A giữ read view, count =	1000
+--- b
+B: history list length khi A còn mở	52
+B: history list length sau khi A commit (purge đã chạy)	53
+--- final
+my | mvcc_long_txn | REPEATABLE READ | ?

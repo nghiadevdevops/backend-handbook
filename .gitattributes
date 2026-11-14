@@ -1,0 +1,5 @@
+# Keep LF everywhere so lab shell scripts run inside Linux containers even on Windows checkouts
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.ico binary

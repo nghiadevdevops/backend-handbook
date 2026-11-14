@@ -1,0 +1,17 @@
+-- @setup
+DROP TABLE IF EXISTS doctors, shifts; CREATE TABLE doctors(id INT PRIMARY KEY, name VARCHAR(20), on_call TINYINT) ENGINE=InnoDB; CREATE TABLE shifts(id INT PRIMARY KEY) ENGINE=InnoDB; INSERT INTO doctors VALUES (1,"Alice",1),(2,"Bob",1); INSERT INTO shifts VALUES (1);
+-- @a
+SET TRANSACTION ISOLATION LEVEL __LEVEL__; START TRANSACTION;
+SELECT COUNT(*) INTO @c FROM doctors WHERE on_call=1 FOR UPDATE;
+DO SLEEP(4);
+UPDATE doctors SET on_call=0 WHERE id=1 AND @c>=2;
+COMMIT;
+-- @b
+DO SLEEP(2);
+SET TRANSACTION ISOLATION LEVEL __LEVEL__; START TRANSACTION;
+SELECT COUNT(*) INTO @c FROM doctors WHERE on_call=1 FOR UPDATE;
+UPDATE doctors SET on_call=0 WHERE id=2 AND @c>=2;
+COMMIT;
+-- @final
+SELECT 'số bác sĩ còn trực', COUNT(*) FROM doctors WHERE on_call=1;
+SELECT IF(COUNT(*)=0,'ANOMALY:yes','ANOMALY:no') FROM doctors WHERE on_call=1;

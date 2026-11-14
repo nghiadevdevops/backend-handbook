@@ -1,0 +1,24 @@
+# Lab: Transaction, Isolation & Concurrency. Không map port ra host.
+name: bookcheck-txn
+services:
+  pg:
+    image: postgres:latest
+    container_name: bookcheck-txn-pg
+    environment:
+      POSTGRES_PASSWORD: lab
+      POSTGRES_DB: lab
+    command: ["postgres", "-c", "deadlock_timeout=500ms", "-c", "log_lock_waits=on"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lab"]
+      interval: 2s
+      retries: 30
+  my:
+    image: mysql:lts
+    container_name: bookcheck-txn-my
+    environment:
+      MYSQL_ROOT_PASSWORD: lab
+      MYSQL_DATABASE: lab
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -plab --silent"]
+      interval: 3s
+      retries: 40

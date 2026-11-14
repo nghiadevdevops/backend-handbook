@@ -1,0 +1,1 @@
+data_locks	NULL	TABLE	IX	GRANTED	NULL
