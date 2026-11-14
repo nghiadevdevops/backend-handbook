@@ -1,8 +1,8 @@
-# Chương 8. Giao tiếp và thiết kế API: HTTP, TCP, UDP, QUIC, RPC, REST
+# Chapter 8. Communication and API Design: HTTP, TCP, UDP, QUIC, RPC, REST
 
 > Cập nhật: 2026-11-07.
 
-## 8.1 Bản đồ các layer
+## 8.1 Map of the layers
 
 ```mermaid
 flowchart TB
@@ -29,7 +29,7 @@ Hai cơ chế này khác nhau về mục đích và cách thực hiện; đừng
 
 **Hệ quả thiết kế**: mỗi connection mới tốn RTT (cộng thêm TLS), nên dùng **connection pooling/keep-alive**. **Head-of-line blocking** ở TCP: mất một packet làm chậm mọi stream ghép trong cùng connection (ảnh hưởng HTTP/2).
 
-## 8.3 UDP và QUIC
+## 8.3 UDP and QUIC
 
 **UDP**: gửi datagram connectionless, không bảo đảm đến nơi, không in-order, không có congestion control. Ưu: latency thấp, không handshake, hợp *dữ liệu hết hạn nhanh* (khung hình video đang gọi, vị trí game, voice) khi thà bỏ còn hơn chờ retransmit. DNS dùng UDP cho query nhỏ.
 
@@ -41,7 +41,7 @@ Hai cơ chế này khác nhau về mục đích và cách thực hiện; đừng
 | Multiplexing | Không (nhiều connection) | Có | Có, độc lập từng stream |
 | Head-of-line | Có (ở mức request) | Có (ở mức TCP) | Không giữa các stream |
 
-## 8.4 RPC và gRPC
+## 8.4 RPC and gRPC
 
 **RPC (Remote Procedure Call)**: gọi hàm ở máy khác như hàm cục bộ. **gRPC** dùng HTTP/2 + Protocol Buffers (binary, có schema, sinh code client/server), hỗ trợ bidirectional streaming. Ưu: hiệu quả, strongly typed contract, phù hợp gọi *giữa các service nội bộ*. Nhược: khó gọi trực tiếp từ browser (cần gRPC-Web), khó đọc/debug thủ công, thay đổi schema cần kỷ luật backward compatibility.
 
@@ -65,7 +65,7 @@ REST là phong cách thiết kế API quanh **resource** và các HTTP method.
 
 **Real-time**: *WebSocket* (bidirectional, connection dài), *Server-Sent Events* (server → client, one-way, trên HTTP), *long polling* (fallback).
 
-## 8.6 Method: safe và idempotent (theo RFC 9110)
+## 8.6 Methods: safe and idempotent (per RFC 9110)
 
 - **Safe**: không nhằm thay đổi state server: **GET, HEAD, OPTIONS, TRACE**.
 - **Idempotent**: gửi N lần cho effect *trên server* giống gửi 1 lần: **GET, HEAD, OPTIONS, TRACE, PUT, DELETE**. Mọi method safe đều idempotent; ngược lại không đúng (PUT, DELETE idempotent nhưng không safe).
@@ -84,7 +84,7 @@ INSERT INTO idempotency(key, request_hash, response) VALUES (:k, :h, NULL);
 -- duplicate key => trả response đã lưu (hoặc 409/422 nếu request_hash khác)
 ```
 
-## 8.7 Bảng HTTP status code thường gặp
+## 8.7 Common HTTP status codes
 
 | Mã | Tên | Dùng khi |
 |---|---|---|
@@ -111,11 +111,11 @@ INSERT INTO idempotency(key, request_hash, response) VALUES (:k, :h, NULL);
 
 Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 5xx (đặc biệt 502, 503, 504) và 429 có thể retry *nếu method idempotent hoặc có idempotency key*, kèm backoff + jitter (chương 9). Với lỗi, nên dùng định dạng chuẩn (Problem Details, RFC 9457).
 
-## 8.8 Ví dụ thiết kế: API tạo thanh toán
+## 8.8 Design example: payment creation API
 
 `POST /payments` + `Idempotency-Key: 7c1f...`. Server (1) tra key; (2) nếu chưa có, ghi key status `in_progress` và gọi nhà cung cấp; (3) lưu kết quả; (4) trả 201. Client timeout nên gửi lại *cùng key*, sẽ nhận kết quả cũ hoặc 409 nếu đang xử lý. Không có key → người dùng có thể bị trừ tiền hai lần. Trade-off: phải lưu key (TTL 24 giờ chẳng hạn) và xử lý race khi hai request cùng key đến đồng thời (dùng constraint unique).
 
-## 8.9 Khi phỏng vấn nên nói gì
+## 8.9 What to say in an interview
 
 - "Giữa service nội bộ em dùng gRPC cho hiệu năng; API công khai em dùng REST/JSON vì dễ tích hợp và cache."
 - "Em retry GET/PUT/DELETE tự động; POST chỉ retry khi có idempotency key."
@@ -123,7 +123,7 @@ Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 
 - "Em pagination bằng cursor để ổn định và nhanh khi dữ liệu lớn."
 - "HTTP/3 chạy trên QUIC/UDP, giảm head-of-line blocking và setup time, nhất là trên mạng di động."
 
-## 8.10 Cạm bẫy
+## 8.10 Pitfalls
 
 - Nói HTTP/2 chạy trên UDP; hoặc ping dùng UDP; hoặc VOD streaming dùng UDP.
 - Gộp flow control và congestion control làm một; hoặc coi ACK là từng packet riêng (nó là cumulative).
@@ -133,7 +133,7 @@ Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 
 - Dùng 401 và 403 lẫn lộn.
 - Dùng offset pagination cho feed hàng triệu record.
 
-## 8.11 Tóm tắt
+## 8.11 Summary
 
 1. HTTP/1.1, HTTP/2 → TCP; HTTP/3 → QUIC trên UDP; ping → ICMP.
 2. TCP có cumulative ACK; flow control (receiver) khác congestion control (mạng).
@@ -141,7 +141,7 @@ Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 
 4. Safe: GET, HEAD, OPTIONS, TRACE. Idempotent: thêm PUT, DELETE. POST dùng Idempotency-Key.
 5. Dùng đúng status code; chỉ retry khi an toàn.
 
-## 8.12 Câu hỏi tự kiểm tra
+## 8.12 Self-check questions
 
 1. Giao thức nào phía dưới HTTP/1.1, HTTP/2, HTTP/3?
 2. Phân biệt flow control và congestion control.
@@ -150,7 +150,7 @@ Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 
 5. 401 và 403 khác nhau thế nào? Khi nào dùng 409, 412, 429?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. HTTP/1.1 và HTTP/2: TCP. HTTP/3: QUIC, chạy trên UDP.
 2. Flow control: receiver giới hạn sender bằng receive window để không tràn buffer. Congestion control: sender tự giới hạn bằng congestion window để không làm tắc mạng; gửi tối đa theo giá trị nhỏ hơn của hai window.
@@ -160,7 +160,7 @@ Quy tắc retry: 4xx (trừ 408, 429) là lỗi của client, **không** retry; 
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - RFC 9293 (TCP): https://www.rfc-editor.org/rfc/rfc9293.html
 - RFC 9110 (HTTP Semantics, safe và idempotent): https://www.rfc-editor.org/rfc/rfc9110.html (đối chiếu qua nguồn thứ cấp trong phiên này; xem điểm chưa chắc)

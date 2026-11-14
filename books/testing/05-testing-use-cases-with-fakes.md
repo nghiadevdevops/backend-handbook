@@ -1,10 +1,10 @@
-# Chương 5. Test use case bằng fake adapter
+# Chapter 5. Testing use cases with fake adapters
 
-## 1. Tình huống
+## 1. Scenario
 
 Use case `PlaceOrder` và `PayOrder` là orchestration layer: lấy dữ liệu qua port, gọi domain, lưu lại. Nếu test chúng bằng mock repository, bạn viết một bản sao của chính thân hàm (`expect(get)...`, `expect(save)...`). Nếu test bằng DB thật, mỗi test mất trăm ms và cần Docker. Hexagonal cho một lối ra: port là interface, nên cắm **fake adapter in-memory**, chạy mili giây mà vẫn kiểm tra kết quả thật.
 
-## 2. Cơ chế
+## 2. Mechanics
 
 ```
  test --> PlaceOrder --> OrderRepository (port)
@@ -25,7 +25,7 @@ Ta kiểm tra **kết quả**: đơn nào đã được lưu, trạng thái gì,
 
 Một khác biệt so với ngôn ngữ đồng bộ: trong Node.js mọi I/O đều async, nên `OrderRepository.save/get` và `PaymentGateway.charge` trả `Promise`. Điều này lan lên cả use case (`async execute`) và test (`await`). Fake in-memory cũng phải khai báo `async` để giữ đúng hình dạng của port; nếu fake trả giá trị đồng bộ, test xanh nhưng code không bao giờ được thử với `Promise` thật.
 
-## 3. Fake repository
+## 3. The fake repository
 
 ```ts
 export class InMemoryOrderRepository implements OrderRepository {
@@ -75,7 +75,7 @@ Cùng một test, cùng một bug; chỉ khác fake. Chương 11 nói thêm vì 
 
 Có một chi tiết riêng của TypeScript: `Order` dùng private field `#status`, `#lines`..., nên không thể "clone" bằng spread hay `structuredClone` (private field không được sao chép). Lab dùng `Order.reconstitute(...)`, chính là factory mà adapter Postgres cũng dùng để dựng lại entity từ DB. Dùng chung đường này còn có lợi phụ: fake và adapter thật đi qua cùng cửa vào.
 
-## 4. Test use case
+## 4. Testing the use case
 
 `lab/tests/application/place-order.test.ts`:
 
@@ -124,7 +124,7 @@ Với `noUncheckedIndexedAccess` bật trong `tsconfig.json`, `gateway.charges[0
 
 Kết quả chạy thật: `./run.sh app` cho suite `application` (6 test) xanh trong khoảng một giây (phần lớn là thời gian Vitest khởi động; bản thân test mất vài chục ms).
 
-## 5. Use case nên có bao nhiêu test
+## 5. How many tests a use case needs
 
 Use case ít logic riêng, nên tập trung vào:
 
@@ -134,11 +134,11 @@ Use case ít logic riêng, nên tập trung vào:
 
 Đừng lặp lại các ca biên của domain (ngưỡng giảm giá, tối đa 5 dòng): chúng đã có ở unit test. Test use case chỉ cần một ca đại diện.
 
-## 6. Giữ fake trung thực: contract test cho port
+## 6. Keeping fakes honest: contract tests for the port
 
 Fake chỉ có giá trị nếu hành vi giống adapter thật. Kỹ thuật: viết **một bộ contract test cho port** và chạy cho cả fake và adapter thật. Trong lab, bài test integration (chương 6) và test dùng `InMemory` đang tách riêng; một mở rộng tự nhiên là hàm `describeOrderRepositoryContract(name, makeRepo)` chứa các ca "lưu rồi lấy ra giống nhau", "id lạ ném `OrderNotFound`", gọi một lần cho `InMemoryOrderRepository` và một lần cho `PostgresOrderRepository`. (Lab không cài sẵn hàm này để giữ gọn; đây là gợi ý bài tập.)
 
-## 7. Trade-off
+## 7. Trade-offs
 
 | | Fake in-memory | Mock repository | DB thật |
 |---|---|---|---|
@@ -149,7 +149,7 @@ Fake chỉ có giá trị nếu hành vi giống adapter thật. Kỹ thuật: v
 
 Dùng fake cho test use case; dùng DB thật để test chính adapter. KHÔNG dùng fake để chứng minh SQL đúng.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Fake giữ reference (đã nói).
 - Fake "thông minh" quá: nhiều logic riêng thì chính fake cần test.
@@ -157,21 +157,21 @@ Dùng fake cho test use case; dùng DB thật để test chính adapter. KHÔNG 
 - Quên `await` ở `expect(...).rejects` hoặc ở `orders.save(...)` khi dựng dữ liệu: test chạy trước khi dữ liệu có mặt, đỏ hoặc xanh giả tùy chỗ.
 - Quên tạo test cho branch "không lưu gì khi thất bại".
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Cắm fake vào port để test use case ở tốc độ ms mà vẫn kiểm tra kết quả.
 - Fake lưu/trả bản sao để mô phỏng persistence boundary.
 - Chỉ test cái use case làm (orchestration, error branch, side effect), không lặp lại biên domain.
 - Giữ fake đáng tin bằng contract test chung với adapter thật.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Vì sao `InMemoryOrderRepository.get` trả bản copy?
 2. Test nào của use case `PayOrder` bảo vệ rằng đơn không bị đánh dấu `paid` khi gateway từ chối?
 3. Test use case có cần lặp lại ca ngưỡng 1.000.000 đ không?
 4. Fake không phát hiện được loại lỗi nào mà DB thật phát hiện?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Để mô phỏng DB: sửa object bên ngoài không đổi dữ liệu đã lưu, nhờ vậy việc quên `save()` bị phát hiện.
 2. `keeps order placed when gateway declines`.

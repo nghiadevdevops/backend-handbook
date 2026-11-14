@@ -1,6 +1,6 @@
-# Chương 7. Transactional outbox: polling publisher và CDC
+# Chapter 7. Transactional outbox: polling publisher and CDC
 
-## 1. Tình huống: dual write
+## 1. Scenario: dual write
 
 ```ts
 // TS, trích từ lab/ts/src/outbox.ts (placeOrderDualWrite)
@@ -114,7 +114,7 @@ try {
 }
 ```
 
-## 3. Relay kiểu 1: polling publisher
+## 3. Relay type 1: polling publisher
 
 Vòng lặp: chọn các dòng chưa gửi theo thứ tự `id`, publish, đánh dấu đã gửi.
 
@@ -133,7 +133,7 @@ Lưu ý ordering: `bigserial` cấp ID khi INSERT, không phải khi COMMIT. Tra
 
 Ưu: đơn giản, chỉ cần SQL và một script. Nhược: latency bằng polling interval, read load lên DB, bảng cần dọn (xóa dòng đã gửi cũ).
 
-## 4. Relay kiểu 2: CDC với Debezium
+## 4. Relay type 2: CDC with Debezium
 
 **CDC (change data capture)**: đọc transaction log của DB (WAL của PostgreSQL qua logical replication slot, binlog của MySQL) và biến thay đổi thành event, không cần query bảng.
 
@@ -147,7 +147,7 @@ Debezium có **Outbox Event Router** (SMT): đọc dòng INSERT vào bảng outb
 
 Ưu: latency thấp (mili-giây), không polling, ordering theo commit order trong WAL, không cần cột `published_at`. Nhược: thêm hạ tầng (Kafka Connect, replication slot); slot không được tiêu thụ làm **WAL phình đầy disk**; cấu hình DB (`wal_level=logical`); cũng at-least-once (Debezium gửi lại sau restart). Chi tiết cấu hình: xem docs của Debezium (chưa chạy trong lab này).
 
-## 5. So sánh
+## 5. Comparison
 
 | | Polling publisher | CDC (Debezium) |
 |---|---|---|
@@ -160,31 +160,31 @@ Debezium có **Outbox Event Router** (SMT): đọc dòng INSERT vào bảng outb
 
 Khởi đầu bằng polling; chuyển CDC khi latency hoặc load thành vấn đề thực sự.
 
-## 6. Khi KHÔNG cần outbox
+## 6. When you do NOT need an outbox
 - Event chỉ để log/metric, mất vài cái chấp nhận được.
 - Chỉ publish, không ghi DB (không có dual write).
 - Event Sourcing: event store chính là nguồn (chương 10), vẫn cần cơ chế publish nhưng không cần bảng outbox riêng.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 - Publish trong `afterCommit` hook rồi coi là xong: vẫn mất event khi crash giữa commit và publish.
 - Quên idempotent ở consumer.
 - Không dọn outbox: bảng hàng trăm triệu dòng, polling chậm dần.
 - Payload outbox chứa dữ liệu nhạy cảm sống lâu trong bảng.
 - Một relay duy nhất làm bottleneck: dùng `SKIP LOCKED` hoặc partition theo aggregate nếu cần scale, nhưng chú ý ordering.
 
-## Tóm tắt
+## Summary
 1. Dual write không thể atomic; outbox đưa event vào cùng transaction DB.
 2. Relay đẩy event sang broker: polling (đơn giản) hoặc CDC (latency thấp, nhiều hạ tầng).
 3. Cả hai đều at-least-once → consumer idempotent bắt buộc.
 4. `FOR UPDATE SKIP LOCKED` cho nhiều relay; coi chừng thứ tự ID khác commit order.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Tại sao ghi DB rồi publish không an toàn dù đặt trong try/catch?
 2. Vì sao outbox vẫn có thể gửi duplicate?
 3. Nhược điểm vận hành lớn nhất của Debezium với PostgreSQL là gì?
 4. Vì sao không nên theo dõi "id lớn nhất đã gửi" khi polling?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Process có thể chết giữa hai bước; try/catch không chạy.
 2. Relay publish xong rồi crash trước khi đánh dấu published_at.

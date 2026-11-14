@@ -3,14 +3,14 @@ layout: home
 title: Backend Handbook
 hero:
   name: Backend Handbook
-  text: 14 cuốn học backend bằng tiếng Việt
-  tagline: Từ system design, database, kiến trúc code đến bảo mật, triển khai an toàn và AI engineering. Có lab chạy hoàn toàn trong Docker, thông tin chốt vào 11/2026.
+  text: 14 books for learning backend engineering
+  tagline: From system design, databases and code architecture to security, safe deployment and AI engineering. Chapters are written in Vietnamese, labs run entirely in Docker with TypeScript and Go, and facts are checked as of 11/2026.
   actions:
     - theme: brand
-      text: Lộ trình đọc
+      text: Reading roadmap
       link: /roadmap
     - theme: alt
-      text: Bắt đầu với System Design
+      text: Start with System Design
       link: /books/system-design/
     - theme: alt
       text: GitHub
@@ -25,6 +25,6 @@ hero:
 <BookCards :stage="3" />
 <BookCards :stage="4" />
 
-<p class="home-roadmap-link">Không chắc đọc cuốn nào trước? Xem <a href="/backend-handbook/roadmap">Lộ trình đọc</a>, kèm đường tắt theo mục tiêu.</p>
+<p class="home-roadmap-link">Not sure where to start? See the <a href="/backend-handbook/roadmap">reading roadmap</a>, including shortcuts by goal.</p>
 
 </div>

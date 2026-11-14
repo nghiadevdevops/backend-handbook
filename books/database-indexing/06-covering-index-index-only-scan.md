@@ -1,12 +1,12 @@
-# Chương 6. Covering index và Index-Only Scan: query không chạm bảng
+# Chapter 6. Covering Indexes and Index-Only Scans: Queries That Never Touch the Table
 
-## 6.1 Ý tưởng
+## 6.1 The idea
 
 Thông thường, tra index xong còn phải nhảy sang bảng để lấy các cột khác. Nếu **mọi cột query cần** (trong `SELECT`, `WHERE`, `ORDER BY`) đều nằm sẵn trong index, database có thể trả lời chỉ bằng index. Index khi đó gọi là **covering index** (index bao phủ query).
 
 Nhưng PostgreSQL và MySQL InnoDB thực hiện ý tưởng này khác nhau đáng kể, và đây là chỗ nhiều tài liệu nói sai.
 
-## 6.2 PostgreSQL: Index-Only Scan phụ thuộc visibility map
+## 6.2 PostgreSQL: Index-Only Scan depends on the visibility map
 
 Index của PostgreSQL **không chứa thông tin MVCC** (dòng này có nhìn thấy được với transaction hiện tại hay không). Muốn biết, thường phải đọc heap. Để tránh, PostgreSQL giữ **visibility map**: mỗi page heap có một bit "all-visible" (mọi dòng trong page đều nhìn thấy được với mọi transaction). `VACUUM` là thứ bật bit này. Plan `Index Only Scan` chỉ đọc heap cho các page **chưa** all-visible, và `Heap Fetches` cho biết số lần phải đọc.
 
@@ -41,7 +41,7 @@ Cùng là `Index Only Scan` nhưng `Heap Fetches: 4` nghĩa là các page vừa 
 - Cột `INCLUDE` không nằm trong sort key, không giúp `WHERE`/`ORDER BY` theo cột đó, nhưng giúp index-only scan và không bị giới hạn kiểu so sánh.
 - Có thể dùng cùng `UNIQUE`: `CREATE UNIQUE INDEX users_email_incl ON users(email) INCLUDE (name);` chỉ áp constraint unique trên `email`.
 
-## 6.3 MySQL InnoDB: covering index theo kiểu khác
+## 6.3 MySQL InnoDB: covering indexes work differently
 
 Secondary index của InnoDB luôn chứa **giá trị primary key** (chương 1), nên một query chỉ cần cột trong index cộng với PK luôn được "covered". InnoDB cũng có MVCC nhưng dùng cơ chế khác (undo log và thông tin transaction ghi ở mức page của secondary index), **không có visibility map** và không có VACUUM kiểu PostgreSQL (purge thread chạy nền). Với page secondary index vừa bị sửa gần đây, InnoDB có thể vẫn phải ghé B-tree của primary key để kiểm tra visibility; đây là chi tiết triển khai tôi không đo trong sách này.
 
@@ -54,7 +54,7 @@ EXPLAIN SELECT user_id, amount FROM orders WHERE user_id = 1234;
 
 Với MySQL, cột thêm vào cuối **là một phần của key** (có kích thước, có thể được dùng để sắp xếp tiếp), khác với `INCLUDE` của PostgreSQL. `EXPLAIN FORMAT=TRADITIONAL` hiển thị `Using index` trong `Extra`.
 
-## 6.4 Khi nào đáng tạo covering index
+## 6.4 When a covering index is worth creating
 
 - Query rất nóng, chỉ cần vài cột, và đọc nhiều dòng (ví dụ danh sách trang, aggregate đếm).
 - Không đáng nếu thêm cột lớn (chuỗi dài) vì index phình, mọi lần ghi đắt hơn.
@@ -62,14 +62,14 @@ Với MySQL, cột thêm vào cuối **là một phần của key** (có kích t
 
 So sánh trên bảng thử: query khoảng `user_id BETWEEN 1 AND 20000` (33.335 dòng) chạy `Index Only Scan` với `Heap Fetches: 22` trong ~5 ms sau khi bảng được VACUUM; chỉ 22 trong 33.335 mục phải đọc heap.
 
-## 6.5 Cạm bẫy thường gặp
+## 6.5 Common pitfalls
 
 - Tưởng "Index Only Scan" nghĩa là không bao giờ đọc heap trên PostgreSQL: sai, phụ thuộc visibility map; xem `Heap Fetches`.
 - Tưởng `INCLUDE` giúp lọc/sắp xếp theo cột được include: không.
 - Thêm cột lớn vào covering index khiến index phình và có thể vượt giới hạn kích thước (chương 7).
 - Nghĩ MySQL cần VACUUM để covering index hoạt động: không (nhưng cũng đừng nghĩ nó miễn phí tuyệt đối).
 
-## 6.6 Tóm tắt
+## 6.6 Summary
 
 - Covering index trả lời query chỉ từ index, bỏ công đọc bảng.
 - PostgreSQL: `Index Only Scan` vẫn đọc heap với page chưa all-visible; phụ thuộc `VACUUM` và `Heap Fetches`.
@@ -77,7 +77,7 @@ So sánh trên bảng thử: query khoảng `user_id BETWEEN 1 AND 20000` (33.33
 - InnoDB: secondary index chứa sẵn PK nên query theo PK + cột index luôn được covered, không cần VACUUM.
 - Chỉ cover các query nóng và cột nhỏ.
 
-## 6.7 Tự kiểm tra
+## 6.7 Self-check
 
 1. Visibility map để làm gì và ai cập nhật nó?
 2. `Index Only Scan ... Heap Fetches: 4` nghĩa là gì?
@@ -85,7 +85,7 @@ So sánh trên bảng thử: query khoảng `user_id BETWEEN 1 AND 20000` (33.33
 4. Vì sao covering index của InnoDB không cần VACUUM để hoạt động?
 5. Khi nào không nên tạo covering index?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Đánh dấu page heap mà mọi dòng đều hiển thị với mọi transaction, cho phép bỏ qua đọc heap; `VACUUM` (và autovacuum) cập nhật.
 2. Dù là index-only scan, 4 lần phải đọc heap vì page chưa all-visible (ví dụ vừa UPDATE).

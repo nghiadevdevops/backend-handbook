@@ -1,69 +1,71 @@
-# Triển khai an toàn: container, CI/CD và zero-downtime
+# Safe Deployment
 
-Bản học tiếng Việt cho developer backend (Go, Node.js/TypeScript, PostgreSQL) muốn đưa code lên production mà không làm sập hệ thống. Kiểm tra thực tế ngày 08/11/2026.
+A study guide (written in Vietnamese) for backend developers (Go, Node.js/TypeScript, PostgreSQL) who want to ship code to production without taking the system down. Checked in practice on 2026-11-08.
 
-## Ai nên đọc, cần biết gì
+## Who this book is for
 
-- Đã viết ứng dụng web (Go hoặc Node.js/TypeScript), biết dùng Git và dòng lệnh.
-- Biết SQL cơ bản. Chưa cần biết Docker hay Kubernetes.
-- Cần Docker trên máy để chạy lab (không cài gì khác).
+- You have already written a web application (Go or Node.js/TypeScript) and know how to use Git and the command line.
+- You know basic SQL. No Docker or Kubernetes knowledge is required yet.
+- You need Docker on your machine to run the labs (nothing else to install).
 
-## Mục lục
+## Contents
 
-1. [Container căn bản cho developer](01-container-basics.md)
-2. [Dockerfile production cho Go và Node.js, cấu hình và secrets](02-production-dockerfiles-go-nodejs.md)
-3. [Docker Compose cho dev và test](03-docker-compose.md)
-4. [CI: pipeline và GitHub Actions](04-ci-github-actions.md)
-5. [Chiến lược release: rolling, blue-green, canary, shadow](05-release-strategies.md)
-6. [Feature flag, dark launch, kill switch](06-feature-flag.md)
-7. [Migration DB không downtime](07-zero-downtime-migrations.md)
-8. [Kubernetes căn bản cho developer](08-kubernetes-basics.md)
-9. [GitOps, Helm và Kustomize](09-gitops-helm-kustomize.md)
-10. [Supply chain tối thiểu: scan, SBOM, sign image](10-minimal-supply-chain-security.md)
-11. [Checklist trước deploy và quy trình rollback](11-checklist-and-rollback.md)
+1. [Chapter 1. Container Basics for Developers](01-container-basics.md)
+2. [Chapter 2. Production Dockerfiles for Go and Node.js, Configuration and Secrets](02-production-dockerfiles-go-nodejs.md)
+3. [Chapter 3. Docker Compose for Dev and Test Environments](03-docker-compose.md)
+4. [Chapter 4. CI: Pipelines and GitHub Actions](04-ci-github-actions.md)
+5. [Chapter 5. Release Strategies: Rolling, Blue-Green, Canary, Shadow](05-release-strategies.md)
+6. [Chapter 6. Feature Flags, Dark Launches, Kill Switches](06-feature-flag.md)
+7. [Chapter 7. Zero-Downtime DB Migrations](07-zero-downtime-migrations.md)
+8. [Chapter 8. Kubernetes Basics for Developers](08-kubernetes-basics.md)
+9. [Chapter 9. GitOps, Helm and Kustomize](09-gitops-helm-kustomize.md)
+10. [Chapter 10. Minimal Supply Chain: Scan, SBOM, Sign Images](10-minimal-supply-chain-security.md)
+11. [Chapter 11. Pre-Deploy Checklist and Rollback Process](11-checklist-and-rollback.md)
 
-Ví dụ xuyên suốt: hai service nhỏ `deploy-demo` viết bằng Go và Node.js/TypeScript (endpoint `/healthz`, graceful shutdown) và bảng `orders(id, customer_id, total, status, created_at)`; migration `total` (int) sang `total_cents` (bigint).
+The running example: two small `deploy-demo` services written in Go and Node.js/TypeScript (a `/healthz` endpoint, graceful shutdown) and an `orders(id, customer_id, total, status, created_at)` table; a migration from `total` (int) to `total_cents` (bigint).
 
-## Phiên bản đã dùng hoặc đã kiểm tra
+## Versions
 
-| Thành phần | Phiên bản | Cách kiểm tra |
+Used or checked in practice.
+
+| Component | Version | How verified |
 |---|---|---|
-| Go | 1.27.3 (`golang:1.27-alpine`) | chạy thật |
-| Node.js | 26.13.0 LTS (`node:26-slim`, `node:lts-slim`) | chạy thật |
-| TypeScript, `@types/node` | 7.0.2, 26.6.6 | chạy thật (`npm ci`, `tsc`) |
-| `gcr.io/distroless/static-debian13:nonroot` | Debian 13.7 | chạy thật |
-| Trivy | 0.76.0 | chạy thật |
-| PostgreSQL | 18.6 (`postgres:latest`) | chạy thật |
-| hadolint | 2.15.1 | chạy thật |
-| actionlint | 1.7.12 | chạy thật |
-| kubeconform | v0.8.0, schema Kubernetes 1.37.0 | chạy thật |
-| Kubernetes | 1.37 (1.37.1) mới nhất | kubernetes.io/releases (không chạy cluster) |
+| Go | 1.27.3 (`golang:1.27-alpine`) | actually run |
+| Node.js | 26.13.0 LTS (`node:26-slim`, `node:lts-slim`) | actually run |
+| TypeScript, `@types/node` | 7.0.2, 26.6.6 | actually run (`npm ci`, `tsc`) |
+| `gcr.io/distroless/static-debian13:nonroot` | Debian 13.7 | actually run |
+| Trivy | 0.76.0 | actually run |
+| PostgreSQL | 18.6 (`postgres:latest`) | actually run |
+| hadolint | 2.15.1 | actually run |
+| actionlint | 1.7.12 | actually run |
+| kubeconform | v0.8.0, Kubernetes schema 1.37.0 | actually run |
+| Kubernetes | 1.37 (1.37.1) latest | kubernetes.io/releases (no cluster run) |
 | `actions/checkout` | v7.0.1 (SHA 3d3c42e5...) | GitHub releases, `git ls-remote` |
-| Argo CD / Flux / Helm | v3.6.1 / v2.10.0 / v4.3.1 | trang release GitHub, chưa chạy |
-| cosign | v3.1.4 | trang release GitHub, chưa chạy |
+| Argo CD / Flux / Helm | v3.6.1 / v2.10.0 / v4.3.1 | GitHub release pages, not run |
+| cosign | v3.1.4 | GitHub release page, not run |
 
-Chưa xác minh: phiên bản SDK Go và Node.js của OpenFeature, số phiên bản mới nhất của Gateway API (các nguồn mâu thuẫn).
+Not verified: the Go and Node.js SDK versions of OpenFeature, and the latest Gateway API version number (sources contradict each other).
 
-## Lab
+## Running the labs
 
-Mọi thứ chạy trong Docker; container, network, volume đều mang tiền tố `bookcheck-deploygo-`. Không map port ra host.
+Everything runs in Docker; containers, networks and volumes all carry the prefix `bookcheck-deploygo-`. No ports are mapped to the host.
 
 ```
 lab/
-  go-app/                 service Go (/healthz, graceful shutdown) + Dockerfile multi-stage distroless
-  node-app/               service Node.js/TypeScript tương tự + Dockerfile multi-stage, ci.sh
-  bad/                    Dockerfile tệ (Go, Node) cho hadolint bắt; bản "ngây thơ" để so kích thước
-  compose.yaml            dev/test: app (Go), web (Node), PostgreSQL 18 (profile test)
-  shutdown-test.sh        chứng minh graceful shutdown: SIGTERM giữa lúc có request đang chạy
-  .github/workflows/      ci.yml (sạch) và bad.yml (actionlint bắt lỗi)
-  k8s/                    app.yaml (hợp lệ), broken.yaml (cố tình sai)
-  migration/              run.sh + 01-seed.sql: lab lock PostgreSQL
+  go-app/                 Go service (/healthz, graceful shutdown) + multi-stage distroless Dockerfile
+  node-app/               similar Node.js/TypeScript service + multi-stage Dockerfile, ci.sh
+  bad/                    bad Dockerfiles (Go, Node) for hadolint to catch; "naive" versions for size comparison
+  compose.yaml            dev/test: app (Go), web (Node), PostgreSQL 18 (test profile)
+  shutdown-test.sh        proves graceful shutdown: SIGTERM while a request is in flight
+  .github/workflows/      ci.yml (clean) and bad.yml (actionlint catches the errors)
+  k8s/                    app.yaml (valid), broken.yaml (deliberately wrong)
+  migration/              run.sh + 01-seed.sql: PostgreSQL lock lab
 ```
 
-Lệnh chạy lại (từ thư mục `lab/`; trên Git Bash Windows thêm `export MSYS_NO_PATHCONV=1`):
+Re-run commands (from the `lab/` directory; on Git Bash for Windows add `export MSYS_NO_PATHCONV=1`):
 
 ```bash
-# 1. Test và build (chương 1, 2)
+# 1. Test and build (chapters 1, 2)
 docker run --rm -v "$PWD/go-app:/src" -w /src golang:1.27-alpine sh -c "go vet ./... && go test ./..."
 docker run --rm -v "$PWD/node-app:/app" node:26-slim sh /app/ci.sh        # npm ci, tsc, node --test
 docker build -t bookcheck-deploygo-go:1.0 --build-arg APP_VERSION=1.0 go-app
@@ -73,16 +75,16 @@ docker build -t bookcheck-deploygo-naive-node:1.0 -f bad/Dockerfile.naive-node n
 docker images --filter 'reference=bookcheck-deploygo-*'
 docker network create bookcheck-deploygo-net
 docker run -d --name bookcheck-deploygo-go --network bookcheck-deploygo-net bookcheck-deploygo-go:1.0
-docker inspect -f '{{.State.Health.Status}}' bookcheck-deploygo-go      # healthy sau ~15 s
+docker inspect -f '{{.State.Health.Status}}' bookcheck-deploygo-go      # healthy after ~15 s
 docker rm -f bookcheck-deploygo-go
 
-# 2. Graceful shutdown (chương 2): SIGTERM trong lúc request 6 s đang chạy
+# 2. Graceful shutdown (chapter 2): SIGTERM while a 6 s request is in flight
 bash shutdown-test.sh bookcheck-deploygo-go:1.0
 bash shutdown-test.sh bookcheck-deploygo-node:1.0
-bash shutdown-test.sh bookcheck-deploygo-naive-node:1.0                  # đối chứng npm start: request bị cắt
+bash shutdown-test.sh bookcheck-deploygo-naive-node:1.0                  # control with npm start: the request is cut off
 docker network rm bookcheck-deploygo-net
 
-# 3. Lint và scan
+# 3. Lint and scan
 docker run --rm -i hadolint/hadolint:latest-alpine < go-app/Dockerfile
 docker run --rm -i hadolint/hadolint:latest-alpine < node-app/Dockerfile
 docker run --rm -i hadolint/hadolint:latest-alpine < bad/Dockerfile
@@ -94,31 +96,31 @@ docker run --rm -v "$PWD/k8s:/k:ro" ghcr.io/yannh/kubeconform:latest -strict -su
   -kubernetes-version 1.37.0 -schema-location default \
   -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json' /k/app.yaml
 
-# 4. Compose (chương 3)
+# 4. Compose (chapter 3)
 docker compose up -d --build && docker compose --profile test run --rm tests
 docker compose --profile test down -v
 
-# 5. Lab lock PostgreSQL (chương 7); tự xóa container
-bash migration/run.sh                          # đầy đủ (vài phút, ~2 triệu dòng)
-ROWS=300000 ONLY=EFG bash migration/run.sh     # chỉ phần E-G, nhẹ
+# 5. PostgreSQL lock lab (chapter 7); removes its own containers
+bash migration/run.sh                          # full run (a few minutes, ~2 million rows)
+ROWS=300000 ONLY=EFG bash migration/run.sh     # parts E-G only, lighter
 ```
 
-Tóm tắt kết quả đã chạy:
+Summary of the results from the runs:
 
-- Image: Go multi-stage `distroless/static` **17 MB** (bản ngây thơ `golang` **1,44 GB**); Node `node:26-slim` multi-stage **353 MB** (bản ngây thơ `node:26` **1,85 GB**). Cả hai `healthy`, chạy non-root (uid 65532 và 1000).
-- Graceful shutdown: SIGTERM giữa lúc request 6 s đang chạy, cả Go và Node đều trả `200` rồi thoát exit 0; bản `CMD ["npm", "start"]` làm request bị cắt (`UND_ERR_SOCKET`).
-- hadolint: hai Dockerfile tốt pass; Dockerfile xấu Go có 5 warning (DL3007, DL3008, DL3009, DL3015, DL3003), bản Node thêm DL3025.
-- Trivy 0.76.0: image Go 0 HIGH/CRITICAL; image Node 48 HIGH (package Debian) + 6 HIGH (package npm trong chính `npm`), 0 CRITICAL.
-- actionlint: `ci.yml` (Go + Node) sạch; `bad.yml` có 2 lỗi (input không tin cậy, cú pháp biểu thức).
-- kubeconform: `app.yaml` 7/7 hợp lệ; `broken.yaml` bị bắt (sai kiểu).
-- PostgreSQL 18.6: `CREATE INDEX` thường chặn INSERT 5,2 s; `CONCURRENTLY` không chờ lock (167 ms lớn nhất do resource contention); `ALTER COLUMN TYPE bigint` chặn INSERT 20,1 s dưới `AccessExclusiveLock` (số liệu lab migration giữ nguyên từ lần chạy trước, chỉ đổi tiền tố tên container).
-- Chưa chạy: cluster Kubernetes thật (manifest chỉ được validate), MySQL online DDL, cosign, Argo CD/Flux/Helm, blue-green thật.
+- Images: Go multi-stage `distroless/static` **17 MB** (naive `golang` version **1.44 GB**); Node `node:26-slim` multi-stage **353 MB** (naive `node:26` version **1.85 GB**). Both are `healthy` and run as non-root (uid 65532 and 1000).
+- Graceful shutdown: SIGTERM while a 6 s request is in flight; both Go and Node return `200` and then exit with code 0; the `CMD ["npm", "start"]` version cuts the request off (`UND_ERR_SOCKET`).
+- hadolint: the two good Dockerfiles pass; the bad Go Dockerfile has 5 warnings (DL3007, DL3008, DL3009, DL3015, DL3003), the Node version adds DL3025.
+- Trivy 0.76.0: the Go image has 0 HIGH/CRITICAL; the Node image has 48 HIGH (Debian packages) + 6 HIGH (npm packages inside `npm` itself), 0 CRITICAL.
+- actionlint: `ci.yml` (Go + Node) is clean; `bad.yml` has 2 errors (untrusted input, expression syntax).
+- kubeconform: `app.yaml` 7/7 valid; `broken.yaml` is caught (wrong type).
+- PostgreSQL 18.6: a plain `CREATE INDEX` blocks INSERT for 5.2 s; `CONCURRENTLY` does not wait on a lock (167 ms worst case due to resource contention); `ALTER COLUMN TYPE bigint` blocks INSERT for 20.1 s under `AccessExclusiveLock` (the migration lab figures are kept from the earlier run; only the container name prefix changed).
+- Not run: a real Kubernetes cluster (manifests were only validated), MySQL online DDL, cosign, Argo CD/Flux/Helm, a real blue-green.
 
-## Đọc thêm
+## Further reading
 
-1. Jez Humble, David Farley, *Continuous Delivery* (Addison-Wesley, 2010): nền tảng của deployment pipeline.
-2. Nicole Forsgren, Jez Humble, Gene Kim, *Accelerate* (IT Revolution, 2018): bốn metric DORA và bằng chứng thống kê.
-3. Tài liệu Kubernetes: kubernetes.io/docs (Concepts, Workloads, Configure Liveness, Readiness and Startup Probes).
-4. Docker docs: "Building best practices" và "Multi-stage builds" (docs.docker.com).
-5. GitHub Docs: "Security hardening for GitHub Actions" và "OpenID Connect".
-6. Tài liệu PostgreSQL: "Explicit Locking" (chương 13) và `CREATE INDEX` (mục Building Indexes Concurrently); README của `strong_migrations` (Andrew Kane) về các thao tác migration nguy hiểm.
+1. Jez Humble, David Farley, *Continuous Delivery* (Addison-Wesley, 2010): the foundation of the deployment pipeline.
+2. Nicole Forsgren, Jez Humble, Gene Kim, *Accelerate* (IT Revolution, 2018): the four DORA metrics and the statistical evidence.
+3. Kubernetes docs: kubernetes.io/docs (Concepts, Workloads, Configure Liveness, Readiness and Startup Probes).
+4. Docker docs: "Building best practices" and "Multi-stage builds" (docs.docker.com).
+5. GitHub Docs: "Security hardening for GitHub Actions" and "OpenID Connect".
+6. PostgreSQL docs: "Explicit Locking" (chapter 13) and `CREATE INDEX` (section Building Indexes Concurrently); the README of `strong_migrations` (Andrew Kane) on dangerous migration operations.

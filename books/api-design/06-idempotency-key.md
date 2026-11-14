@@ -1,10 +1,10 @@
-# Chương 6. Idempotency Key và retry an toàn
+# Chapter 6. Idempotency Key and safe retries
 
-## 1. Vấn đề
+## 1. The problem
 
 Client gửi `POST /orders`, server tạo đơn rồi mạng đứt trước khi response về. Client không biết đơn đã tạo chưa. Retry thì có thể tạo đơn thứ hai (khách bị trừ tiền hai lần). Không retry thì có thể mất đơn. `POST` không idempotent nên proxy/SDK không tự retry được. Giải pháp: client sinh một **Idempotency-Key**, server nhớ kết quả theo key và trả lại đúng kết quả đó khi gặp lại.
 
-## 2. Standardization status (kiểm tra 11/2026)
+## 2. Standardization status (checked 11/2026)
 
 Header `Idempotency-Key` đang được chuẩn hóa trong **draft-ietf-httpapi-idempotency-key-header**. Phiên bản mới nhất khi viết: **-08 (22/10/2026)**, status *Active Internet-Draft*, Standards Track, hết hạn 25/4/2027. **Chưa là RFC**: nội dung có thể đổi; nhiều nhà cung cấp (Stripe và các PSP khác) đã dùng header cùng tên từ trước với biến thể riêng.
 
@@ -18,7 +18,7 @@ Header `Idempotency-Key` đang được chuẩn hóa trong **draft-ietf-httpapi-
 
 Lab cài đúng bộ ba 400/422/409, nên chạy lại được khi draft thành RFC (cần rà lại chi tiết cú pháp).
 
-## 3. Algorithm phía server
+## 3. Server-side algorithm
 
 ```mermaid
 flowchart TD
@@ -42,7 +42,7 @@ flowchart TD
 5. Lỗi validation (4xx do client): nhiều hệ thống *không lưu*, cho phép sửa và gửi lại cùng key; lỗi 5xx tùy chính sách. Lab nhả key khi validation lỗi.
 6. Transaction: ghi business record và cập nhật idempotency record trong **cùng một transaction DB** nếu có thể; nếu có side effect ra ngoài (gọi payment gateway) thì cần truyền key đó xuống cho hệ thống ngoài.
 
-## 4. Lab: chạy thật
+## 4. Lab: run it for real
 
 Server `lab/api/index.ts` (Node.js 26.13.0, Fastify 5.12.8, một process) trong container `bookcheck-apits-server`, gọi bằng `curl` từ các container `curlimages/curl` dùng một lần, cùng network `bookcheck-apits-net`, không map port ra host. Kết quả đầy đủ trong `lab/transcript.md`. Đoạn chính (header do Node viết thường, đúng như output thật):
 
@@ -120,7 +120,7 @@ Và phần ETag/If-Match (chương 2): thiếu `If-Match` ra `428`, đúng ra `2
 
 Lưu ý: khi gửi hai request đồng thời cùng key (request đầu có `X-Demo-Delay: 2` giữ ở state `processing`), request thứ hai nhận `409 request-in-progress`.
 
-## 5. Retry an toàn phía client
+## 5. Safe retries on the client
 
 - Sinh key **một lần cho mỗi thao tác logic** và dùng lại ở mọi lần retry; key mới = thao tác mới.
 - Retry khi: lỗi mạng/timeout, `409` (sau `Retry-After`), `429`, `502/503/504`. Không retry nguyên văn với 4xx khác.
@@ -129,13 +129,13 @@ Lưu ý: khi gửi hai request đồng thời cùng key (request đầu có `X-D
 - Có giới hạn số lần và tổng thời gian; sau đó báo lỗi rõ ràng.
 - Với `PUT`/`DELETE` idempotent bản chất không cần key. Với `PATCH` dùng `If-Match` làm điều kiện (chương 2).
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Tốn storage và latency thêm một lần ghi; đổi lại an toàn thanh toán/tạo resource.
 - Cách khác: natural key (unique `(customer_id, client_order_ref)`) hoặc `PUT /orders/{client_generated_id}` (client sinh ID) cho idempotency "miễn phí" không cần bảng key. Dùng khi nghiệp vụ cho phép.
 - Không cần cho thao tác đã idempotent.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Check-then-act không atomic gây đơn trùng khi concurrent retry.
 - Không so fingerprint: client lỡ dùng lại key cho đơn khác, nhận về đơn cũ trong im lặng.
@@ -144,21 +144,21 @@ Lưu ý: khi gửi hai request đồng thời cùng key (request đầu có `X-D
 - Lưu response nhưng side effect (email, gọi PSP) đã chạy hai lần vì crash giữa chừng; cần cơ chế recovery hoặc truyền key xuống hệ thống ngoài.
 - Dùng cùng key cho các endpoint khác nhau; scope nên gồm cả method + path.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - `Idempotency-Key` cho POST: server lưu kết quả theo key, phát lại khi trùng.
 - Draft IETF -08 (10/2026) vẫn chưa là RFC; bộ mã 400 thiếu, 422 sai payload, 409 đang xử lý.
 - Phần khó nhất: atomic reservation, fingerprint, TTL, tenant scope.
 - Client retry cùng key, backoff có jitter, tôn trọng `Retry-After`.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao POST không tự retry được?
 2. Hai concurrent request cùng key: server làm gì?
 3. Key dùng lại với body khác trả mã gì và vì sao cần kiểm tra?
 4. Có cách nào idempotent mà không cần bảng key?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. POST không idempotent; retry có thể lặp side effect.
 2. Request đầu reserve key atomically; request sau nhận 409 (đang xử lý) hoặc phát lại kết quả nếu xong.

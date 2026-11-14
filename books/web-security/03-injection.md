@@ -1,12 +1,12 @@
-# Chương 3. Injection
+# Chapter 3. Injection
 
-## 1. Vấn đề
+## 1. The problem
 
 Injection xảy ra khi dữ liệu không tin cậy bị **trộn vào statement/query** và interpreter (SQL engine, shell, template engine...) hiểu nó là *mã* thay vì *dữ liệu*. Nguyên nhân gốc luôn giống nhau: ghép chuỗi giữa kênh điều khiển và kênh dữ liệu. Cách chữa gốc cũng giống nhau: **tách hai kênh** (parameterization), không cố "lọc ký tự xấu".
 
 ## 2. SQL injection
 
-### 2.1 Cơ chế
+### 2.1 Mechanics
 
 Code lỗi (TypeScript + `pg`; trích từ `lab/app/server.ts`, endpoint `/vuln/books`):
 
@@ -24,7 +24,7 @@ $ curl -G http://bookcheck-sec-app:8080/vuln/books --data-urlencode "q=zzz' UNIO
 
 Biến thể: boolean-based (đúng/sai qua hành vi), time-based (`pg_sleep`), error-based, second-order (dữ liệu độc được lưu rồi mới dùng trong câu SQL sau). Lab cũng cho thấy một dấu nháy đơn trả về `{"error":"unterminated quoted string at or near \"'\""}`: thông báo lỗi của PostgreSQL đi thẳng ra client, giúp attacker dò schema.
 
-### 2.2 Cách chữa: parameterized query
+### 2.2 The fix: parameterized queries
 
 Trích từ `lab/app/server.ts`, endpoint `/fixed/books`:
 
@@ -37,7 +37,7 @@ const { rows } = await pool.query(
 
 Với `pg`, khi có mảng giá trị thì câu lệnh chạy qua extended query protocol của PostgreSQL: text SQL (có `$1`) và giá trị được gửi riêng, server không bao giờ parse giá trị như SQL. Cùng payload UNION ở trên trả về `[]` (bị coi là chuỗi tìm kiếm). Lưu ý `$1` chỉ thay cho **giá trị**, không thay cho tên cột, tên bảng hay `ASC/DESC`. Template literal của JavaScript (dấu backtick và `${}`) là cách ghép chuỗi, không phải parameterization: `pool.query(\`... ${q}\`)` vẫn lỗi.
 
-### 2.3 ORM và query builder vẫn có thể bị
+### 2.3 ORMs and query builders can still be vulnerable
 
 Knex, Prisma, Drizzle, Kysely, Sequelize đều bind giá trị tự động, nhưng những chỗ sau **không** được bind:
 
@@ -61,7 +61,7 @@ db("books").orderBy(col);
 
 Mẹo: tìm nhanh các điểm rủi ro bằng `grep -rnE "\.raw\(|queryRawUnsafe|\.query\(\`|sequelize\.query" src/`.
 
-### 2.4 Phòng thủ bổ sung
+### 2.4 Additional defenses
 
 - DB user theo least privilege (chương 1).
 - Không trả lỗi SQL chi tiết ra client (chương 11): bắt lỗi, log phía server, trả `{"error":"internal error"}`. Express 5 chuyển lỗi của handler `async` (promise bị reject) vào error-handling middleware, nên đặt một handler chung cuối app.
@@ -104,7 +104,7 @@ const Login = z.strictObject({ email: z.email(), password: z.string().min(1).max
 const input = Login.parse(req.body);   // {"$ne":"x"} bị từ chối vì không phải string
 ```
 
-## 5. Template injection (SSTI) và các injection khác
+## 5. Template injection (SSTI) and other injections
 
 **Server-Side Template Injection**: khi input được **compile như template** thay vì truyền vào như biến.
 
@@ -119,7 +119,7 @@ Quy tắc: **không bao giờ đưa input vào chuỗi template**. Nếu cần c
 
 Các họ injection khác cùng cơ chế: LDAP, XPath, header injection (CRLF vào header HTTP/email), log injection (xuống dòng giả log, chương 13), expression language, `eval`/deserialization (chương 10). Khi thấy tiếng "ghép chuỗi vào thứ có ngữ pháp", hãy nghĩ ngay đến injection.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 | Cách | Ưu | Nhược |
 |---|---|---|
@@ -129,7 +129,7 @@ Các họ injection khác cùng cơ chế: LDAP, XPath, header injection (CRLF v
 | Stored procedure | Tách thêm một layer | Vẫn bị nếu bên trong ghép chuỗi |
 | WAF | Giảm nhiễu | Có thể bị bypass; không phải fix gốc |
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Tin rằng "dùng ORM nên an toàn" rồi viết `raw(...)` hay `$queryRawUnsafe` với template literal.
 - Dùng template literal trong `pool.query(...)` vì trông giống "tham số".
@@ -138,21 +138,21 @@ Các họ injection khác cùng cơ chế: LDAP, XPath, header injection (CRLF v
 - Chỉ kiểm tra input ở form, quên API/queue/import CSV.
 - Quên second-order.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Injection = trộn dữ liệu vào kênh điều khiển; chữa bằng tách kênh.
 - SQL: luôn parameterize (`$1` với `pg`); column name/sort direction thì allowlist; ORM vẫn có `raw`/`unsafe`.
 - Command: tránh shell, dùng `execFile` với array argument. NoSQL: schema ép kiểu scalar. SSTI: không compile input.
 - Kết hợp DB least privilege để giảm thiệt hại.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao `orderBy(req.query.sort)` nguy hiểm dù query builder dùng prepared statement?
 2. `db.raw(\`a = ${x}\`)` và `db.raw("a = ?", [x])` khác nhau thế nào?
 3. Nêu hai cách tránh command injection tốt hơn việc tự escape chuỗi cho `exec`.
 4. Tại sao `{"password":{"$ne":"x"}}` làm bypass login MongoDB, và schema nào chặn được?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Column name không thể bind parameter; chuỗi người dùng đi thẳng vào câu SQL. Phải allowlist.
 2. Cái đầu nối chuỗi (injectable); cái sau bind `x` làm parameter.

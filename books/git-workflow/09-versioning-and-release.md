@@ -1,6 +1,6 @@
-# Chương 9. Versioning và release
+# Chapter 9. Versioning and Release
 
-## Vấn đề
+## The problem
 
 "Bản nào đang chạy production? Fix này nằm trong release nào? Nâng từ 1.4 lên 1.5 có phá client không?" Release có kỷ luật trả lời được cả ba câu bằng version, tag và changelog.
 
@@ -27,7 +27,7 @@ git tag -v v1.5.0                       # xác minh chữ ký
 
 Dùng annotated (hoặc signed) tag cho release; lightweight tag chỉ cho đánh dấu tạm. Đừng di chuyển tag đã publish. Có thể bảo vệ tag `v*` bằng ruleset (cấm xóa, cấm cập nhật).
 
-## Changelog tự động
+## Automated changelogs
 
 Có hai họ công cụ, cả hai đọc Conventional Commits:
 
@@ -42,7 +42,7 @@ Cả bốn đều đang được phát triển tích cực theo ngày release �
 
 **Chọn nhanh**: muốn không động tay, commit message là nguồn sự thật: semantic-release hoặc release-please (release-please cho phép con người xem và chỉnh PR trước khi release, an toàn hơn). Muốn tác giả PR chủ động mô tả bump, nhất là monorepo nhiều package: changesets.
 
-## Release cho TypeScript/npm với changesets
+## Releasing TypeScript/npm with changesets
 
 ```sh
 npm i -D @changesets/cli
@@ -56,7 +56,7 @@ Trên CI dùng `changesets/action`: nó mở PR "Version Packages" khi có chang
 
 Với release-please, thêm file `release-please-config.json` và workflow dùng `googleapis/release-please-action`; PR release tự sinh từ commit `feat`/`fix`.
 
-## Release cho Go module
+## Releasing Go modules
 
 Go không có registry riêng: version của module chính là **git tag**.
 
@@ -79,7 +79,7 @@ changelog:
   use: github
 ```
 
-## Hotfix và cherry-pick
+## Hotfix and cherry-pick
 
 Trên trunk: fix vào `main` trước. Nếu bản đã phát hành khác `main` quá xa (hoặc `main` chứa feature chưa muốn phát hành), tạo `release/1.4` từ tag `v1.4.0`, rồi:
 
@@ -92,7 +92,7 @@ git push origin release/1.4 v1.4.1
 
 `-x` giữ dấu vết nguồn gốc, giúp kiểm tra bản fix đã vào những nhánh nào (`git branch --contains <hash>`, `git cherry -v`). Với Git Flow, hotfix tách từ `main` rồi merge cả vào `main` và `develop` (Chương 3). Quy tắc chung: không bao giờ để bản fix chỉ tồn tại ở một nhánh release mà không có ở `main`.
 
-## Cạm bẫy
+## Pitfalls
 
 - Quên `git push --tags`/`--follow-tags`: release trên máy bạn, không có trên remote.
 - Move/xóa tag đã publish: Go proxy và npm đã cache, người dùng thấy nội dung khác nhau.
@@ -100,21 +100,21 @@ git push origin release/1.4 v1.4.1
 - Dùng Conventional Commits nhưng PR title không theo chuẩn khiến release tool bỏ qua thay đổi.
 - Publish npm bằng token dài hạn lưu trong secret thay vì trusted publishing/provenance.
 
-## Tóm tắt
+## Summary
 
 - SemVer ánh xạ trực tiếp từ Conventional Commits; tag annotated hoặc signed cho release.
 - semantic-release và release-please tự động hóa từ commit; changesets từ file khai báo, hợp monorepo.
 - Go module: version = git tag `vX.Y.Z`, major ≥ 2 đổi path `/vN`, GoReleaser đóng gói và publish.
 - Hotfix: fix ở `main` trước, `cherry-pick -x` sang release branch, tag bản vá.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Commit `feat(api)!: remove v1` làm version đi từ 1.4.2 tới đâu?
 2. Vì sao không nên di chuyển tag đã push?
 3. Go module ở major v3 cần thay đổi gì?
 4. Lệnh nào ghi lại hash gốc khi cherry-pick?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. 2.0.0 (breaking change nên bump MAJOR, reset MINOR và PATCH).
 2. Người dùng, proxy (Go) hoặc registry đã cache bản cũ; cùng tên tag nhưng khác nội dung, mất tính tái lập.

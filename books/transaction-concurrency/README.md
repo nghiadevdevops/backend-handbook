@@ -1,70 +1,70 @@
-# Transaction, Isolation & Concurrency cho developer
+# Transactions & Concurrency
 
-Bản học bằng tiếng Việt về transaction, isolation level, MVCC, lock, deadlock và các mẫu chống race condition, viết cho developer backend (Go và TypeScript/Node.js, có biết SQL). Mọi kết luận về hành vi của PostgreSQL và MySQL đều có kịch bản hai session đồng thời trong `lab/` và **đã được chạy thật**.
+A study guide on transactions, isolation levels, MVCC, locks, deadlocks, and patterns against race conditions, written for backend developers (Go and TypeScript/Node.js, with SQL knowledge). The lecture text of the chapters is written in Vietnamese. Every conclusion about PostgreSQL and MySQL behavior has a two-concurrent-session scenario in `lab/` and **was actually run**.
 
-## Ai nên đọc
+## Who this book is for
 
-Developer backend đã đọc về index và system design, đang cần hiểu chắc: vì sao số dư lệch khi hai request chạy cùng lúc, `REPEATABLE READ` của PostgreSQL và MySQL khác nhau ra sao, khi nào dùng `SELECT ... FOR UPDATE`, version column hay SERIALIZABLE, và cách debug khi production kẹt lock.
+Backend developers who have already read about indexes and system design and now need a solid understanding of: why a balance goes wrong when two requests run at the same time, how `REPEATABLE READ` differs between PostgreSQL and MySQL, when to use `SELECT ... FOR UPDATE`, a version column, or SERIALIZABLE, and how to debug when production is stuck on locks.
 
-## Kiến thức cần có
+## Prerequisites
 
-- SQL cơ bản (SELECT, UPDATE, INSERT, JOIN, index).
-- Go hoặc TypeScript/Node.js ở mức viết được truy vấn bằng driver (`database/sql`, `pg`).
-- Docker cơ bản (chạy `docker compose`).
+- Basic SQL (SELECT, UPDATE, INSERT, JOIN, indexes).
+- Go or TypeScript/Node.js at the level of writing queries with a driver (`database/sql`, `pg`).
+- Basic Docker (running `docker compose`).
 
-## Mục lục
+## Contents
 
-1. [Transaction và ACID](01-transactions-and-acid.md)
-2. [Các anomaly khi chạy đồng thời](02-anomalies.md)
-3. [Isolation level: chuẩn SQL và thực tế (bảng đã chạy)](03-isolation-level.md)
-4. [MVCC: PostgreSQL và InnoDB](04-mvcc.md)
-5. [Lock: PostgreSQL và InnoDB](05-lock.md)
-6. [Deadlock, timeout và retry](06-deadlock.md)
-7. [Năm cách chống lost update](07-preventing-lost-updates.md)
-8. [Write skew và phantom: lịch trực, đặt phòng](08-write-skew-and-phantoms.md)
-9. [Job queue bằng SKIP LOCKED và NOWAIT](09-job-queue-skip-locked.md)
-10. [Transaction trong ứng dụng Go và TypeScript](10-transactions-in-go-and-typescript.md)
-11. [Vượt ra ngoài một database: 2PC, saga, outbox](11-beyond-a-single-database.md)
-12. [Checklist debug concurrency incident trên production](12-checklist-debug-production.md)
+1. [Transactions and ACID](01-transactions-and-acid.md)
+2. [Anomalies Under Concurrent Execution](02-anomalies.md)
+3. [Isolation Levels: the SQL Standard and Reality (with the table actually run)](03-isolation-level.md)
+4. [MVCC: PostgreSQL and InnoDB](04-mvcc.md)
+5. [Locks: PostgreSQL and InnoDB](05-lock.md)
+6. [Deadlocks, Timeouts and Retries](06-deadlock.md)
+7. [Five Ways to Prevent Lost Updates](07-preventing-lost-updates.md)
+8. [Write Skew and Phantoms: On-Call Schedules and Room Booking](08-write-skew-and-phantoms.md)
+9. [Job Queues with `FOR UPDATE SKIP LOCKED` and `NOWAIT`](09-job-queue-skip-locked.md)
+10. [Transactions in Go and TypeScript Applications](10-transactions-in-go-and-typescript.md)
+11. [Beyond a Single Database: 2PC, Saga, Outbox](11-beyond-a-single-database.md)
+12. [Checklist for Debugging Production Concurrency Incidents](12-checklist-debug-production.md)
 
-Ví dụ xuyên suốt: ví/tài khoản `acct(id, bal, ver)`, bác sĩ trực `doctors`, đặt phòng `booking(room, s, e)`, queue `jobs`.
+Running examples: wallet/account `acct(id, bal, ver)`, on-call doctors `doctors`, room booking `booking(room, s, e)`, queue `jobs`.
 
-## Phiên bản đã dùng (kiểm tra 11/2026)
+## Versions used (checked 2026-11)
 
-| Thành phần | Phiên bản | Ghi chú |
+| Component | Version | Notes |
 |---|---|---|
-| PostgreSQL | **18.6** (`SELECT version()`: `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu`) | image `postgres:latest`; trang versioning của PostgreSQL liệt kê 18.6 là minor hiện hành; PostgreSQL 19 mới ở giai đoạn RC |
-| MySQL | **9.7.4** (`SELECT VERSION()` trả `9.7.4`) | image `mysql:lts` lúc này trỏ tới 9.7 (nhánh LTS của dòng 9.x). Đáng chú ý: nhánh LTS 8.4 vẫn tồn tại (8.4.13), nhưng `mysql:lts` không còn là 8.4. Muốn dùng 8.4 hãy đổi image trong `compose.yaml` thành `mysql:8.4` |
-| Go | 1.27.3 (`golang:latest`) | chạy thật `lab/go` trong Docker |
+| PostgreSQL | **18.6** (`SELECT version()`: `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu`) | image `postgres:latest`; the PostgreSQL versioning page lists 18.6 as the current minor release; PostgreSQL 19 is only at the RC stage |
+| MySQL | **9.7.4** (`SELECT VERSION()` returns `9.7.4`) | image `mysql:lts` currently points to 9.7 (the LTS track of the 9.x line). Worth noting: the 8.4 LTS track still exists (8.4.13), but `mysql:lts` is no longer 8.4. To use 8.4, change the image in `compose.yaml` to `mysql:8.4` |
+| Go | 1.27.3 (`golang:latest`) | `lab/go` actually run in Docker |
 | pgx | v5.12.0 | `github.com/jackc/pgx/v5` |
 | go-sql-driver/mysql | v1.10.1 | |
-| Node.js | 26.13.0 (`node:lts`) | chạy thật `lab/ts` |
-| TypeScript, pg, drizzle-orm | 7.0.2, 8.23.1, 0.45.4 | `tsc --noEmit` sạch |
-| PgBouncer (đối chiếu docs) | trang Features, bản mới nhất ở mục News là 1.26.1 | không chạy trong lab |
+| Node.js | 26.13.0 (`node:lts`) | `lab/ts` actually run |
+| TypeScript, pg, drizzle-orm | 7.0.2, 8.23.1, 0.45.4 | `tsc --noEmit` clean |
+| PgBouncer (cross-checked against docs) | Features page; the latest release in the News section is 1.26.1 | not run in the lab |
 | Docker Engine | 29.8.1 | |
 
-Mặc định đã kiểm trong lab: PostgreSQL `READ COMMITTED`, MySQL `REPEATABLE READ`, `innodb_lock_wait_timeout = 50`, `innodb_deadlock_detect = ON`, `innodb_print_all_deadlocks = OFF`. `compose.yaml` đặt `deadlock_timeout=500ms` cho PostgreSQL (mặc định là 1s) để deadlock hiện nhanh hơn.
+Defaults verified in the lab: PostgreSQL `READ COMMITTED`, MySQL `REPEATABLE READ`, `innodb_lock_wait_timeout = 50`, `innodb_deadlock_detect = ON`, `innodb_print_all_deadlocks = OFF`. `compose.yaml` sets `deadlock_timeout=500ms` for PostgreSQL (the default is 1s) so deadlocks show up faster.
 
-## Cách chạy lab
+## Running the labs
 
-Yêu cầu: Docker. Không cần cài gì khác, không map port ra host.
+Requirement: Docker. Nothing else to install, no ports mapped to the host.
 
 ```bash
 cd lab
-docker compose up -d --wait          # tạo bookcheck-txn-pg (PostgreSQL) và bookcheck-txn-my (MySQL)
-# MySQL có thể cần thêm vài giây sau khi báo healthy; kiểm tra:
+docker compose up -d --wait          # creates bookcheck-txn-pg (PostgreSQL) and bookcheck-txn-my (MySQL)
+# MySQL may need a few more seconds after reporting healthy; check:
 docker exec -e MYSQL_PWD=lab bookcheck-txn-my mysql -uroot -e "select version()"
 docker exec bookcheck-txn-pg psql -U postgres -d lab -Atc "select version()"
 ```
 
-Chạy một kịch bản (hai session đồng thời):
+Run one scenario (two concurrent sessions):
 
 ```bash
-./run.sh pg lost_update "READ COMMITTED"            # in một dòng: db | kịch bản | level | CÓ / không / LỖI
-VERBOSE=1 ./run.sh my phantom_update "REPEATABLE READ"   # xem toàn bộ output
+./run.sh pg lost_update "READ COMMITTED"            # prints one line: db | scenario | level | YES / no / ERROR
+VERBOSE=1 ./run.sh my phantom_update "REPEATABLE READ"   # see the full output
 ```
 
-Chạy lại cả ma trận (mất khoảng 10 đến 20 phút mỗi DB):
+Re-run the whole matrix (takes about 10 to 20 minutes per DB):
 
 ```bash
 ./matrix.sh pg > out/matrix.pg.txt
@@ -73,29 +73,29 @@ Chạy lại cả ma trận (mất khoảng 10 đến 20 phút mỗi DB):
 ./extras.sh my > out/extras.my.txt     # deadlock, timeout, skip locked, nowait, gap lock, MVCC
 ```
 
-Chạy chương trình Go (hai goroutine/transaction đồng thời, PostgreSQL và MySQL). Dùng network và container riêng, không phụ thuộc `compose.yaml`:
+Run the Go program (two concurrent goroutines/transactions, PostgreSQL and MySQL). It uses its own network and containers, independent of `compose.yaml`:
 
 ```bash
 docker network create bookcheck-txngo-net
 docker run -d --name bookcheck-txngo-pg --network bookcheck-txngo-net -e POSTGRES_PASSWORD=lab -e POSTGRES_DB=lab postgres:latest postgres -c deadlock_timeout=500ms
 docker run -d --name bookcheck-txngo-my --network bookcheck-txngo-net -e MYSQL_ROOT_PASSWORD=lab -e MYSQL_DATABASE=lab mysql:lts
-# chờ MySQL khởi động (vài chục giây), rồi:
+# wait for MySQL to start (a few tens of seconds), then:
 docker run --rm --network bookcheck-txngo-net -v "$(pwd)/go:/app:ro" \
   -e PG_DSN="postgres://postgres:lab@bookcheck-txngo-pg:5432/lab" \
   -e MYSQL_DSN="root:lab@tcp(bookcheck-txngo-my:3306)/lab" \
   golang:latest sh /app/run.sh        # go mod tidy, go vet, go run .
 ```
 
-Chạy phần TypeScript (`tsc --noEmit`, rồi demo `pg` và Drizzle):
+Run the TypeScript part (`tsc --noEmit`, then the `pg` and Drizzle demos):
 
 ```bash
 docker run --rm --network bookcheck-txngo-net -v "$(pwd)/ts:/app:ro" \
   -e PG_DSN="postgres://postgres:lab@bookcheck-txngo-pg:5432/lab" node:lts sh /app/run.sh
 ```
 
-Trên Git Bash của Windows, đặt `MSYS_NO_PATHCONV=1` trước lệnh `docker run` để đường dẫn `/app` không bị đổi.
+On Git Bash for Windows, set `MSYS_NO_PATHCONV=1` before the `docker run` command so the `/app` path is not rewritten.
 
-Dọn dẹp khi xong:
+Clean up when done:
 
 ```bash
 docker compose down -v
@@ -103,36 +103,36 @@ docker rm -f bookcheck-txngo-pg bookcheck-txngo-my
 docker network rm bookcheck-txngo-net
 ```
 
-### Cấu trúc `lab/`
+### Structure of `lab/`
 
-| Đường dẫn | Nội dung |
+| Path | Contents |
 |---|---|
-| `compose.yaml` | PostgreSQL và MySQL, không map port |
-| `run.sh` | Chạy một kịch bản: tách mục `@setup`/`@a`/`@b`/`@final`, chạy A và B nền đồng thời |
-| `matrix.sh`, `extras.sh` | Chạy hàng loạt |
-| `scenarios/pg/*.sql`, `scenarios/my/*.sql` | Kịch bản từng anomaly và cách chặn |
-| `scripts/` | Script đơn lẻ: `ch01_*.sql` (savepoint, DDL), `mvcc_pg.sql` (xmin/xmax, bloat) |
-| `go/` | Code Go (pgx v5, go-sql-driver/mysql): `RunTx` retry, `transfer`, `optimistic`, `claimer` (SKIP LOCKED), `main.go` chạy các goroutine đồng thời |
-| `ts/` | Code TypeScript: `pg` với `BEGIN ISOLATION LEVEL` + retry, và Drizzle `isolationLevel` |
-| `out/` | Kết quả đã chạy; `out/go.txt` và `out/ts.txt` là output thật của chương 10 |
+| `compose.yaml` | PostgreSQL and MySQL, no ports mapped |
+| `run.sh` | Runs one scenario: splits the `@setup`/`@a`/`@b`/`@final` sections, runs A and B concurrently in the background |
+| `matrix.sh`, `extras.sh` | Batch runs |
+| `scenarios/pg/*.sql`, `scenarios/my/*.sql` | Scenarios for each anomaly and how to prevent it |
+| `scripts/` | Standalone scripts: `ch01_*.sql` (savepoint, DDL), `mvcc_pg.sql` (xmin/xmax, bloat) |
+| `go/` | Go code (pgx v5, go-sql-driver/mysql): `RunTx` retry, `transfer`, `optimistic`, `claimer` (SKIP LOCKED), `main.go` runs the concurrent goroutines |
+| `ts/` | TypeScript code: `pg` with `BEGIN ISOLATION LEVEL` + retry, and Drizzle `isolationLevel` |
+| `out/` | Results already run; `out/go.txt` and `out/ts.txt` are the real output of chapter 10 |
 
-Nguyên tắc sắp thứ tự: không `sleep` trên host. Mỗi session tự `pg_sleep()`/`SLEEP()` bên trong SQL. Vì `docker exec` có latency khởi động thất thường (có lúc vài giây), `run.sh` cho session A ghi một dòng vào bảng `_sync`, còn session B chờ trong SQL cho tới khi thấy dòng đó; mọi mốc thời gian trong kịch bản được tính từ lúc A bắt đầu.
+Ordering principle: no `sleep` on the host. Each session calls `pg_sleep()`/`SLEEP()` inside its own SQL. Because `docker exec` has erratic startup latency (sometimes a few seconds), `run.sh` has session A write a row into the `_sync` table while session B waits in SQL until it sees that row; all time marks in a scenario are counted from the moment A starts.
 
-## Giới hạn của lab
+## Limits of the lab
 
-- Mỗi kịch bản kiểm tra **một hình dạng** của anomaly, không thay thế bộ kiểm tra đầy đủ như Hermitage.
-- Mỗi ô trong bảng chương 3 là một lần chạy; chạy lại có thể khác nếu latency môi trường làm lệch thứ tự (ma trận đã được chạy hai lần sau khi thêm đồng bộ `_sync` để đối chiếu).
-- Chưa kiểm: PgBouncer thực tế (code Go/Node chỉ đối chiếu docs), hành vi `UPDATE` không có index trên InnoDB, replication.
+- Each scenario tests **one shape** of an anomaly; it does not replace a full test suite such as Hermitage.
+- Each cell in the chapter 3 table is a single run; re-running may differ if environment latency shifts the ordering (the matrix was run twice after adding the `_sync` synchronization, to cross-check).
+- Not tested: real PgBouncer (the Go/Node code is only cross-checked against docs), the behavior of `UPDATE` without an index on InnoDB, replication.
 
-## Đọc thêm (đã kiểm tra là tồn tại)
+## Further reading (verified to exist)
 
-1. Martin Kleppmann, *Designing Data-Intensive Applications*: chương Transactions (chương 7 ấn bản 1 năm 2017; chương 8 ấn bản 2 năm 2026, O'Reilly).
+1. Martin Kleppmann, *Designing Data-Intensive Applications*: the Transactions chapter (chapter 7 in the 2017 first edition; chapter 8 in the 2026 second edition, O'Reilly).
 2. H. Berenson, P. Bernstein, J. Gray, J. Melton, E. O'Neil, P. O'Neil, "A Critique of ANSI SQL Isolation Levels", SIGMOD 1995 (Microsoft Research MSR-TR-95-51).
-3. Tài liệu PostgreSQL, chương "Concurrency Control" (MVCC, Transaction Isolation, Explicit Locking), `postgresql.org/docs/current/mvcc.html`.
-4. Tài liệu MySQL, "InnoDB Locking and Transaction Model" trong MySQL Reference Manual (dev.mysql.com/doc).
-5. Repo Hermitage của Martin Kleppmann, `github.com/ept/hermitage` (còn tồn tại, không bị archive tại thời điểm kiểm tra): kịch bản kiểm tra isolation level cho nhiều DB.
-6. Tài liệu pgx v5 (`pkg.go.dev/github.com/jackc/pgx/v5`: `BeginTxFunc`, `TxOptions`, `QueryExecMode`), node-postgres (`node-postgres.com`, mục Transactions) và Drizzle ORM (mục Transactions); trang "Features" của PgBouncer (`pgbouncer.org/features.html`).
+3. PostgreSQL documentation, chapter "Concurrency Control" (MVCC, Transaction Isolation, Explicit Locking), `postgresql.org/docs/current/mvcc.html`.
+4. MySQL documentation, "InnoDB Locking and Transaction Model" in the MySQL Reference Manual (dev.mysql.com/doc).
+5. Martin Kleppmann's Hermitage repo, `github.com/ept/hermitage` (still exists, not archived at the time of checking): isolation level test scenarios for many DBs.
+6. pgx v5 documentation (`pkg.go.dev/github.com/jackc/pgx/v5`: `BeginTxFunc`, `TxOptions`, `QueryExecMode`), node-postgres (`node-postgres.com`, Transactions section) and Drizzle ORM (Transactions section); the PgBouncer "Features" page (`pgbouncer.org/features.html`).
 
-## Quy ước
+## Conventions
 
-Thuật ngữ chuẩn giữ nguyên tiếng Anh, giải thích ở lần đầu. Mỗi chương có: tình huống, cơ chế, ví dụ/lab, trade-off, cạm bẫy, tóm tắt và câu hỏi tự kiểm tra (đáp án trong thẻ `<details>`).
+Standard terms are kept in English and explained on first use. Each chapter has: scenario, mechanism, example/lab, trade-offs, pitfalls, summary, and self-check questions (answers in a `<details>` block).

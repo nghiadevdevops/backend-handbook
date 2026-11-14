@@ -1,10 +1,10 @@
-# Chương 7. RAG: chunking, hybrid search, reranking, citation
+# Chapter 7. RAG: Chunking, Hybrid Search, Reranking, Citations
 
-## 1. Tình huống
+## 1. Scenario
 
 Model không biết chính sách đổi trả của ShopAssist (dữ liệu riêng, và thay đổi hằng tuần). Nhồi toàn bộ 400 trang chính sách vào mỗi prompt thì đắt, chậm, loãng. **RAG (Retrieval-Augmented Generation)** là: trước khi hỏi model, **retrieval** (truy xuất) vài chunk tài liệu liên quan từ kho của bạn, đưa vào prompt, và yêu cầu model trả lời dựa trên đó. Đây là kỹ thuật phổ biến nhất để giảm hallucination về dữ liệu riêng và cập nhật kiến thức mà không phải retrain.
 
-## 2. Kiến trúc
+## 2. Architecture
 
 ```mermaid
 flowchart LR
@@ -44,7 +44,7 @@ Vector giỏi ý nghĩa, kém mã và tên riêng; keyword search giỏi khớp 
 
 Về "BM25": BM25 là thuật toán keyword ranking kinh điển. **Full-text search tích hợp của PostgreSQL** (`tsvector`, `ts_rank`) là cơ chế tương tự về mục đích nhưng **không phải BM25**: `ts_rank` không dùng length normalization và inverse document frequency theo công thức BM25. Muốn BM25 thật cần extension hoặc công cụ tìm kiếm riêng (Elasticsearch/OpenSearch, v.v.); tôi chưa kiểm tra extension Postgres cụ thể nào trong cuốn này nên không khuyến nghị tên nào. Với đa số ứng dụng quy mô vừa, `tsvector` + vector trong cùng một database là điểm khởi đầu đơn giản.
 
-### Hợp nhất kết quả bằng RRF
+### Merging results with RRF
 
 Score của vector và của keyword khác thang đo, không cộng trực tiếp được. **Reciprocal Rank Fusion (RRF)** chỉ dùng **rank**:
 
@@ -88,7 +88,7 @@ Retrieval ban đầu (bi-encoder: embed query và chunk riêng) nhanh nhưng th�
 
 Số 30 và 5 chỉ là ví dụ; chọn bằng eval. Reranking thêm latency và chi phí: đo xem nó có cải thiện chỉ số trên bộ test của bạn không. Nếu hybrid search đã cho top 5 tốt thì bỏ qua.
 
-## 6. Prompt và citation
+## 6. Prompt and citations
 
 Đưa mỗi chunk kèm ID và yêu cầu model trích đúng ID:
 
@@ -105,7 +105,7 @@ Sau khi nhận câu trả lời, **kiểm tra bằng code**: mọi `[doc:ID]` ph
 
 Citation không chứng minh câu trả lời đúng: model có thể trích đúng chunk nhưng diễn giải sai. Vì thế eval (chương 8) phải kiểm cả "có căn cứ vào chunk" (grounding) lẫn "đúng".
 
-## 7. Các lỗi RAG thường gặp
+## 7. Common RAG failures
 
 | Triệu chứng | Nguyên nhân thường gặp | Cách xử lý |
 |---|---|---|
@@ -118,14 +118,14 @@ Citation không chứng minh câu trả lời đúng: model có thể trích đ�
 | Câu hỏi nhiều bước ("so sánh A và B") | Một lần retrieval không đủ | Tách query, hoặc dùng agent với tool tìm kiếm (chương 4) |
 | Hỏi tiếp nối ("còn cái kia thì sao?") | Query không tự đứng được | Query rewrite thành câu độc lập dựa trên history |
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - **RAG hay context dài?** Corpus nhỏ, ít đổi, query ít: nhồi thẳng vào prompt (kết hợp prompt caching) có thể đơn giản và đủ tốt. Corpus lớn, đổi liên tục, cần authorization theo người dùng, cần citation: RAG.
 - **RAG hay fine-tune?** Fine-tune dạy phong cách và định dạng, không phải cách đáng tin để nhồi dữ kiện thay đổi; dữ kiện nên nằm trong kho retrieval.
 - **Nhiều chunk hay ít chunk?** Nhiều: recall cao hơn nhưng tốn token và dễ noise. Bắt đầu nhỏ và đo.
 - **Thêm reranker hay không:** thêm khi chất lượng top-k là bottleneck và bạn chịu được latency.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Chỉ nhìn câu trả lời cuối, không log và không đo riêng bước retrieval.
 - Dùng cùng một threshold cosine cho mọi loại câu hỏi.
@@ -133,7 +133,7 @@ Citation không chứng minh câu trả lời đúng: model có thể trích đ�
 - Không có quy trình cập nhật và xóa: tài liệu đã gỡ vẫn được trả về.
 - Tối ưu prompt trong khi vấn đề nằm ở chunking.
 
-## 10. Tóm tắt
+## 10. Summary
 
 1. RAG = retrieve chunk liên quan rồi bắt model trả lời dựa trên đó; lỗi chính thường ở retrieval.
 2. Chunk theo cấu trúc, có overlap và prefix ngữ cảnh; kích thước là tham số cần đo.
@@ -141,14 +141,14 @@ Citation không chứng minh câu trả lời đúng: model có thể trích đ�
 4. Rerank hai stage: rộng rồi hẹp, chỉ khi đo thấy có lợi.
 5. Citation bằng ID và kiểm tra bằng code; filter authorization ngay trong query SQL.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao RRF dùng rank thay vì cộng score của vector và của keyword?
 2. Nêu ba triệu chứng RAG và nguyên nhân tương ứng.
 3. Khi nào nên nhồi cả tài liệu vào prompt thay vì RAG?
 4. Vì sao phải kiểm tra `[doc:ID]` bằng code?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Hai loại score khác thang đo và distribution nên cộng trực tiếp không có nghĩa; rank thì so sánh được, không cần normalize.
 2. Ví dụ: trả "không biết" dù có tài liệu (chunk đúng không vào top-k); trả lời sai tự tin (chunk lạc đề lọt top, model bù bằng kiến thức riêng); data leakage giữa tenant (thiếu filter authorization ở retrieval).

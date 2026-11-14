@@ -1,12 +1,12 @@
-# Chương 5. Lock: PostgreSQL và InnoDB
+# Chapter 5. Locks: PostgreSQL and InnoDB
 
-## 1. Tình huống
+## 1. Scenario
 
 Hai request cập nhật cùng một đơn hàng; một cái "đứng" hai mươi giây mà không báo lỗi. Hoặc bạn thêm foreign key và đột nhiên `UPDATE` parent table chặn `INSERT` child table. Hoặc `ALTER TABLE` nhanh gọn trên staging nhưng làm cả site đứng hình trên production. Tất cả là chuyện lock. Chương này liệt kê các loại lock của PostgreSQL và InnoDB, cách xem chúng, và những chỗ hay gây bất ngờ.
 
 ## 2. PostgreSQL
 
-### Row lock: bốn mode
+### Row locks: four modes
 
 Row lock không nằm trong bảng `pg_locks` theo từng dòng; nó được ghi vào chính tuple (xmax, chương 4). Bốn mode, từ mạnh đến yếu:
 
@@ -28,7 +28,7 @@ Xung đột (đánh dấu X = xung đột, theo tài liệu PostgreSQL "Explicit
 
 Ý nghĩa thực tế: `FOR KEY SHARE` (do foreign key) chỉ xung đột với `FOR UPDATE`. Nhờ đó cập nhật cột thường của parent table không chặn insert child table.
 
-### Lock do foreign key gây ra (đã chạy)
+### Locks caused by foreign keys (run)
 
 Bảng `parent(id, name)` và `child(id, parent_id REFERENCES parent)`. A giữ transaction mở 4 giây; B `INSERT INTO child(parent_id) VALUES (1)` với `lock_timeout = 1s`.
 
@@ -63,7 +63,7 @@ SELECT pg_try_advisory_xact_lock(42);   -- trả true/false ngay
 
 Dùng cho "chỉ một job chạy mỗi lúc" hay bảo vệ đối tượng chưa có dòng. Dạng session-level (`pg_advisory_lock`) không dùng được với PgBouncer transaction pooling (chương 10). MySQL tương đương: `GET_LOCK('tên', timeout)` và `RELEASE_LOCK('tên')`, gắn với connection.
 
-### Xem lock: `pg_locks`
+### Viewing locks: `pg_locks`
 
 Đã chạy (`lock_view`): A `UPDATE` dòng 1 rồi giữ; B `UPDATE` cùng dòng, bị chờ. Từ session A:
 
@@ -100,7 +100,7 @@ Lock của InnoDB gắn với **index record**, không phải với "dòng" theo
 
 Gap lock chỉ có tác dụng chặn **insert**; hai transaction vẫn có thể cùng giữ gap lock lên cùng khoảng. Phần lớn gap lock biến mất ở `READ COMMITTED` (InnoDB gần như chỉ dùng record lock; gap vẫn còn dùng cho kiểm tra foreign key và duplicate key).
 
-### Kịch bản `gap_lock` (đã chạy)
+### The `gap_lock` scenario (run)
 
 Bảng `t(id PK)` có hai dòng id=5 và id=30. A: `SELECT * FROM t WHERE id BETWEEN 10 AND 20 FOR UPDATE` (không có dòng nào khớp). B (sau 1,5s): `INSERT INTO t VALUES (15,1)`.
 
@@ -119,7 +119,7 @@ NULL       | TABLE     | IX                      | GRANTED     | NULL        (in
 
 Thêm hai điều cần biết (theo tài liệu "InnoDB Locking"): (1) câu ghi/locking read mà **không có index dùng được** sẽ lock nhiều record hơn nhiều (có thể cả bảng); (2) tìm theo unique index với giá trị tồn tại chỉ cần record lock, không có gap lock. Hai điều này chưa được kiểm trong lab.
 
-### Xem lock
+### Viewing locks
 
 ```sql
 -- Mỗi lock đang có hoặc đang chờ
@@ -132,7 +132,7 @@ FROM performance_schema.data_lock_waits;
 
 Ngoài ra `SHOW ENGINE INNODB STATUS` (mục `TRANSACTIONS`, `LATEST DETECTED DEADLOCK`). Hai bảng `data_locks` và `data_lock_waits` thay thế `information_schema.INNODB_LOCKS`/`INNODB_LOCK_WAITS` đã bị loại bỏ từ MySQL 8.0.
 
-## 4. So sánh
+## 4. Comparison
 
 | | PostgreSQL | InnoDB |
 |---|---|---|
@@ -142,7 +142,7 @@ Ngoài ra `SHOW ENGINE INNODB STATUS` (mục `TRANSACTIONS`, `LATEST DETECTED DE
 | Lock theo số tự chọn | `pg_advisory_xact_lock` | `GET_LOCK` |
 | Xem lock | `pg_locks`, `pg_stat_activity`, `pg_blocking_pids` | `performance_schema.data_locks`, `data_lock_waits` |
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 1. `SELECT ... FOR UPDATE` trên parent table chặn insert child table (PG): dùng `FOR NO KEY UPDATE` khi đủ.
 2. `ALTER TABLE` không có `lock_timeout`, xếp hàng sau transaction dài và chặn cả bảng.
@@ -150,21 +150,21 @@ Ngoài ra `SHOW ENGINE INNODB STATUS` (mục `TRANSACTIONS`, `LATEST DETECTED DE
 4. `UPDATE`/`DELETE` thiếu index trên MySQL lock rộng hơn dự kiến.
 5. Dùng session-level advisory lock qua pooler transaction.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - PG có bốn mode row lock; `FOR KEY SHARE` (do FK) chỉ xung đột với `FOR UPDATE`. Đã chạy: update cột thường không chặn insert child, `FOR UPDATE` thì chặn.
 - Table lock `ACCESS EXCLUSIVE` (ALTER, DROP, TRUNCATE) chặn cả SELECT và có hiệu ứng queue.
 - InnoDB lock index record: record, gap, next-key, insert intention; `READ COMMITTED` hầu như không có gap lock (đã chạy).
 - Xem lock: `pg_locks` + `pg_blocking_pids`; `performance_schema.data_locks` + `data_lock_waits`.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. Vì sao `UPDATE` cột thường trên parent table không chặn insert child, còn `FOR UPDATE` thì chặn?
 2. Hiệu ứng queue của `ACCESS EXCLUSIVE` là gì?
 3. Gap lock là gì và vì sao `READ COMMITTED` giảm deadlock?
 4. Hai query nào cho biết ai chặn ai trên PG và MySQL?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `UPDATE` thường xin `FOR NO KEY UPDATE`, tương thích với `FOR KEY SHARE` của FK; `FOR UPDATE` xung đột với `FOR KEY SHARE`.
 2. Lệnh chờ lock mạnh cũng chặn các lệnh đến sau, nên một `ALTER` bị kẹt sau transaction dài làm cả bảng đứng.

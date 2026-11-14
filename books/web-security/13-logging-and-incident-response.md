@@ -1,10 +1,10 @@
-# Chương 13. Security logging và incident response
+# Chapter 13. Security Logging and Incident Response
 
-## 1. Vấn đề
+## 1. The problem
 
 Dù phòng thủ tốt đến đâu, sẽ có ngày một layer thủng. Khi đó câu hỏi là: bạn **có biết** không, biết **sau bao lâu**, và có đủ dữ kiện để trả lời "chuyện gì đã xảy ra, ai bị ảnh hưởng"? Thiếu log và alerting là A09 trong OWASP Top 10:2025 (Security Logging and Alerting Failures). Cũng ngược lại: log quá tay làm lộ password, token, dữ liệu cá nhân ngay trong file log.
 
-## 2. Log gì
+## 2. What to log
 
 Mục tiêu: dựng lại được **ai, làm gì, trên cái gì, khi nào, từ đâu, kết quả**.
 
@@ -47,7 +47,7 @@ Output thật, một dòng JSON mỗi sự kiện; `authorization` và `token` �
 {"level":40,"time":"2026-11-08T08:18:01.308Z","pid":76,"hostname":"a5e37204728a","name":"security","event":"authz.denied","user_id":1,"action":"view","resource":"order:2","ip":"172.18.0.5","request_id":"req-123","req":{"headers":{"authorization":"[REDACTED]","user-agent":"curl/8"}},"token":"[REDACTED]","msg":"authorization denied"}
 ```
 
-## 3. Không log gì
+## 3. What not to log
 
 - Password (kể cả thất bại: người dùng hay gõ nhầm password vào ô username), token, session ID, API key, `Authorization` header, cookie.
 - Số thẻ đầy đủ, CVV, dữ liệu y tế/định danh nhạy cảm; che (mask) hoặc hash khi buộc phải ghi.
@@ -59,7 +59,7 @@ Cấu hình thực tế: danh sách field bị che bằng `redact` của pino (`
 
 **Log injection**: dữ liệu người dùng có xuống dòng (`\n`) có thể giả mạo bản ghi log. Dùng log JSON (xuống dòng bị escape) và không nối chuỗi thô vào log text.
 
-## 4. Lưu trữ và bảo vệ log
+## 4. Storing and protecting logs
 
 - Gửi log ra nơi **tập trung, tách khỏi application server** (ELK/OpenSearch, Loki, cloud service) để attacker không xóa dấu vết.
 - Hạn chế quyền ghi/sửa/xóa (append-only, WORM khi cần); log cũng là dữ liệu nhạy cảm cần access control.
@@ -67,7 +67,7 @@ Cấu hình thực tế: danh sách field bị che bằng `redact` của pino (`
 - Retention theo yêu cầu pháp lý/nghiệp vụ (và tối thiểu đủ để điều tra: nhiều vụ xâm nhập được phát hiện sau hàng tháng).
 - Monitoring chính hệ thống log (log ngừng chảy là tín hiệu đáng báo động).
 
-## 5. Phát hiện tấn công
+## 5. Detecting attacks
 
 Log chỉ có giá trị khi **có người/hệ thống xem**. Một số tín hiệu và quy tắc alert thực dụng:
 
@@ -111,14 +111,14 @@ Checklist rút gọn cho incident nghi lộ dữ liệu/account takeover:
 
 Diễn tập (tabletop exercise) vài lần mỗi năm; có `security.txt` (RFC 9116) để nhà nghiên cứu biết gửi báo cáo vulnerability ở đâu.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Log nhiều: điều tra tốt hơn nhưng tốn chi phí lưu trữ, rủi ro lộ dữ liệu, nhiễu. Log "đủ để điều tra" cho sự kiện bảo mật, giữ debug log ngắn hạn.
 - Alert nhạy: bắt được sớm nhưng gây mệt mỏi; bắt đầu từ vài tín hiệu giá trị cao.
 - WAF: tiện, nhưng có thể chặn nhầm và bị bypass; không thay sửa lỗi thật.
 - Đội nhỏ: monitoring service có sẵn thường hợp lý hơn tự dựng SIEM.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Log password, token, header `Authorization`.
 - Log chỉ nằm trên chính máy bị xâm nhập, không đẩy ra ngoài.
@@ -127,21 +127,21 @@ Diễn tập (tabletop exercise) vài lần mỗi năm; có `security.txt` (RFC 
 - Khi có incident, vội khởi động lại/xóa mất bằng chứng; hoặc quên rotate secret.
 - Hiển thị lỗi chi tiết cho client (A10:2025, mishandling of exceptional conditions).
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Log sự kiện bảo mật có cấu trúc: authentication, authorization, hành động nhạy cảm, lỗi; kèm correlation ID.
 - Không log secret, dữ liệu cá nhân thừa; chống log injection; đẩy log ra nơi tập trung, bảo vệ quyền.
 - Phát hiện cần alert hành động được và tín hiệu giá trị cao (stuffing, dò IDOR, token reuse).
 - Có kế hoạch IR sẵn: giữ bằng chứng, containment, xác định scope, patch gốc, thông báo, post-mortem.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Kể ba loại sự kiện bắt buộc nên log và ba thứ tuyệt đối không log.
 2. Vì sao phải đẩy log ra ngoài máy ứng dụng?
 3. Tín hiệu nào trong log gợi ý credential stuffing khác với brute force?
 4. Vì sao nên giữ bằng chứng trước khi dọn dẹp trong incident?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Nên log: login thất bại/thành công, truy cập bị từ chối, hành động nhạy cảm (đổi quyền, hoàn tiền). Không log: password, token/session ID/header Authorization, số thẻ đầy đủ.
 2. Attacker có thể xóa/sửa log cục bộ; log ở nơi tách biệt giữ nguyên dấu vết.

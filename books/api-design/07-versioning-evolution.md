@@ -1,10 +1,10 @@
-# Chương 7. Versioning và API evolution
+# Chapter 7. Versioning and API evolution
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn muốn đổi `total` từ số nguyên sang object `{"amount":..., "currency":"VND"}`. Có 400 client đang chạy, trong đó app mobile cũ mà người dùng không chịu cập nhật. Đổi là sẽ break client. Mục tiêu của API evolution: **thêm giá trị mới mà không break ai**, và khi buộc phải có breaking change thì có lộ trình rõ.
 
-## 2. Breaking và non-breaking change
+## 2. Breaking and non-breaking changes
 
 | Thay đổi | Breaking? |
 |---|---|
@@ -22,7 +22,7 @@ Bạn muốn đổi `total` từ số nguyên sang object `{"amount":..., "curre
 
 Quy tắc vàng: **Postel có điều kiện** - server nghiêm khắc với input, client dễ tính với output. Ghi "tolerant reader" thành yêu cầu trong tài liệu cho client.
 
-## 3. Các chiến lược versioning
+## 3. Versioning strategies
 
 | Chiến lược | Ví dụ | Ưu | Nhược |
 |---|---|---|---|
@@ -45,7 +45,7 @@ flowchart LR
   F --> G[Shut down v1: 410 Gone]
 ```
 
-## 4. Deprecation và Sunset
+## 4. Deprecation and Sunset
 
 Hai header HTTP chuẩn:
 
@@ -64,7 +64,7 @@ Link: <https://api.example.com/docs/migrate-v2>; rel="deprecation"; type="text/h
 
 Sau Sunset: trả `410 Gone` kèm problem details (chương 5) trỏ tới migration guide.
 
-### Quy trình deprecation tốt
+### A good deprecation process
 
 1. Đo usage theo client (API key/OAuth client) trước khi quyết định.
 2. Thông báo sớm qua email/changelog/dashboard + header trên mọi response.
@@ -75,7 +75,7 @@ Sau Sunset: trả `410 Gone` kèm problem details (chương 5) trỏ tới migra
 
 OpenAPI hỗ trợ `deprecated: true` ở operation/parameter/schema; linter có thể cảnh báo client dùng.
 
-## 5. Kỹ thuật tiến hóa không vỡ
+## 5. Techniques for evolving without breaking
 
 - **Thêm thay vì sửa**: field mới song song (`total_money` cạnh `total`), giữ field cũ đến Sunset.
 - **Feature flag theo client**/`Prefer` header cho hành vi mới tùy chọn.
@@ -83,13 +83,13 @@ OpenAPI hỗ trợ `deprecated: true` ở operation/parameter/schema; linter có
 - **Mở rộng enum an toàn**: tài liệu hóa "client phải xử lý giá trị không biết".
 - **Default hợp lý** cho parameter mới thay vì required.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Nhiều version song song = chi phí bảo trì nhân đôi; hạn chế còn tối đa 2 major.
 - URL versioning đơn giản nhưng ngầm khuyến khích "nhảy v2" thường xuyên; kỷ luật additive quan trọng hơn cách đặt version.
 - API nội bộ, client cùng deploy: có thể không cần version, chỉ cần deploy phối hợp và contract test.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Coi "thêm field" là luôn an toàn khi client strict-deserialize (một số SDK sinh code fail với field lạ).
 - Đổi ý nghĩa field mà giữ nguyên tên.
@@ -98,21 +98,21 @@ OpenAPI hỗ trợ `deprecated: true` ở operation/parameter/schema; linter có
 - Quên rằng validation chặt hơn cũng là breaking.
 - Tin vào blog cũ về định dạng `Deprecation`; đọc RFC 9745.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Chỉ additive trong một major; breaking change thì sang major mới.
 - `/v1/` trong URL là mặc định thực dụng.
 - `Deprecation` (RFC 9745) + `Sunset` (RFC 8594) + `Link` + changelog + đo usage.
 - Tự động hóa phát hiện breaking change trong CI.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Thêm giá trị enum mới có phải luôn non-breaking không?
 2. `Deprecation` và `Sunset` khác nhau thế nào?
 3. Vì sao siết validation là breaking?
 4. Sau Sunset nên trả mã nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không; client switch cứng có thể lỗi, nên cần quy ước từ đầu.
 2. Deprecation: đã/sẽ lỗi thời (còn dùng được). Sunset: thời điểm ngừng phản hồi.

@@ -1,8 +1,8 @@
-# Chương 3. Các thành phần phổ biến trong hệ thống
+# Chapter 3. Common System Components
 
 > Cập nhật: 2026-11-07. Chương này là bản đồ tổng quan; Load Balancer, Cache, Message Queue được đào sâu ở chương 6 và 7.
 
-## 3.1 Bức tranh chung
+## 3.1 The big picture
 
 ```mermaid
 flowchart TB
@@ -20,7 +20,7 @@ flowchart TB
 
 Mỗi thành phần tồn tại để giải quyết một vấn đề cụ thể về latency, throughput, availability hoặc chi phí. Khi phỏng vấn, hãy nêu "vấn đề → thành phần", không nêu "thành phần" trước.
 
-## 3.2 Web server và reverse proxy
+## 3.2 Web server and reverse proxy
 
 **Web server** (Nginx, Apache HTTP Server, Caddy) nhận kết nối HTTP, phục vụ file tĩnh, terminate TLS, compression, và đóng vai **reverse proxy** chuyển request tới application server. Ưu điểm của đặt reverse proxy phía trước: ẩn topology nội bộ, gom TLS ở một nơi, buffer kết nối chậm (slow client) để app server không bị giữ thread.
 
@@ -38,11 +38,11 @@ Cập nhật quan trọng: ranh giới đã mờ. Nhiều hệ NoSQL hiện có 
 
 **Object storage** (Amazon S3, Google Cloud Storage, Azure Blob) lưu file lớn (ảnh, video, backup) với durability cao, rẻ, truy cập qua HTTP API. Database chỉ nên lưu *metadata* và URL/key tham chiếu. Từ tháng 12/2020, S3 cung cấp strong read-after-write consistency cho mọi request (GET, PUT, LIST).
 
-## 3.5 Load Balancer (tóm tắt)
+## 3.5 Load Balancer (overview)
 
 Phân phối request tới nhiều instance, loại instance hỏng nhờ health check, terminate TLS. Có L4 (theo IP/port) và L7 (theo HTTP). Chi tiết chương 6.
 
-## 3.6 Cache (tóm tắt)
+## 3.6 Cache (overview)
 
 Giữ bản sao dữ liệu nóng ở layer nhanh hơn (RAM) để giảm latency và tải cho database. Có nhiều vị trí: browser, CDN, application cache (Redis/Valkey, Memcached), cache trong DB. Chi tiết chương 6.
 
@@ -54,11 +54,11 @@ Mạng các edge location (PoP) đặt gần người dùng, lưu bản sao nộ
 
 Về video: video on demand (VOD) bằng **HLS** hoặc **MPEG-DASH** chạy trên **HTTP** (chia video thành segment vài giây, client chọn chất lượng theo bandwidth), nên tận dụng được CDN HTTP bình thường. UDP dành cho các real-time stream (RTP, WebRTC) và cho QUIC/HTTP/3.
 
-## 3.8 Message Queue (tóm tắt)
+## 3.8 Message Queue (overview)
 
 Đặt một durable buffer giữa bên gửi và bên xử lý để decoupling, load leveling, xử lý asynchronous và retry. Chi tiết, kể cả delivery semantics, ở chương 7.
 
-## 3.9 Ví dụ thiết kế: tải ảnh đại diện
+## 3.9 Design example: avatar upload
 
 Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 
@@ -69,7 +69,7 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 
 Điểm hay: luồng upload nặng không đi qua app server; xử lý ảnh asynchronous nên không làm chậm người dùng; lỗi worker chỉ khiến thumbnail trễ, queue giữ event để retry.
 
-## 3.10 Đánh đổi
+## 3.10 Trade-offs
 
 | Thêm thành phần | Được | Mất |
 |---|---|---|
@@ -78,13 +78,13 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 | CDN | Latency thấp toàn cầu | Chi phí, khó cập nhật nội dung tức thời |
 | Replica đọc | Tăng read throughput | Replication lag, đọc có thể cũ |
 
-## 3.11 Khi phỏng vấn nên nói gì
+## 3.11 What to say in an interview
 
 - "Em bắt đầu với một app server stateless sau load balancer và một database. Em chỉ thêm cache khi ước lượng cho thấy DB không chịu nổi QPS đọc."
 - "File lớn em đưa lên object storage, DB chỉ giữ metadata."
 - "Phần nào không cần phản hồi ngay (gửi email, tạo thumbnail) em đẩy qua queue."
 
-## 3.12 Cạm bẫy
+## 3.12 Pitfalls
 
 - Lưu file binary lớn trong cột database.
 - Giữ session trong RAM từng server rồi mới nhớ ra không scale được.
@@ -92,7 +92,7 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 - Nói video VOD chạy bằng UDP. Thực tế HLS/DASH chạy trên HTTP.
 - Đặt CDN cho dữ liệu cá nhân hóa mà không tính `Cache-Control: private`/`Vary`.
 
-## 3.13 Tóm tắt
+## 3.13 Summary
 
 1. Mỗi thành phần giải một vấn đề riêng; nêu vấn đề trước.
 2. App server stateless là điều kiện scale ngang dễ.
@@ -100,7 +100,7 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 4. File lớn vào object storage, phục vụ qua CDN.
 5. Queue cho việc async; cache cho đọc nóng; cả hai kéo theo trade-off riêng.
 
-## 3.14 Câu hỏi tự kiểm tra
+## 3.14 Self-check questions
 
 1. Vì sao nên để app server stateless?
 2. Nêu hai cách giải quyết việc nội dung CDN bị cũ.
@@ -109,7 +109,7 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 5. Redis hiện có những lựa chọn giấy phép nào và có fork nào?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Để load balancer gửi request đến instance bất kỳ, thêm/bớt instance tự do, và instance chết không làm mất state.
 2. TTL ngắn kèm `Cache-Control`; purge/invalidate khi cập nhật; đặt tên file có hash để URL đổi khi nội dung đổi.
@@ -119,7 +119,7 @@ Tình huống: người dùng tải ảnh lên, cần thumbnail 3 kích cỡ.
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - Redis chuyển AGPLv3 (2025-05): https://redis.io/blog/agplv3/
 - Valkey (Linux Foundation, 2024): https://www.phoronix.com/news/Linux-Foundation-Valkey

@@ -1,4 +1,4 @@
-# Chương 8. Index cho JSON, full-text search, spatial data và exclusion constraint
+# Chapter 8. Indexes for JSON, Full-Text Search, Spatial Data and Exclusion Constraints
 
 B-tree không phải loại index duy nhất. Chương này giới thiệu các loại index chuyên biệt. Hầu hết là của PostgreSQL; MySQL có cách riêng cho JSON và spatial data.
 
@@ -13,7 +13,7 @@ B-tree không phải loại index duy nhất. Chương này giới thiệu các 
 
 ## 8.1 JSON
 
-### PostgreSQL: GIN chỉ dành cho `jsonb`
+### PostgreSQL: GIN is only for `jsonb`
 
 `jsonb` (dạng nhị phân đã phân tích) hỗ trợ GIN với các operator chứa: `@>` (contains), `?` (có key), `?|`, `?&`. Kiểu `json` (lưu nguyên văn bản) **không** có operator class GIN mặc định:
 
@@ -51,7 +51,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM ev WHERE payload->>'user' = '42';           --
 ```
 (Ví dụ cuối là bẫy: expression trong query phải trùng expression trong index kể cả phép cast.)
 
-### MySQL: không index trực tiếp cột JSON
+### MySQL: JSON columns can't be indexed directly
 
 MySQL **không** cho tạo index trên bản thân cột `JSON`. Có ba đường:
 
@@ -150,7 +150,7 @@ ORDER BY geog <-> ST_SetSRID(ST_MakePoint(105.5,20.5),4326)::geography LIMIT 5;
 ```
 MySQL: spatial type nằm sẵn trong MySQL, `SPATIAL INDEX` (R-tree), xem chương 7.
 
-## 8.4 Exclusion constraint (PostgreSQL)
+## 8.4 Exclusion constraints (PostgreSQL)
 
 Constraint `EXCLUDE` đảm bảo không hai dòng nào có cùng lúc "các operator trả về true". Ví dụ kinh điển: không đặt phòng chồng giờ.
 
@@ -173,7 +173,7 @@ INSERT INTO booking VALUES (2, '[2026-01-01 09:30, 2026-01-01 11:00)');   -- OK:
 ```
 Đây là cách duy nhất trong PostgreSQL đảm bảo "không chồng chéo" ở database layer mà không cần lock thủ công. MySQL không có tương đương; phải lock ở application layer hoặc dùng `SELECT ... FOR UPDATE`.
 
-## 8.5 Cạm bẫy thường gặp
+## 8.5 Common pitfalls
 
 - Tạo GIN trên `json` thay vì `jsonb`.
 - Kỳ vọng GIN giúp `payload->>'k' = 'v'`; cần B-tree trên expression, hoặc `@>`.
@@ -182,7 +182,7 @@ INSERT INTO booking VALUES (2, '[2026-01-01 09:30, 2026-01-01 11:00)');   -- OK:
 - Quên `CREATE EXTENSION btree_gist` khi kết hợp `=` trên `int` với `&&` trong `EXCLUDE`.
 - Kỳ vọng trigram bắt chuỗi xuyên qua dấu cách như "một chuỗi dài"; nó tách từng từ.
 
-## 8.6 Tóm tắt
+## 8.6 Summary
 
 - GIN `@>`/`?` chỉ cho `jsonb`; `->>` cần expression B-tree.
 - MySQL: JSON qua generated column, functional index hoặc multi-valued index (`CAST(... AS type ARRAY)`, nhiều kiểu).
@@ -190,7 +190,7 @@ INSERT INTO booking VALUES (2, '[2026-01-01 09:30, 2026-01-01 11:00)');   -- OK:
 - `geometry` là mặt phẳng, `geography` là mặt cầu (mét); cả hai cần PostGIS.
 - `EXCLUDE USING gist (int_col WITH =, range WITH &&)` cần `btree_gist`.
 
-## 8.7 Tự kiểm tra
+## 8.7 Self-check
 
 1. Vì sao `CREATE INDEX ... USING gin (pj)` lỗi khi `pj` là `json`?
 2. Ba cách để có index cho một thuộc tính JSON trong MySQL?
@@ -198,7 +198,7 @@ INSERT INTO booking VALUES (2, '[2026-01-01 09:30, 2026-01-01 11:00)');   -- OK:
 4. Khác biệt giữa `geometry` SRID 4326 và `geography` khi gọi `ST_Distance`?
 5. Cần gì để `EXCLUDE USING gist (room WITH =, during WITH &&)` chạy được?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `json` không có operator class GIN mặc định; dùng `jsonb`.
 2. Generated column + index; functional index (8.0.13+); multi-valued index (8.0.17+) cho mảng.

@@ -1,8 +1,8 @@
-# Chương 1. Nền tảng: index là gì, B-tree hoạt động ra sao, bảng được lưu thế nào
+# Chapter 1. Fundamentals: What an Index Is, How a B-tree Works, How Tables Are Stored
 
 > Môi trường chạy thử cho cả sách: PostgreSQL 18.6 và MySQL 9.7.4 (xem [README](README.md)). Mọi đoạn SQL đều ghi rõ DB.
 
-## 1.1 Index giải quyết vấn đề gì
+## 1.1 What problem does an index solve
 
 Một bảng 300.000 dòng, bạn cần tìm user có `email = 'user777@example.com'`. Không có index, database phải đọc từng dòng (full table scan, tức quét toàn bảng). Có index, database đi theo một cấu trúc đã sắp xếp sẵn để nhảy tới đúng vị trí, giống tra mục lục cuối sách thay vì lật từng trang.
 
@@ -26,7 +26,7 @@ flowchart TD
 
 Tìm key `50`: root node cho biết đi nhánh trái, internal node cho biết đi leaf node giữa, rồi đọc leaf node. Tìm khoảng `40..80`: nhảy tới leaf node chứa `40`, rồi đi ngang qua các leaf node kế tiếp. Đây là lý do index B-tree "tra nhanh" và "quét theo một hướng" (chương 2).
 
-## 1.2 Index không miễn phí
+## 1.2 Indexes are not free
 
 - **Ghi chậm hơn**: mỗi `INSERT`/`DELETE` phải sửa mọi index của bảng; `UPDATE` phải sửa các index chứa cột bị đổi (chi tiết ở 1.4 và chương 9).
 - **Tốn chỗ**: index là một bản sao có sắp xếp của các cột được chọn.
@@ -34,7 +34,7 @@ Tìm key `50`: root node cho biết đi nhánh trái, internal node cho biết �
 
 Vì vậy mục tiêu không phải "index càng nhiều càng tốt" mà là "đủ index để các query quan trọng đi đúng đường".
 
-## 1.3 Hai cách lưu bảng: heap table và clustered index
+## 1.3 Two ways to store a table: heap table and clustered index
 
 Đây là khác biệt kiến trúc quan trọng nhất giữa hai DB.
 
@@ -62,7 +62,7 @@ Hệ quả thực tế:
 
 Trong PostgreSQL, "sắp xếp theo index một lần" là việc của lệnh `CLUSTER`. Nó khác hẳn clustered index của InnoDB: chỉ sắp xếp lại heap tại thời điểm chạy, giữ lock `ACCESS EXCLUSIVE` (chặn cả đọc lẫn ghi) trong lúc chạy, và các dòng chèn/sửa sau đó không được giữ thứ tự. Phần thực nghiệm nằm ở chương 11.
 
-## 1.4 Ví dụ chạy thử: tra theo email
+## 1.4 Hands-on example: lookup by email
 
 ```sql
 -- PostgreSQL
@@ -110,23 +110,23 @@ EXPLAIN SELECT * FROM users WHERE email = 'user777@example.com';
 
 Đây là điểm cần lưu ý khi đọc plan MySQL hiện nay: trong bản chạy thử, `EXPLAIN` mặc định in dạng **TREE** (biến `explain_format` có giá trị `TREE`), không còn là bảng `id | select_type | ...` quen thuộc. Muốn bảng cũ, viết `EXPLAIN FORMAT=TRADITIONAL ...`. Với tra cứu unique bằng hằng số, MySQL đã giải xong ngay lúc optimization nên in "Rows fetched before execution".
 
-### Về UPDATE và index (nói ngắn, chi tiết ở chương 9)
+### UPDATE and indexes (brief; details in chapter 9)
 
 - PostgreSQL: mỗi `UPDATE` tạo một row version mới (MVCC). Nếu **không cột nào nằm trong index bị đổi** và page còn chỗ trống, đó là **HOT update** (Heap-Only Tuple): không phải chèn thêm entry mới vào bất kỳ index nào. Ngược lại, mọi index đều phải thêm entry mới.
 - InnoDB: sửa dòng tại chỗ trong B-tree của primary key; secondary index chỉ bị đụng đến khi cột trong index đó thay đổi.
 
-## 1.5 Chọn primary key
+## 1.5 Choosing a primary key
 
 Primary key nên: ổn định (không đổi), ngắn, và (với InnoDB) tăng dần. Lý do với InnoDB là nó quyết định thứ tự vật lý của cả bảng và nằm trong mọi secondary index. Phần UUID (v4 so với v7) được đo thật ở chương 11.
 
-## 1.6 Cạm bẫy thường gặp
+## 1.6 Common pitfalls
 
 - Tưởng rằng PostgreSQL có "clustered index" khi dùng `CLUSTER`. Không đúng: chỉ sắp xếp một lần.
 - Dùng PK chuỗi dài trên InnoDB rồi ngạc nhiên khi mọi secondary index đều phình.
 - Đọc plan MySQL 9.x theo cột cũ trong khi `EXPLAIN` mặc định đã là TREE.
 - Cho rằng index luôn giúp query nhanh hơn. Chương 5 cho thấy nhiều trường hợp database đúng khi bỏ qua index.
 
-## 1.7 Tóm tắt
+## 1.7 Summary
 
 - B-tree: balanced, ordered, shallow; phục vụ tra điểm, khoảng và sắp xếp.
 - Index làm chậm ghi và tốn chỗ; chỉ tạo khi có query cần.
@@ -134,7 +134,7 @@ Primary key nên: ổn định (không đổi), ngắn, và (với InnoDB) tăng
 - `CLUSTER` của PostgreSQL không phải clustered index của InnoDB.
 - Đọc `EXPLAIN` là kỹ năng nền: PG18 có `Index Searches`; MySQL 9.7 mặc định in dạng TREE.
 
-## 1.8 Tự kiểm tra
+## 1.8 Self-check
 
 1. Vì sao một B-tree với hàng triệu dòng vẫn chỉ cần vài lần đọc page?
 2. Với InnoDB, vì sao PK là chuỗi 36 ký tự làm tăng kích thước mọi secondary index?
@@ -142,7 +142,7 @@ Primary key nên: ổn định (không đổi), ngắn, và (với InnoDB) tăng
 4. Trong PostgreSQL, `UPDATE` một cột không có trong index nhưng page đã đầy thì có HOT update không?
 5. Muốn MySQL 9.7 in plan dạng bảng, bạn viết gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Mỗi node là một page chứa hàng trăm key (fan-out lớn), nên height chỉ vài level.
 2. Secondary index InnoDB lưu giá trị primary key ở mỗi entry để quay về dòng; primary key càng dài, mỗi entry càng to.

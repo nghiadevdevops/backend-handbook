@@ -1,12 +1,12 @@
-# Chương 4. Tool calling, agent loop và MCP
+# Chapter 4. Tool Calling, Agent Loops and MCP
 
-## 1. Tình huống
+## 1. Scenario
 
 Nhân viên CSKH hỏi ShopAssist: "Đơn A1029 của khách Lan đang ở đâu?" Model không có dữ liệu đơn hàng, và nếu bạn không đưa gì, nó sẽ bịa một trạng thái nghe rất hợp lý. Cách đúng là cho model **gọi hàm** của bạn để lấy dữ kiện thật. Đó là tool calling. Khi model được phép gọi nhiều hàm liên tiếp để hoàn thành một mục tiêu, ta có **agent**. Còn MCP là chuẩn để các ứng dụng AI khác nhau cắm vào cùng một bộ tool mà không viết adapter riêng.
 
 ## 2. Tool calling
 
-### 2.1 Cơ chế
+### 2.1 Mechanics
 
 Model **không chạy code**. Nó chỉ sinh ra một "yêu cầu gọi hàm" có cấu trúc, ứng dụng của bạn chạy hàm, rồi gửi kết quả lại.
 
@@ -29,7 +29,7 @@ Phía OpenAI (Responses API, docs 07/11/2026): tool có `type: "function"`, `nam
 
 Hai nhà cung cấp cùng một ý tưởng nhưng khác tên trường. Nếu hỗ trợ cả hai, hãy bọc sau một interface chung.
 
-### 2.2 Viết tool tốt
+### 2.2 Writing good tools
 
 Mô tả tool là một phần của prompt. Model chọn tool và điền tham số dựa vào đó.
 - `description` nói **tool làm gì, khi nào dùng, khi nào KHÔNG dùng, định dạng tham số** (ví dụ "mã đơn dạng A + 4 chữ số").
@@ -53,7 +53,7 @@ Ví dụ tool của ShopAssist:
 }
 ```
 
-## 3. Agent loop
+## 3. The agent loop
 
 Agent là vòng lặp: gọi model, nếu model yêu cầu tool thì chạy tool, đưa kết quả lại, lặp đến khi model dừng. Đoạn mã dưới viết bằng TypeScript với SDK chính thức `@anthropic-ai/sdk` (1.6.0, tra 08/11/2026), file nguồn `lab/ts/src/agentLoop.ts`. **Cần API key để chạy thật**; logic vòng lặp (gọi tool, `is_error`, `maxSteps`) đã được kiểm bằng client giả trong `lab/ts/src/demoAgentLoop.ts`, còn lời gọi API thật chưa chạy.
 
@@ -149,17 +149,17 @@ SDK cũng có helper chạy vòng lặp giúp bạn: `client.beta.messages.toolR
 
 Theo trang "Handle tool calls" (tra 07/11/2026): `is_error: true` trong `tool_result` báo execution error, và nên viết thông báo lỗi có hướng dẫn ("Rate limit exceeded. Retry after 60 seconds.") thay vì "failed". Hai quy tắc định dạng dễ vấp: block `tool_result` phải nằm ngay sau lượt `tool_use` và phải đứng **trước** mọi block text trong message của user. Docs cũng dặn: nội dung tool trả về (web, email, file upload) là dữ liệu không tin cậy, hãy giữ nó bên trong `tool_result`, không nhét vào system prompt.
 
-### Khi nào dùng agent, khi nào không
+### When to use an agent and when not to
 
 Agent mạnh khi các bước **không biết trước** (tìm kiếm, debugging, điều tra). Với quy trình cố định ("lấy đơn, kiểm tra, trả lời") hãy viết workflow bằng code và chỉ gọi model ở các bước mơ hồ: rẻ hơn, nhanh hơn, dễ test. Mỗi vòng agent là một lần gọi model với context ngày càng dài, nên chi phí và latency cộng dồn.
 
 ## 4. MCP (Model Context Protocol)
 
-### 4.1 Vấn đề MCP giải quyết
+### 4.1 The problem MCP solves
 
 Nếu bạn có N ứng dụng AI và M hệ thống nội bộ, không có chuẩn thì cần N×M adapter. MCP là giao thức mở để một **server** công bố tool, resource và prompt, còn bất kỳ **host** nào hỗ trợ MCP cũng dùng được. Đây là phép so sánh mà chính docs dùng: MCP lấy cảm hứng từ Language Server Protocol.
 
-### 4.2 Phiên bản spec hiện tại
+### 4.2 Current spec version
 
 Trang `modelcontextprotocol.io/specification/latest` (tra 07/11/2026) trỏ tới bản **2026-07-28**. Spec dựa trên JSON-RPC 2.0 và schema TypeScript.
 
@@ -173,7 +173,7 @@ Những điểm đáng chú ý trong bản này (theo trang architecture và too
 
 Các bản trước (ví dụ 2025) có bước `initialize` và session; nếu bạn đọc tutorial cũ, hãy đối chiếu với spec hiện tại vì khác biệt này lớn. Tôi không liệt kê chi tiết các bản cũ vì chưa tra từng bản.
 
-### 4.3 Message cơ bản
+### 4.3 Basic messages
 
 Liệt kê tool và gọi tool (đúng như ví dụ trong spec; đã lược `_meta` bắt buộc mà spec nói mọi request phải có):
 
@@ -185,7 +185,7 @@ Liệt kê tool và gọi tool (đúng như ví dụ trong spec; đã lược `_
 
 Kết quả tool có `content` (text, image, audio, resource link, embedded resource), tùy chọn `structuredContent` khớp `outputSchema`, và `isError: true` cho execution error để model tự sửa. Protocol error (tool không tồn tại, request sai) trả về dạng JSON-RPC error. Tên tool nên 1 đến 128 ký tự, chỉ gồm chữ, số, `_`, `-`, `.`.
 
-### 4.3b Ví dụ: MCP server bằng TypeScript SDK
+### 4.3b Example: an MCP server with the TypeScript SDK
 
 SDK TypeScript của MCP hiện có hai dòng (tra npm và README 08/11/2026): `@modelcontextprotocol/sdk` 1.32.2 là dòng maintenance, chỉ hỗ trợ spec tới 2025-11-25; dòng v2 (2.4.0) tách thành `@modelcontextprotocol/server` và `@modelcontextprotocol/client`, là bản stable hiện tại và hiện thực spec 2026-07-28. Vì sách bám spec 2026-07-28 nên ví dụ dùng v2. Server dưới đây công bố đúng tool `lookup_order` của ShopAssist qua stdio (file `lab/ts/src/mcpServer.ts`). Server stdio không có login session, nên `tenant` lấy từ cấu hình tiến trình chứ không từ tham số model truyền.
 
@@ -264,17 +264,17 @@ await client.close();
 console.log("MCP stdio test: OK");
 ```
 
-### 4.4 Security theo chính spec
+### 4.4 Security according to the spec itself
 
 Spec nhấn mạnh: luôn có human in the loop có thể từ chối lời gọi tool; coi **annotations** của tool là không đáng tin trừ khi server đáng tin; server phải kiểm tra input, access control, rate limiting, sanitize output; client nên hiện input cho người dùng trước khi gọi, kiểm tra kết quả trước khi đưa cho LLM, đặt timeout và ghi log. Phần này nối thẳng sang chương 9.
 
-### 4.5 Khi nào dùng MCP
+### 4.5 When to use MCP
 
 - Dùng khi nhiều ứng dụng AI (IDE, chatbot, agent) cần cùng một bộ năng lực, hoặc khi muốn dùng server do bên thứ ba cung cấp.
 - Không cần khi chỉ có một ứng dụng Node.js gọi vài hàm nội bộ: khai báo tool trực tiếp trong code (như mục 3) đơn giản và ít attack surface hơn.
 - Mỗi MCP server bên thứ ba bạn cắm vào là một nguồn mã và dữ liệu không tin cậy: mô tả tool của họ đi vào prompt của bạn.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Không giới hạn số bước agent hoặc ngân sách token: một lỗi lặp có thể đốt tiền.
 - Mô tả tool mơ hồ làm model chọn sai hoặc bịa tham số.
@@ -283,7 +283,7 @@ Spec nhấn mạnh: luôn có human in the loop có thể từ chối lời gọ
 - Nhồi hàng chục tool vào mọi request: tốn token và giảm độ chính xác chọn tool.
 - Trả toàn bộ dòng database cho model, kể cả cột nhạy cảm.
 
-## 6. Tóm tắt
+## 6. Summary
 
 1. Tool calling: model chỉ yêu cầu gọi hàm, code của bạn thực thi và gửi `tool_result`; hai nhà cung cấp khác tên trường nhưng cùng ý.
 2. Agent là vòng lặp model-tool; luôn có giới hạn bước, timeout và xử lý lỗi.
@@ -291,7 +291,7 @@ Spec nhấn mạnh: luôn có human in the loop có thể từ chối lời gọ
 4. MCP chuẩn hóa cách công bố tool/resource/prompt; spec hiện tại (2026-07-28) là stateless, mỗi request tự chứa phiên bản và capabilities.
 5. Authorization kiểm trong code của tool; có người xác nhận cho thao tác nhạy cảm.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Ai thực sự chạy hàm khi model "gọi tool"?
 2. Vì sao nên đặt `maxSteps` trong agent loop?
@@ -299,7 +299,7 @@ Spec nhấn mạnh: luôn có human in the loop có thể từ chối lời gọ
 4. Nêu hai khác biệt của MCP bản 2026-07-28 so với tutorial cũ có `initialize` và session.
 5. Khi nào không cần MCP?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Ứng dụng của bạn. Model chỉ sinh yêu cầu có cấu trúc (block `tool_use` hoặc `function_call`).
 2. Để chặn vòng lặp vô hạn hoặc quá dài khiến tốn tiền và latency; hết số bước thì trả thông báo hoặc chuyển cho người.

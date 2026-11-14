@@ -1,6 +1,6 @@
-# Chương 4. GitHub Flow và GitLab Flow
+# Chapter 4. GitHub Flow and GitLab Flow
 
-## Vấn đề
+## The problem
 
 Git Flow quá nặng cho web service, nhưng "ai muốn push thẳng lên main thì push" cũng không ổn. GitHub Flow và GitLab Flow là hai mô hình nhẹ, nằm ở giữa.
 
@@ -51,14 +51,14 @@ Mỗi nhánh môi trường "đi sau" nhánh phía trên nó. Ở ví dụ trên
 
 Với hạ tầng hiện đại, environment branches ít được ưa chuộng: nhiều team thay bằng cùng một artifact (image) được promote qua các môi trường, với cấu hình môi trường nằm ở repo riêng (GitOps) hoặc trong pipeline. Environment branch dễ lệch nhau và biến thành "Git Flow chậm". Chỉ dùng khi quy trình compliance buộc cần.
 
-## Merge train và merge queue
+## Merge trains and merge queues
 
 Khi nhiều PR cùng chờ vào `main`, CI của từng PR đã pass trên base cũ, nhưng kết hợp lại có thể hỏng.
 
 - **GitLab merge train**: mỗi merge request được test trên kết quả gộp của nó cộng các MR đứng trước trong hàng. Cần bật merged results pipelines và dùng pipeline kiểu merge request; có ở tier Premium và Ultimate.
 - **GitHub merge queue**: tương đương, xem Chương 8. Workflow Actions phải lắng nghe event `merge_group` thì check bắt buộc mới được báo cáo.
 
-## So sánh nhanh
+## Quick comparison
 
 | | GitHub Flow | GitLab Flow (environment) | GitLab Flow (release) |
 |---|---|---|---|
@@ -67,28 +67,28 @@ Khi nhiều PR cùng chờ vào `main`, CI của từng PR đã pass trên base 
 | Hợp với | web, deploy liên tục | quy trình staging bắt buộc | nhiều version |
 | Rủi ro | PR sống lâu | các nhánh lệch nhau | cherry-pick bị quên |
 
-## Cạm bẫy
+## Pitfalls
 
 - Gọi là GitHub Flow nhưng PR sống 2 tuần: về bản chất là feature branch dài.
 - Nhánh `production` bị sửa trực tiếp (hotfix thẳng) rồi `main` không có.
 - Không bảo vệ `main` (chưa bật required checks), "luôn deploy được" chỉ là lời hứa.
 - Bật merge queue/train mà workflow thiếu `merge_group`, PR kẹt vì check không bao giờ chạy.
 
-## Tóm tắt
+## Summary
 
 - GitHub Flow: một nhánh dài hạn `main`, PR ngắn, merge xong deploy.
 - GitLab Flow thêm environment branches hoặc release branches khi có ràng buộc triển khai hoặc nhiều version.
 - Release branch dùng quy tắc upstream first: fix ở `main` rồi cherry-pick.
 - Merge queue/train kiểm tra kết quả gộp, tránh `main` hỏng do race giữa các PR.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Quy tắc nền của GitHub Flow là gì?
 2. Environment branches có nhược điểm gì?
 3. "Upstream first" nghĩa là gì?
 4. Merge train giải quyết vấn đề gì mà CI trên từng PR không giải quyết được?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `main` luôn deploy được.
 2. Các nhánh lệch nhau, thêm ceremony merge, dễ có thay đổi chỉ tồn tại ở một môi trường.

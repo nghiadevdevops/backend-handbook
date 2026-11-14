@@ -1,12 +1,12 @@
-# Chương 6. Các công cụ SDD: Spec Kit, OpenSpec, Kiro, AIUP và tự làm
+# Chapter 6. SDD tools: Spec Kit, OpenSpec, Kiro, AIUP, and DIY
 
 Thông tin dưới đây lấy từ README, tài liệu và release notes chính thức, đọc ngày **07/11/2026**. Các tool này đổi rất nhanh (Spec Kit đã đổi tiền tố và kiểu lệnh so với bản lúc sách gốc được viết). Mọi chỗ tôi không xác nhận được từ tài liệu đều ghi "chưa xác minh".
 
-## 1. Tình huống
+## 1. Scenario
 
 Team quyết định làm SDD và bị hỏi: "cài cái gì?". Có bốn lựa chọn nổi bật và một lựa chọn "không cài gì". Chọn sai thì hoặc mất tuần học tool, hoặc tự chế lại bánh xe.
 
-## 2. Từng công cụ
+## 2. The tools, one by one
 
 ### 2.1. GitHub Spec Kit
 
@@ -70,11 +70,11 @@ Team quyết định làm SDD và bị hỏi: "cài cái gì?". Có bốn lựa 
 - **Thư mục đầu ra:** `docs/` (`vision.md`, `requirements.md`, `glossary.md`, `entity_model.md`, `use_cases.puml`, `use_cases/UC-001-*.md`, `test_cases/TC-001-*.md`, `architecture/stack.md`...). Đây là cấu trúc của AIUP, **không phải** cấu trúc `specs/` của lab; bạn có thể cấu hình hoặc map, nhưng tôi chưa xác minh cách đổi đường dẫn.
 - **Triết lý:** pipeline cố định BR → entity → use case → test case → code, mọi bước đọc artifact trước đó. Hạn chế: thiên về stack Java/Spring/Vaadin ở các plugin layer (đã có thêm .NET và NestJS).
 
-### 2.5. Tự làm: Markdown + CLAUDE.md (+ skills)
+### 2.5. DIY: Markdown + CLAUDE.md (+ skills)
 
 Chính là chương 5 cộng lab này: thư mục `specs/`, template, CLAUDE.md, một hai skill, hook kiểm tra. Ưu điểm: không phụ thuộc, vừa khít team, ít lớp phải học. Nhược: bạn tự duy trì, tự giữ kỷ luật, không có cộng đồng cập nhật.
 
-## 3. So sánh nhanh
+## 3. Quick comparison
 
 | | Spec Kit | OpenSpec | Kiro | AIUP | Tự làm |
 |---|---|---|---|---|---|
@@ -85,7 +85,7 @@ Chính là chương 5 cộng lab này: thư mục `specs/`, template, CLAUDE.md,
 | Giới hạn | feature-centric; tài liệu thay đổi nhanh | ít ép test/architecture | ecosystem lock-in | thiên Java/JVM ở các plugin layer | không có workflow sẵn |
 | Cần | Python 3.11+, uv | Node 22.12+ (hoặc binary) | cài Kiro | Claude Code plugin | không |
 
-## 4. Chọn cái nào
+## 4. Which one to choose
 
 - **Greenfield, team chưa có quy trình, muốn khung đầy đủ:** Spec Kit hoặc AIUP.
 - **Brownfield, thay đổi nhỏ liên tục, muốn spec hiện hành tích lũy:** OpenSpec.
@@ -94,7 +94,7 @@ Chính là chương 5 cộng lab này: thư mục `specs/`, template, CLAUDE.md,
 - **Team nhỏ, quy ước riêng, tránh dependency:** tự làm (lab của sách).
 - Có thể kết hợp: ví dụ tự làm phần BR/UC/Entity, dùng OpenSpec cho vòng change. Hãy thử một tool trên một use case thật trước khi cam kết.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Chép lệnh từ bài viết cũ. Spec Kit cũ dùng `/specify`, `/plan`, `/tasks`, `/implement`; bản hiện tại có tiền tố `speckit` và là skill.
 - Truyền "UC-004" cho `plan`. Nó cần mô tả tech stack.
@@ -103,7 +103,7 @@ Chính là chương 5 cộng lab này: thư mục `specs/`, template, CLAUDE.md,
 - Để tool áp đặt cấu trúc thư mục rồi lệch với quy ước team; chọn một cấu trúc và ghi vào CLAUDE.md.
 - Nhầm ví dụ minh họa (annotation `@UseCase`, v.v.) là tính năng của tool. Tài liệu bốn tool trên không nêu tính năng này; nếu muốn, bạn tự thêm quy ước.
 
-## 6. Tóm tắt
+## 6. Summary
 
 1. Spec Kit: feature, skill `/speckit-...`, `plan` nhận tech stack; Python 3.11+.
 2. OpenSpec: change và delta; core/extended; `/opsx:sync` gộp delta; có `openspec/config.yaml`; Node 22.12+.
@@ -111,14 +111,14 @@ Chính là chương 5 cộng lab này: thư mục `specs/`, template, CLAUDE.md,
 4. AIUP: plugin Claude Code; plugin gộp stack đã deprecated; `reverse-engineer` bằng ngôn ngữ tự nhiên.
 5. Tự làm là lựa chọn hợp lệ; chọn theo context và thử trên một use case thật.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. Lệnh nào của Spec Kit nhận mô tả tech stack?
 2. `/opsx:sync` khác `/opsx:archive` thế nào?
 3. Vì sao không nên dùng `aiup-vaadin-jooq` cho dự án mới?
 4. Brownfield với thay đổi nhỏ liên tục, bạn thử tool nào trước?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `/speckit-plan` (và `constitution` nhận nguyên tắc; `specify` nhận mô tả tính năng).
 2. Sync gộp delta vào spec chính và giữ change mở; archive chuyển change vào thư mục archive và có thể nhắc sync.

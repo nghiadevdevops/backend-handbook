@@ -1,21 +1,21 @@
-# Chương 11. Observability cho service Go và Node.js và database
+# Chapter 11. Observability for Go and Node.js Services and Databases
 
 > Tên file giữ nguyên (`11-go-nodejs-database-observability.md`) để không vỡ link; nội dung đã viết lại cho Go và Node.js. Bản trước của chương nói về PHP/Laravel.
 
-## 1. Tình huống
+## 1. Scenario
 
 Service `orders` viết bằng Go, một service khác viết bằng Node.js, cả hai dùng PostgreSQL. Người dùng kêu trang danh sách đơn chậm. Trên production bạn không biết: request nào chậm, có phải query N+1 không, có phải hết connection trong pool không, event loop của Node có bị chặn không, hay một câu SQL thiếu index. Go và Node.js là runtime chạy lâu (một process phục vụ rất nhiều request), nên khác với mô hình "mỗi request một process": metric in-memory sống được, nhưng phát sinh câu hỏi mới về goroutine, GC, heap và event loop.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### Đặc thù của runtime chạy lâu
+### Specifics of long-running runtimes
 
 - **Metric in-memory sống qua request**: SDK export **cumulative** theo chu kỳ (lab: 5 giây) qua một goroutine nền; không cần delta, không cần `delta_to_cumulative` ở Collector.
 - **Một process, nhiều request đồng thời**: Go dùng goroutine, Node dùng một event loop. Cần đo saturation riêng của runtime (số goroutine, GC pause, event loop delay) chứ không chỉ CPU của container.
 - **Tắt service phải flush**: gọi `Shutdown` của TracerProvider và MeterProvider khi nhận SIGTERM, nếu không span và metric cuối cùng có thể mất.
 - **Pool connection là resource cần đo**: `database/sql` (Go) và `pg.Pool` (Node) đều có số connection tối đa; hết connection nghĩa là request xếp hàng.
 
-### Instrument service Go
+### Instrumenting a Go service
 
 Code đầy đủ ở `lab/app/main.go` (chương 12); đã chạy thật. Ba lớp:
 
@@ -36,7 +36,7 @@ Code đầy đủ ở `lab/app/main.go` (chương 12); đã chạy thật. Ba l�
 
 Log có `trace_id` bằng `slog` đã mô tả ở chương 4 và 12: handler bọc `slog.NewJSONHandler`, lấy `trace.SpanContextFromContext(ctx)`; luôn dùng các hàm `...Context`.
 
-### Instrument service Node.js
+### Instrumenting a Node.js service
 
 Trạng thái khi kiểm tra (11/2026), theo docs OTel: **Traces và Metrics là Stable, Logs ở mức Development** cho JavaScript; SDK hỗ trợ các bản LTS active và maintenance của Node.js. Node.js hiện có các dòng LTS 26 (Lithium), 24 (Krypton) và 22 (Jod). Các package trên npm khi kiểm tra: `@opentelemetry/sdk-node` 0.301.0, `@opentelemetry/auto-instrumentations-node` 0.83.0, `@opentelemetry/instrumentation-pg` 0.78.0; hai package đầu yêu cầu Node.js >= 22.15.0. Số `0.x` là số của nhóm package experimental, không có nghĩa là bản thử: hãy đọc README từng instrumentation để biết mức stability.
 
@@ -78,7 +78,7 @@ Kết quả thật (container `node:26-alpine`, Node v26.13.0): `mean=22.8ms p99
 
 Trong Go không có "event loop"; bản tương đương là số goroutine tăng đều (leak), thời gian GC, và hàng đợi chờ connection của pool.
 
-### Quan sát database
+### Observing the database
 
 **Ba lớp**: (1) từ ứng dụng: span query (`db.system.name`, `db.operation.name`; cẩn thận `db.query.text` có thể chứa dữ liệu nhạy cảm, nên dùng bản đã tham số hóa); (2) từ chính DB: slow query log, bảng thống kê; (3) từ metric hạ tầng DB (connection, replication lag, cache hit, checkpoint) qua exporter.
 
@@ -110,19 +110,19 @@ Trong Go không có "event loop"; bản tương đương là số goroutine tăn
 - **`auto_explain`**: tự ghi kế hoạch của câu vượt threshold (`auto_explain.log_min_duration`), dùng thận trọng vì có overhead.
 - Đẩy metric ra Prometheus bằng `postgres_exporter` (dự án cộng đồng prometheus-community); tôi chưa chạy trong lab này.
 
-#### MySQL (khác biệt)
+#### MySQL (differences)
 
 - Slow query log: `slow_query_log = ON`, `long_query_time = 0.5` (giây, không phải ms như PostgreSQL), tùy chọn `log_queries_not_using_indexes`. Phân tích bằng `mysqldumpslow` hoặc `pt-query-digest` (Percona Toolkit).
 - Thống kê tương đương `pg_stat_statements`: `performance_schema.events_statements_summary_by_digest`.
 - Chưa chạy thử MySQL trong lab này.
 
-#### Từ phía ứng dụng Go và Node.js
+#### From the Go and Node.js application side
 
 - **Go**: `db.Stats()` (`database/sql`) trả về `OpenConnections`, `InUse`, `WaitCount`, `WaitDuration`; `WaitCount` tăng nghĩa là request đang chờ connection. `otelsql.RegisterDBStatsMetrics` và `otelpgx.RecordStats` xuất các số này thành metric.
 - **Node.js**: `pg.Pool` có `totalCount`, `idleCount`, `waitingCount`; `waitingCount > 0` kéo dài là dấu hiệu pool nhỏ hoặc query chậm.
 - **N+1**: ORM hay vòng lặp gọi query từng dòng. Ghi số query mỗi request thành attribute của span gốc, hoặc nhìn trace thấy cùng một span DB lặp hàng chục lần.
 
-## 3. Ví dụ: quy trình điều tra "trang đơn hàng chậm"
+## 3. Example: investigating "the orders page is slow"
 
 ```text
 1. Metric: p95 của endpoint GET /orders tăng (dashboard RED theo endpoint)
@@ -133,7 +133,7 @@ Trong Go không có "event loop"; bản tương đương là số goroutine tăn
 6. So sánh: reset hoặc đánh mốc pg_stat_statements, deploy, đo lại p95 và calls
 ```
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - `log_min_duration_statement` thấp giúp thấy nhiều nhưng làm đầy log và tăng I/O; chọn threshold gần SLO của query, hoặc sampling (`log_statement_sample_rate`) khi cần.
 - `pg_stat_statements` rất rẻ so với lợi ích nhưng chỉ có thống kê tổng hợp, không có từng lần gọi; kết hợp với trace.
@@ -141,7 +141,7 @@ Trong Go không có "event loop"; bản tương đương là số goroutine tăn
 - Instrument DB tự động (`otelpgx`, `otelsql`, `instrumentation-pg`) tiện nhưng sinh nhiều span; cân nhắc sampling hoặc tắt span cho query quá ngắn. `otelsql` chưa có cam kết ổn định như contrib.
 - Auto-instrumentation Node bật nhiều thứ cùng lúc: giới hạn bằng biến môi trường để kiểm soát số span.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Quên khởi động lại PostgreSQL sau khi thêm `shared_preload_libraries` rồi `CREATE EXTENSION` báo lỗi hoặc view trống; quên `compute_query_id`.
 - Ghi `db.query.text` có giá trị thật (email, token) vào span/log.
@@ -152,14 +152,14 @@ Trong Go không có "event loop"; bản tương đương là số goroutine tăn
 - Đọc nhãn Prometheus của metric từ SDK mà quên `service.name` thành `exported_job` (chương 12).
 - `long_query_time` MySQL tính bằng giây, `log_min_duration_statement` PostgreSQL bằng mili giây; nhầm đơn vị.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Go và Node.js là runtime chạy lâu: metric cumulative qua SDK, nhớ flush khi tắt, đo saturation riêng của runtime (goroutine/GC, event loop delay).
 - Go: `otelhttp` (đã chạy), `otelpgx` hoặc `otelsql` cho database (chưa chạy), `slog` + `trace_id`. Node.js: auto-instrumentation qua `NODE_OPTIONS` (chưa chạy), Traces/Metrics Stable còn Logs Development.
 - PostgreSQL: `log_min_duration_statement` cho log chậm; `pg_stat_statements` (cần preload + restart + `compute_query_id` + `CREATE EXTENSION`) cho thống kê theo câu.
 - Luôn nối tầng ứng dụng với tầng DB: từ span DB chậm sang `pg_stat_statements` và `EXPLAIN`.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Vì sao service Go không cần `delta_to_cumulative` còn bản PHP cần?
 2. Các bước bật `pg_stat_statements` và bước nào cần restart?
@@ -167,7 +167,7 @@ Trong Go không có "event loop"; bản tương đương là số goroutine tăn
 4. Vì sao phải nhìn p99 của event loop delay thay vì mean?
 5. Chọn `otelpgx` hay `otelsql` trong trường hợp nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Process Go sống lâu nên SDK giữ được giá trị cộng dồn và export cumulative; PHP (mô hình mỗi request một process) chỉ export phần tăng (delta) nên bản PHP cũ cần Collector cộng dồn.
 2. Thêm `shared_preload_libraries='pg_stat_statements'` và `compute_query_id=on`, restart server (bắt buộc), rồi `CREATE EXTENSION pg_stat_statements;` trong từng database.

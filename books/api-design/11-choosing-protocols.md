@@ -1,10 +1,10 @@
-# Chương 11. REST, gRPC, GraphQL, webhooks, SSE/WebSocket: chọn gì khi nào
+# Chapter 11. REST, gRPC, GraphQL, webhooks, SSE/WebSocket: what to choose when
 
-## 1. Vấn đề
+## 1. The problem
 
 "Mình dùng GraphQL vì hiện đại" hay "mọi thứ phải REST" đều là lập luận kém. Mỗi protocol giải một lớp bài toán khác. Chương này đưa tiêu chí.
 
-## 2. So sánh nhanh
+## 2. Quick comparison
 
 | | REST/JSON | gRPC | GraphQL | Webhook | SSE | WebSocket |
 |---|---|---|---|---|---|---|
@@ -15,9 +15,9 @@
 | Streaming | khó | có (4 kiểu) | subscription (thường WS/SSE) | không | có | có |
 | Tooling | rất rộng | mạnh | mạnh | cần tự build | đơn giản | cần quản lý connection |
 
-## 3. Khi nào dùng cái nào
+## 3. When to use which
 
-### REST/JSON (mặc định)
+### REST/JSON (the default)
 
 API công khai, nhiều loại client, cần cache HTTP, dễ debug bằng curl. Đây là điểm xuất phát nếu không có lý do khác.
 
@@ -56,17 +56,17 @@ flowchart TD
   F -- no --> SSE[SSE]
 ```
 
-## 4. Có thể kết hợp
+## 4. Combining them
 
 Thực tế phổ biến: REST công khai + webhook cho event + gRPC nội bộ; GraphQL làm BFF phía trước. Một số hệ thống còn cho phép gọi lại REST để lấy full state sau khi nhận webhook mỏng ("thin event").
 
-## 5. Trade-off tổng quát
+## 5. General trade-offs
 
 - Mỗi protocol thêm là thêm chi phí tooling, security, vận hành.
 - Hiệu năng ít khi là lý do thực sự để rời REST; hãy đo trước.
 - Chọn theo *đối tượng dùng* và *mẫu tương tác*, không theo xu hướng.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - GraphQL không giới hạn query depth/cost.
 - Dùng WebSocket cho thứ chỉ cần SSE hoặc poll thưa.
@@ -75,19 +75,19 @@ Thực tế phổ biến: REST công khai + webhook cho event + gRPC nội bộ;
 - Polling mỗi giây thay vì webhook/SSE.
 - Cho rằng GraphQL "không cần versioning": vẫn cần deprecation field.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - REST/JSON là mặc định; gRPC cho nội bộ; GraphQL cho nhu cầu dữ liệu đa dạng; webhook cho event giữa server; SSE cho đẩy một chiều; WebSocket khi bidirectional.
 - Mỗi lựa chọn kéo theo chi phí vận hành riêng.
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Chọn gì cho thông báo tiến độ job tới trình duyệt?
 2. Vì sao cache HTTP khó với GraphQL?
 3. N+1 trong GraphQL là gì?
 4. Khi nào gRPC không phù hợp?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. SSE.
 2. Thường là POST tới một endpoint duy nhất; query nằm trong body.

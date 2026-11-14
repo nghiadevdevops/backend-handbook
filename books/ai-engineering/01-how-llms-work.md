@@ -1,12 +1,12 @@
-# Chương 1. LLM hoạt động thế nào (ở mức developer cần biết)
+# Chapter 1. How LLMs Work (at the Level a Developer Needs)
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn thêm nút "Hỏi trợ lý" vào trang quản trị của ShopAssist, hệ thống đặt hàng mà cuốn này dùng xuyên suốt. Demo chạy ngon. Một tuần sau có ba chuyện: hóa đơn API gấp năm lần dự tính, có khách được trả lời sai chính sách đổi trả bằng giọng rất tự tin, và cùng một câu hỏi cho ra hai câu trả lời khác nhau. Cả ba đều giải thích được nếu bạn hiểu LLM làm gì bên trong. Chương này chỉ lấy phần cần để quyết định thiết kế, không đi vào toán.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### 2.1 LLM là hàm "dự đoán token tiếp theo"
+### 2.1 An LLM is a "predict the next token" function
 
 LLM (Large Language Model, mô hình ngôn ngữ lớn) nhận một chuỗi **token** và trả về probability distribution cho token kế tiếp. Muốn sinh một câu, ứng dụng (hoặc server của nhà cung cấp) lặp: chọn một token từ distribution, nối vào chuỗi, hỏi lại. Mọi thứ khác (chat, tool calling, JSON) đều xây trên vòng lặp này.
 
@@ -35,7 +35,7 @@ Ba điều hay bị hiểu sai:
 2. **Chứa được không có nghĩa là dùng tốt.** Nhồi 500 trang vào prompt thường kém hơn đưa đúng 5 trang liên quan. Đó là lý do RAG (chương 7) vẫn còn đất sống dù context đã tới 1M.
 3. **Vị trí thông tin quan trọng.** Thông tin nằm giữa một đoạn rất dài dễ bị bỏ sót hơn thông tin ở đầu hoặc cuối. Hãy đo bằng eval của bạn (chương 8) thay vì tin.
 
-### 2.4 Sampling và temperature
+### 2.4 Sampling and temperature
 
 Từ probability distribution, có nhiều cách chọn token:
 - **Greedy**: luôn chọn token có probability cao nhất. Gần như deterministic.
@@ -44,7 +44,7 @@ Từ probability distribution, có nhiều cách chọn token:
 
 Lưu ý thực tế quan trọng: **temperature 0 không bảo đảm kết quả giống hệt nhau** giữa các lần gọi (batching, phép tính số thực song song trên GPU, thay đổi phía server). Ngoài ra một số reasoning model hiện nay không cho chỉnh tham số sampling, hoặc chỉ nhận một số giá trị. Trước khi code `temperature => 0`, hãy đọc trang tham số của đúng model bạn dùng (chưa xác minh cho từng model trong cuốn này). Thiết kế đúng là: nếu cần ổn định, **ép output vào schema** (chương 3) và **kiểm tra bằng code**, đừng dựa vào "xin model đừng thay đổi".
 
-### 2.5 Vì sao có hallucination
+### 2.5 Why hallucination happens
 
 Hallucination là model sinh ra nội dung nghe hợp lý nhưng sai sự thật. Nguyên nhân cơ chế, không phải "lỗi vặt":
 - Mục tiêu training là sinh văn bản có khả năng cao, không phải văn bản đúng.
@@ -54,7 +54,7 @@ Hallucination là model sinh ra nội dung nghe hợp lý nhưng sai sự thật
 
 Cách giảm (không bao giờ về 0): đưa dữ liệu thật vào context (RAG), bắt model gắn citation, cho phép nói "không biết", dùng tool để lấy dữ kiện, và kiểm chứng output bằng code khi có thể.
 
-### 2.6 Chi phí và latency
+### 2.6 Cost and latency
 
 Giá tính theo token, input và output giá khác nhau, output đắt hơn. Ví dụ giá niêm yết tra từ trang models của Anthropic ngày 07/11/2026: Claude Sonnet 5.5 là $2 / triệu token input, $10 / triệu token output; Claude Opus 5.5 là $4 / $20. Ngoài ra có giảm giá batch (docs ghi 50%) và giá đọc từ prompt cache rẻ hơn nhiều (chương 3 và 10). Giá có thể đổi, luôn đọc trang pricing hiện hành trước khi lập kế hoạch.
 
@@ -70,7 +70,7 @@ Latency có hai thành phần:
 
 Ví dụ nhanh cho ShopAssist: mỗi câu hỏi gửi 3.000 token (system prompt + 4 đoạn tài liệu) và nhận 300 token. Với giá $2/$10 mỗi triệu: 3.000 × 2/1.000.000 = $0,006 input, 300 × 10/1.000.000 = $0,003 output, tổng $0,009 mỗi câu. Một nghìn câu một ngày là $9/ngày. Nếu conversation history nhồi thêm 20.000 token mỗi lượt, input thành $0,046 và hóa đơn gấp khoảng năm lần. Đó chính là chuyện mở đầu chương.
 
-## 3. Ví dụ: gọi API ở mức thấp nhất
+## 3. Example: calling the API at the lowest level
 
 Chỉ để thấy hình dạng request; cần API key để chạy, ở đây chưa chạy được. Cú pháp theo docs Anthropic (07/11/2026), header phiên bản `anthropic-version: 2026-10-21` đúng như ví dụ trong docs đó.
 
@@ -89,7 +89,7 @@ curl https://api.anthropic.com/v1/messages \
 
 Response có `content` (mảng khối), `stop_reason` và `usage` (số token input/output). Hãy log `usage` ngay từ ngày đầu; đó là dữ liệu quan trọng nhất cho chi phí và debug.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 | Quyết định | Nghiêng về | Đổi lại |
 |---|---|---|
@@ -99,7 +99,7 @@ Response có `content` (mảng khối), `stop_reason` và `usage` (số token in
 
 Khi KHÔNG nên dùng LLM: bài toán có đáp án xác định mà code làm được (tính tiền, kiểm tra tồn kho, authorization). LLM chỉ nên đứng ở phần mơ hồ (hiểu ý, diễn đạt), còn quyết định và dữ kiện lấy từ code.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Ước lượng token bằng `strlen()/4`: sai nhiều, nhất là tiếng Việt. Dùng `usage`.
 - Quên `max_tokens`, hoặc đặt quá nhỏ làm câu trả lời bị cắt (kiểm tra `stop_reason`).
@@ -107,7 +107,7 @@ Khi KHÔNG nên dùng LLM: bài toán có đáp án xác định mà code làm �
 - Coi context window là bộ nhớ dài hạn.
 - Hard-code giá model trong code. Giá nằm trong config và có ngày cập nhật.
 
-## 6. Tóm tắt
+## 6. Summary
 
 1. LLM sinh từng token theo probability; không có bước kiểm chứng sự thật nên hallucination là hệ quả cơ chế.
 2. Tiền và thời gian đều tính theo token; output đắt và chậm hơn input; đếm bằng `usage`.
@@ -115,14 +115,14 @@ Khi KHÔNG nên dùng LLM: bài toán có đáp án xác định mà code làm �
 4. Temperature thấp không bảo đảm deterministic; muốn ổn định hãy ép schema và kiểm bằng code.
 5. Việc có đáp án xác định thì để code làm, LLM chỉ xử lý phần mơ hồ.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Vì sao chat 50 lượt tốn nhiều hơn nhiều so với 50 lần hỏi độc lập có cùng độ dài?
 2. Temperature 0 có đảm bảo cùng input cho cùng output không? Nên làm gì khi cần ổn định?
 3. Hãy tính chi phí một request 5.000 token input và 500 token output với giá $2/$10 mỗi triệu token.
 4. Nêu hai nguyên nhân cơ chế gây hallucination và hai cách giảm.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. API không có trạng thái nên mỗi lượt gửi lại toàn bộ history. Input lượt thứ n gồm n-1 lượt trước, tổng token input tăng gần như bậc hai theo số lượt. Prompt cache và cắt/tóm tắt history giúp giảm.
 2. Không. Batching, tính toán số thực trên GPU và thay đổi phía server vẫn gây khác biệt; một số model còn không cho chỉnh temperature. Ép output theo schema, kiểm tra bằng code, và thiết kế test theo thuộc tính (ví dụ JSON hợp lệ, trường bắt buộc) thay vì so chuỗi.

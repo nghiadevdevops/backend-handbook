@@ -1,10 +1,10 @@
-# Chương 10. Characterization test, snapshot và approval test cho legacy
+# Chapter 10. Characterization, snapshot, and approval tests for legacy code
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn thừa kế `calcShippingFee`: không tài liệu, không test, vài branch khó hiểu, và phải sửa cho một khu vực giao hàng mới. Michael Feathers (*Working Effectively with Legacy Code*) định nghĩa legacy code là "code không có test". Muốn sửa an toàn cần test trước, nhưng bạn chưa biết hành vi đúng là gì. Giải pháp: **ghi lại hành vi hiện tại**, đúng hay sai, rồi mới sửa.
 
-## 2. Characterization test
+## 2. Characterization tests
 
 Quy trình (theo Feathers):
 
@@ -15,7 +15,7 @@ Quy trình (theo Feathers):
 
 Test này không nói "đúng", chỉ nói "đang như vậy". Mục đích là báo động khi hành vi đổi. Nếu sau này phát hiện hành vi hiện tại là bug, bạn sửa test chủ ý và ghi rõ lý do.
 
-## 3. Ví dụ trong lab
+## 3. Example in the lab
 
 `lab/src/legacy/shipping-fee.ts` (cố ý khó đọc):
 
@@ -76,11 +76,11 @@ Một chi tiết riêng khi port sang JavaScript: `Math.round` làm tròn nửa 
 
 Chọn ca ở đâu: tại biên (500/501g, 20.000/20.001g), một ca mỗi branch, và các combination (express x zone). Công cụ mutation testing (chương 11) đo xem bạn đã cover đủ branch chưa.
 
-## 4. Seam: chỗ để chèn test vào legacy
+## 4. Seams: where to insert tests into legacy code
 
 Với code khó test (gọi `new`, import singleton, biến global, `Date.now()`), Feathers đề xuất tìm **seam**: điểm thay đổi hành vi mà không sửa in-place. Ví dụ: bọc lời gọi vào một interface rồi truyền vào qua constructor hoặc parameter; tách phần pure ra khỏi phần I/O (Humble Object). Với module ES, một seam kiểu JavaScript là tham số hàm mặc định (`now = () => new Date()`) hoặc `vi.mock` (dùng khi không sửa được code, vì nó ẩn). Hexagonal chính là cách tổ chức mà mọi thứ đều có seam (port). Khi di chuyển legacy sang Hexagonal, từng bước: characterization test → tách port quanh I/O → thay thế dần.
 
-## 5. Snapshot và approval test
+## 5. Snapshot and approval tests
 
 Khi output lớn hoặc có cấu trúc (JSON, HTML, báo cáo), liệt kê assertion thủ công rất tốn công. **Approval/snapshot test** lưu output "đã được duyệt" ra file, và test so sánh output mới với file đó.
 
@@ -104,14 +104,14 @@ File `tests/characterization/approved/order-response.approved.json` được com
 | Ý định test | mờ ("nó giống bản cũ") | rõ |
 | Rủi ro | duyệt bừa, cập nhật snapshot mà không đọc | ít |
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Characterization test pin cả bug hiện tại: đó là chủ đích, nhưng đừng để nó thành tài liệu "hành vi đúng". Ghi chú rõ test nào là "quan sát" chứ không phải "yêu cầu".
 - Snapshot dễ bị cập nhật theo phản xạ (`-u`). Quy tắc: diff snapshot phải được review như code.
 - Đừng snapshot dữ liệu không ổn định (timestamp, id random, thứ tự non-deterministic) vì thành flaky; chuẩn hóa hoặc loại ra trước khi so. Vitest có `expect.any(String)` cho inline snapshot và `toMatchInlineSnapshot` với property matcher cho việc này.
 - Không dùng snapshot cho logic nghiệp vụ mà bạn hiểu rõ; viết assertion cụ thể, có ý nghĩa.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Viết test bằng cách sao chép logic của code legacy vào test.
 - Snapshot quá lớn (cả trang HTML) → mọi thay đổi nhỏ làm đỏ và người ta duyệt không đọc.
@@ -119,14 +119,14 @@ File `tests/characterization/approved/order-response.approved.json` được com
 - Sửa code và test cùng lúc (mất chức năng bảo vệ). Làm theo thứ tự: pin hành vi, rồi mới refactor.
 - Chạy `vitest -u` trước khi đọc diff.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Legacy = code không có test; bước đầu là pin hành vi hiện tại bằng characterization test.
 - Quy trình: chạy code, quan sát, ghi lại; không đoán. Lab đã đoán sai ca `1000g, HCM` (15.000 so với 20.000) ở cả bản gốc lẫn bản TypeScript.
 - Tìm seam để chèn test; Hexagonal chính là kiến trúc đầy seam.
 - Snapshot/approval tiện cho output lớn (`toMatchFileSnapshot`), nhưng phải review diff và loại dữ liệu không ổn định.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao ta lấy giá trị expected từ việc chạy code thay vì từ đặc tả?
 2. Trong lab, ca `1000g, HCM` bị đoán sai thành bao nhiêu và đúng là bao nhiêu?
@@ -134,7 +134,7 @@ File `tests/characterization/approved/order-response.approved.json` được com
 4. Rủi ro lớn nhất của snapshot test là gì?
 5. Vì sao `CI=true` quan trọng với snapshot test?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Vì không có đặc tả tin cậy; mục tiêu là phát hiện thay đổi hành vi khi refactor, kể cả hành vi hiện tại là bug.
 2. Đoán 15.000; thực tế 20.000 (15.000 + 10.000 phí trọng lượng - 5.000 giảm nội thành).

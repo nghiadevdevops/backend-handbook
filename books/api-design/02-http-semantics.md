@@ -1,12 +1,12 @@
-# Chương 2. HTTP semantics (RFC 9110)
+# Chapter 2. HTTP semantics (RFC 9110)
 
-## 1. Vấn đề
+## 1. The problem
 
 Hai client cùng đọc order `ord_0001`, mỗi bên sửa ghi chú rồi `PUT` lại. Bên nào gửi sau thắng và âm thầm xóa thay đổi của bên kia (*lost update*). Ở tầng khác, mạng chập chờn khiến client gọi lại `POST` và tạo hai đơn. Cả hai vấn đề có lời giải ngay trong chuẩn HTTP, nếu bạn dùng đúng semantics.
 
 Chuẩn hiện hành: **RFC 9110 "HTTP Semantics"** (2022, thay RFC 7231 và các RFC cũ), cùng **RFC 9111** (HTTP Caching). Mọi thứ trong chương này bám theo hai RFC đó.
 
-## 2. Method: safe và idempotent
+## 2. Methods: safe and idempotent
 
 - **Safe**: không có ý định thay đổi state của server (đọc thuần). Client có thể gọi mà không lo hậu quả; crawler, prefetch dựa vào đây.
 - **Idempotent**: gọi N lần cho kết quả *state của server* giống gọi 1 lần (response có thể khác).
@@ -24,7 +24,7 @@ Chuẩn hiện hành: **RFC 9110 "HTTP Semantics"** (2022, thay RFC 7231 và cá
 
 Idempotent cho phép **retry tự động an toàn**: client/proxy được phép gọi lại `PUT`/`DELETE` khi mất kết nối. `POST` thì không, nên cần cơ chế bổ sung.
 
-## 3. Status code: bảng dùng nhanh
+## 3. Status codes: a quick-reference table
 
 Nhóm: 2xx thành công, 3xx redirect/conditional, 4xx lỗi do client (đừng retry nguyên văn), 5xx lỗi do server (có thể retry).
 
@@ -52,7 +52,7 @@ Nhóm: 2xx thành công, 3xx redirect/conditional, 4xx lỗi do client (đừng 
 
 **400 hay 422?** RFC 9110 mô tả 422 là "request hiểu được và cú pháp đúng, nhưng không xử lý được các chỉ dẫn". Một quy ước phổ biến (dùng trong lab): 400 cho lỗi cấu trúc/protocol (JSON hỏng, thiếu header), 422 cho business error/validation error của body. Mỗi framework chọn mặc định riêng (Fastify trả 400 khi schema validation lỗi, một số framework khác trả 422), nên đừng dựa vào mặc định. Quan trọng là ghi vào guideline và nhất quán.
 
-## 4. Header quan trọng
+## 4. Important headers
 
 | Header | Chiều | Ý nghĩa |
 |---|---|---|
@@ -65,7 +65,7 @@ Nhóm: 2xx thành công, 3xx redirect/conditional, 4xx lỗi do client (đừng 
 | `WWW-Authenticate` | res | cách authenticate (401) |
 | `Link` | res | link quan hệ (RFC 8288), pagination, tài liệu error |
 
-## 5. Conditional request: chống lost update
+## 5. Conditional requests: preventing lost updates
 
 ETag là "dấu vân tay" của một phiên bản representation. Quy trình *optimistic concurrency*:
 
@@ -94,17 +94,17 @@ Cách tạo ETag: hash nội dung representation (lab dùng 16 ký tự đầu c
 
 Trong Fastify: đọc bằng `req.headers["if-match"]`, đặt bằng `reply.header("etag", tag)`. Phần so khớp và 412 phải tự viết, xem `lab/api/index.ts` (route `PATCH /orders/:id`).
 
-## 6. Ví dụ thật (lab)
+## 6. A real example (lab)
 
 Kết quả chạy lab (chi tiết ở chương 6 và `lab/`): `PATCH` thiếu `If-Match` trả `428`, `If-Match` cũ trả `412`, `If-Match` đúng trả `200` với ETag mới. Xem file `lab/transcript.md`.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - `PUT` dễ suy luận (idempotent) nhưng buộc gửi toàn bộ; `PATCH` linh hoạt nhưng cần định nghĩa định dạng patch (JSON Merge Patch RFC 7396 đơn giản; JSON Patch RFC 6902 mạnh hơn).
 - Optimistic concurrency không phù hợp khi có rất nhiều conflict (hot row); cân nhắc queue/lock ở domain.
 - ETag bằng hash tốn CPU nếu representation lớn; dùng cột version.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Dùng `GET` có side effect (link "kích hoạt tài khoản" bị scanner email bấm trước).
 - `POST` cho mọi thứ, kể cả đọc.
@@ -113,21 +113,21 @@ Kết quả chạy lab (chi tiết ở chương 6 và `lab/`): `PATCH` thiếu `
 - Quên `Vary` khi nội dung đổi theo `Accept`/`Authorization`.
 - Coi `404` luôn là "không tồn tại": cân nhắc `404` thay `403` để không lộ resource của người khác.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Safe = không đổi state; idempotent = lặp lại không đổi thêm. POST là method duy nhất mặc định không idempotent.
 - Chọn status code theo bảng, dùng 4xx cho lỗi client và 5xx cho lỗi server.
 - ETag + `If-Match` chống lost update; `428` bắt buộc, `412` khi lệch.
 - Chuẩn gốc: RFC 9110 và RFC 9111.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. DELETE lần hai trả 404; vậy DELETE có idempotent không?
 2. Khi nào dùng 412, khi nào 428?
 3. Vì sao weak ETag không dùng được với `If-Match`?
 4. 401 khác 403 thế nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Có. Idempotent xét theo state của server (resource không còn), không theo response.
 2. 428: client không gửi điều kiện dù server yêu cầu. 412: có gửi nhưng ETag không khớp.

@@ -1,10 +1,10 @@
-# Chương 2. Merge, rebase, squash
+# Chapter 2. Merge, Rebase, Squash
 
-## Vấn đề
+## The problem
 
 Cùng một nhánh feature có ba cách đưa vào `main`, cho ra ba lịch sử khác nhau. Chọn sai, bạn sẽ gặp một trong ba thứ: lịch sử rối như dây điện, mất ngữ cảnh của feature, hoặc ghi đè commit của đồng nghiệp. Chương này giải thích bản chất để chọn có lý do.
 
-## Ba cách integrate
+## Three ways to integrate
 
 Giả sử `main` có A-B, và `feature` tách từ B với hai commit F1, F2, trong khi `main` đã có thêm C.
 
@@ -60,7 +60,7 @@ gitGraph
 
 Nếu `main` chưa có commit mới nào kể từ lúc feature tách ra, merge chỉ cần dời nhãn `main` tới đầu feature: **fast-forward**, không tạo commit. `--ff-only` từ chối merge nếu không thể fast-forward (hữu ích trong CI và `pull.ff = only`). `--no-ff` ép tạo merge commit kể cả khi có thể fast-forward, để giữ dấu vết "feature này từng tồn tại".
 
-## Khi nào dùng cái nào
+## When to use which
 
 | Cách | Lịch sử | Ưu | Nhược | Hợp với |
 |---|---|---|---|---|
@@ -70,7 +70,7 @@ Nếu `main` chưa có commit mới nào kể từ lúc feature tách ra, merge 
 
 Quy tắc thực tế: **chọn một cách làm mặc định cho cả repo** (cấu hình ở GitHub: cho phép merge method nào) và để mọi người theo. Với web service deploy liên tục, squash là mặc định hợp lý; với PR có vài commit atomic rõ ràng, rebase and merge giữ được độ chi tiết.
 
-## Quy tắc vàng: không rebase nhánh đã chia sẻ
+## The golden rule: never rebase a shared branch
 
 Rebase tạo commit mới với hash mới. Nếu đồng nghiệp đã dựa việc của họ trên các commit cũ, sau khi bạn force push, họ có lịch sử trùng lặp: commit cũ (của họ) và commit mới (của bạn) cùng nội dung. Quy tắc:
 
@@ -89,7 +89,7 @@ git push --force-with-lease --force-if-includes origin feature/login
 
 `--force-if-includes` (từ Git 2.30) bổ sung kiểm tra: remote-tracking ref phải đã được tích hợp vào local. Điều này chặn trường hợp IDE chạy `git fetch` ngầm khiến lease tưởng bạn đã thấy commit mới. Cạm bẫy: nếu bạn `fetch` rồi không xem commit mới và force push, lease vẫn qua. Lease giảm rủi ro, không loại bỏ.
 
-## Cấu hình khuyến nghị
+## Recommended configuration
 
 ```sh
 git config --global pull.rebase true        # hoặc pull.ff only để chặn merge ngầm
@@ -97,7 +97,7 @@ git config --global rebase.autoStash true
 git config --global rerere.enabled true     # Chương 11
 ```
 
-## Lab (c): cùng một lịch sử, ba kết quả
+## Lab (c): the same history, three results
 
 Script `lab/scripts/c-merge-rebase-squash.sh` dựng đúng tình huống trên rồi tích hợp bằng ba cách. Output thật (container `node:lts`, git 2.47.3):
 
@@ -129,28 +129,28 @@ Script `lab/scripts/c-merge-rebase-squash.sh` dựng đúng tình huống trên 
 
 Nhận xét: sau rebase, F1 và F2 có hash mới (`adff17b`, `797f2d3` thay vì `e065f65`, `c32983a`). Sau squash, nhánh `feature` vẫn còn nguyên và **không** nằm trong lịch sử của `main`: đây là lý do phải xóa nhánh sau khi squash.
 
-## Cạm bẫy
+## Pitfalls
 
 - `git pull` mặc định (không cấu hình) có thể sinh merge commit "Merge branch 'main' of origin" vô nghĩa; đặt `pull.rebase` hoặc `pull.ff`.
 - Squash merge rồi tiếp tục làm trên nhánh cũ: git không biết nhánh cũ đã vào main (commit squash khác hash), nên lần sau bạn sẽ gặp conflict "ma". Xóa nhánh sau khi squash.
 - Rebase một nhánh có merge commit: mặc định bị làm phẳng. Dùng `--rebase-merges` nếu cần giữ.
 - Resolve conflict khi rebase xảy ra ở từng commit, có thể lặp lại cùng conflict nhiều lần; `rerere` giúp (lab d).
 
-## Tóm tắt
+## Summary
 
 - Merge giữ hình dạng thật; rebase viết lại thành đường thẳng; squash gộp thành một commit.
 - Fast-forward chỉ dời nhãn; dùng `--ff-only` để chặn merge ngầm.
 - Không rebase nhánh đã chia sẻ; nếu force push, dùng `--force-with-lease`.
 - Chọn một merge method mặc định cho cả repo.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Vì sao rebase làm đổi hash của mọi commit được replay?
 2. PR có 12 commit "wip", "fix", "fix 2". Nên dùng merge method nào?
 3. `--force-with-lease` bảo vệ khỏi tình huống nào, và không bảo vệ khỏi tình huống nào?
 4. Khi nào `git merge` chỉ là fast-forward?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Hash gồm parent hash; parent đổi (base mới) kéo theo hash đổi, dù nội dung diff giống.
 2. Squash, để lịch sử chỉ còn một commit có message tốt (hoặc dọn bằng interactive rebase trước, Chương 7).

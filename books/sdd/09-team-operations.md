@@ -1,10 +1,10 @@
-# Chương 9. Vận hành team Spec-Driven hằng ngày
+# Chapter 9. Running a Spec-Driven team day to day
 
-## 1. Tình huống
+## 1. Scenario
 
 Ba tháng sau khi bắt đầu, RoomBook có 12 UC, 5 dev. Spec bắt đầu lệch code; PR spec nằm chờ cả tuần; người mới không biết đọc gì trước. SDD không hỏng ở kỹ thuật mà ở vận hành: ai viết, ai duyệt, đo gì, cập nhật khi nào.
 
-## 2. Vai trò
+## 2. Roles
 
 | Vai trò | Việc chính trong SDD | Duyệt cái gì |
 |---|---|---|
@@ -16,7 +16,7 @@ Ba tháng sau khi bắt đầu, RoomBook có 12 UC, 5 dev. Spec bắt đầu l�
 
 Team nhỏ (3 người) một người đội nhiều mũ: bắt buộc giữ *hai cặp mắt* cho spec (người viết khác người duyệt) dù cùng một người có thể vừa là dev vừa là BA.
 
-## 3. Cấu trúc repo
+## 3. Repo structure
 
 Giữ spec **cùng repo với code** (lab của sách):
 
@@ -29,7 +29,7 @@ CLAUDE.md     # quy tắc làm việc cho AI
 
 Một repo cho spec và code giúp một PR có thể chứa cả hai khi thay đổi nhỏ, và traceability bằng grep đơn giản. Với nhiều service, mỗi service có `specs/` riêng; spec liên service đặt ở repo chung hoặc `docs/`.
 
-## 4. Code review kiểu SDD
+## 4. SDD-style code review
 
 Năm quy tắc (diễn giải lại):
 
@@ -41,7 +41,7 @@ Năm quy tắc (diễn giải lại):
 
 Reviewer cũng nên đặc biệt nghi ngờ: test bị sửa cùng lúc với code, spec bị sửa trong PR "chỉ code", phần thay đổi lớn hơn phạm vi UC.
 
-## 5. Lỗi thường gặp
+## 5. Common mistakes
 
 | Lỗi | Biểu hiện | Cách chữa |
 |---|---|---|
@@ -52,7 +52,7 @@ Reviewer cũng nên đặc biệt nghi ngờ: test bị sửa cùng lúc với c
 | Test sửa theo code | test pass nhưng AC sai | PR sửa test phải sửa AC hoặc giải thích |
 | Mỗi người một cấu trúc | thư mục khác nhau | CLAUDE.md ghi cấu trúc; một template |
 
-## 6. Metric: biết SDD có ích hay không
+## 6. Metrics: knowing whether SDD helps
 
 Chọn vài metric, đo theo xu hướng, đừng biến thành KPI cá nhân:
 
@@ -66,7 +66,7 @@ Chọn vài metric, đo theo xu hướng, đừng biến thành KPI cá nhân:
 
 Số lỗi hay tốc độ dòng code không phải metric tốt cho SDD (dễ bị thao túng và không đo đúng giá trị).
 
-## 7. Lộ trình 30/60/90 ngày
+## 7. The 30/60/90-day roadmap
 
 Đây là gợi ý, không phải chuẩn; điều chỉnh theo cỡ team.
 
@@ -78,27 +78,27 @@ Số lỗi hay tốc độ dòng code không phải metric tốt cho SDD (dễ b
 
 Chấp nhận kết quả "bỏ phần X": SDD là công cụ, không phải mục tiêu.
 
-## 8. Một ngày bình thường
+## 8. A typical day
 
 - Sáng: dev nhận UC đã duyệt, đọc AC, nhờ AI liệt kê tình huống chưa có AC (`/spec-review`).
 - Viết test từ AC, chạy trong Docker; AI sinh code tới khi test pass.
 - Phát hiện thiếu rule: dừng, hỏi PO, sửa spec trong PR riêng.
 - Chiều: review PR của đồng đội theo năm quy tắc; kiểm tra link UC và test ↔ AC.
 
-## 9. Trade-off
+## 9. Trade-offs
 
 - Chi phí review spec là thật; bù lại bằng việc giảm làm lại. Nếu team không ghi nhận làm lại, sẽ thấy SDD chỉ có chi phí.
 - Spec trong repo dễ sửa nhưng cũng dễ bị sửa tùy tiện; cần CODEOWNERS hoặc quy ước duyệt (ví dụ yêu cầu PO duyệt thay đổi dưới `specs/`).
 - Quy trình nặng với team rất nhỏ; giữ tối thiểu: BR mỏng, UC + AC, test map AC.
 
-## 10. Cạm bẫy
+## 10. Pitfalls
 
 - Biến metric thành thước đo cá nhân.
 - Để một người giữ toàn bộ spec; khi họ nghỉ, spec chết.
 - Bắt AI "tự cập nhật spec sau khi code": nó sẽ ghi lại những gì nó làm chứ không phải những gì cần làm.
 - Không có người sở hữu BR.
 
-## 11. Tóm tắt
+## 11. Summary
 
 1. Mỗi vai trò có việc và thẩm quyền duyệt rõ ràng; spec luôn có hai cặp mắt.
 2. Spec và code cùng repo; traceability bằng quy ước tên.
@@ -106,14 +106,14 @@ Chấp nhận kết quả "bỏ phần X": SDD là công cụ, không phải m�
 4. Đo vài metric theo xu hướng; tránh metric dễ thao túng.
 5. Lộ trình 30/60/90: thử, mở rộng, quyết định; được phép bỏ.
 
-## 12. Tự kiểm tra
+## 12. Self-check
 
 1. Ai nên duyệt AC "hủy trước 120 phút là miễn phí"?
 2. Vì sao PR sửa test cùng lúc với code là tín hiệu cần soi?
 3. Metric nào đo được AC coverage bằng script?
 4. Cuối ngày 90, kết luận "bỏ SDD cho tính năng nhỏ" có chấp nhận được không?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. PO/BA (business owner), có QA kiểm tra coverage.
 2. AI có thể chỉnh test cho khớp code sai, làm mất tác dụng bảo vệ.

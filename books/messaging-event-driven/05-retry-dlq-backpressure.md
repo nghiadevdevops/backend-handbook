@@ -1,10 +1,10 @@
-# Chương 5. Retry, backoff, DLQ, poison message và backpressure
+# Chapter 5. Retry, backoff, DLQ, poison messages, and backpressure
 
-## 1. Tình huống
+## 1. Scenario
 
 Consumer xử lý `OrderPlaced` bằng cách gọi API kho. API kho trả 503 trong 2 phút. Consumer retry ngay lập tức hàng nghìn lần/giây, làm API kho chết hẳn. Hoặc: một message có JSON hỏng, consumer ném exception, nhận lại ngay, ném lại... mãi mãi, chặn cả partition phía sau. Hai vấn đề này (transient error và permanent error) cần hai cách xử lý khác nhau.
 
-## 2. Phân loại lỗi
+## 2. Classifying failures
 
 | Loại | Ví dụ | Cách xử lý |
 |---|---|---|
@@ -56,30 +56,30 @@ Consumer chậm hơn producer thì backlog tăng. Cách xử lý:
 - Autoscale consumer theo **lag** (chương 11), trong giới hạn số partition.
 - Phía producer: broker đầy thì `max.block.ms`/lỗi; RabbitMQ có flow control và memory/disk alarm.
 
-## 6. Ví dụ lab
+## 6. Lab example
 
 Lab (chương 12) mô phỏng: đơn có `total_cents` âm bị consumer coi là permanent error → chuyển sang topic `orders.dlq` kèm lý do; đơn của khách "flaky" lỗi transient 2 lần rồi retry với backoff 1s, 2s. Xem output thật ở `lab/RESULTS.md`.
 
-## 7. Trade-off và cạm bẫy
+## 7. Trade-offs and pitfalls
 - Retry nhiều layer (client HTTP retry 3 lần × consumer retry 5 lần × broker redelivery) nhân lên thành retry storm. Chỉ retry ở **một** layer.
 - DLQ không ai nhìn là mất dữ liệu có hệ thống.
 - Retry vô hạn không backoff chặn partition (head-of-line blocking).
 - Sửa schema làm hàng loạt message "poison": DLQ đầy → sửa code → redrive.
 - Retry cần idempotent: lần thử trước có thể đã thành công một phần.
 
-## Tóm tắt
+## Summary
 1. Phân loại lỗi: transient → retry có backoff + jitter; permanent → DLQ ngay.
 2. Giới hạn số lần retry; poison message phải rời queue chính.
 3. DLQ cần alert và quy trình redrive.
 4. Backpressure: pull + prefetch + circuit breaker + autoscale theo lag.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Vì sao cần jitter?
 2. Dùng retry topic trong Kafka có ảnh hưởng gì đến ordering?
 3. `x-delivery-limit` của quorum queue để làm gì?
 4. Nêu hai cách tạo backpressure cho consumer RabbitMQ/Kafka.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Tránh nhiều consumer retry cùng một thời điểm (thundering herd).
 2. Message chuyển sang retry topic bị xử lý sau các message sau của cùng key: mất ordering.

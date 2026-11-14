@@ -1,10 +1,10 @@
-# Chương 3. Git Flow
+# Chapter 3. Git Flow
 
-## Vấn đề
+## The problem
 
 Bạn thấy nhiều repo có `develop`, `release/1.4`, `hotfix/...` và tự hỏi: có nên bắt chước không? Git Flow là mô hình nổi tiếng nhất, cũng là mô hình bị áp dụng sai nhiều nhất. Cần hiểu nó giải quyết bài toán gì để biết khi nào nó đáng giá.
 
-## Nguồn gốc và trạng thái hiện tại
+## Origins and current status
 
 Git Flow do Vincent Driessen đề xuất trong bài "A successful Git branching model" (05/01/2010). Ngày 05/03/2020 ông thêm ghi chú đầu bài, đại ý: nếu team làm continuous delivery cho phần mềm, ông khuyên dùng workflow đơn giản hơn nhiều (như GitHub Flow). Web app thường được deliver liên tục, không rollback theo version và không cần chạy nhiều version cùng lúc; Git Flow được thiết kế cho bối cảnh khác. Ông cũng nhấn mạnh không nên coi bất kỳ mô hình nào là luật chung (đọc bài gốc để thấy nguyên văn).
 
@@ -18,7 +18,7 @@ Tình trạng công cụ (tra 11/2026):
 
 Kết luận: nếu thật sự dùng Git Flow, đừng cài git-flow-avh mới; hoặc dùng git-flow-next, hoặc tự gõ lệnh git thuần (chỉ vài lệnh, xem lab). Tên `git-flow-next` ở `gitflow-next/gitflow-next` trả 404; repo đúng là `gittower/git-flow-next`.
 
-## Các nhánh
+## The branches
 
 | Nhánh | Sống bao lâu | Tách từ | Merge vào |
 |---|---|---|---|
@@ -28,7 +28,7 @@ Kết luận: nếu thật sự dùng Git Flow, đừng cài git-flow-avh mới;
 | `release/*` | ngày đến tuần | `develop` | `main` và `develop` |
 | `hotfix/*` | vài giờ | `main` | `main` và `develop` |
 
-## Luồng release và hotfix
+## Release and hotfix flow
 
 ```mermaid
 gitGraph
@@ -117,7 +117,7 @@ v1.1.1          Hotfix 1.1.1
 
 Đồ thị thật rối hơn sơ đồ Mermaid: chỉ một vòng release và hotfix đã có 5 merge commit. Đó chính là "chi phí nghi thức" của Git Flow. Lưu ý: quên merge ngược về `develop` là lỗi kinh điển, bản fix sẽ "biến mất" ở release sau.
 
-## Ưu và nhược
+## Pros and cons
 
 Ưu:
 - Có chỗ rõ ràng cho từng loại công việc; `main` luôn khớp bản đã phát hành.
@@ -131,7 +131,7 @@ Nhược:
 - Không có nghĩa "code trên `develop` đã được deploy" nên feedback chậm; khó làm continuous delivery.
 - DORA (Chương 5) cho thấy các team hiệu quả cao tích hợp thường xuyên và nhánh ngắn.
 
-## Khi nào vẫn hợp lý
+## When it still makes sense
 
 - Phần mềm phát hành theo version rõ ràng: thư viện, SDK, CLI, framework mà người dùng chọn lúc nâng cấp.
 - **Nhiều version phải hỗ trợ song song** (1.x vẫn nhận security fix trong khi 2.x phát triển). Khi đó bạn cần `release/1.x` và `support` branch, và Git Flow gần với nhu cầu thật.
@@ -140,11 +140,11 @@ Nhược:
 
 Khi KHÔNG nên: web service hoặc API deploy liên tục, một version duy nhất ở production. Ở đó `develop` chỉ là buffer thừa; dùng GitHub Flow hoặc trunk-based (Chương 4, 5).
 
-## Biến thể rút gọn
+## Simplified variants
 
 Nhiều team giữ phần hữu ích và bỏ phần thừa: bỏ `develop`, dùng `main` làm nơi tích hợp, chỉ tạo `release/x.y` khi cần ổn định hoặc hỗ trợ version cũ (đây gần với GitLab Flow, Chương 4).
 
-## Cạm bẫy
+## Pitfalls
 
 - Merge release vào `main` nhưng quên merge vào `develop` (mất bản fix).
 - Thêm feature mới vào nhánh `release/*`.
@@ -152,21 +152,21 @@ Nhiều team giữ phần hữu ích và bỏ phần thừa: bỏ `develop`, dù
 - Chạy CI chỉ trên PR vào `main`, bỏ qua `develop`.
 - Cài git-flow-avh (đã archived) mà không biết.
 
-## Tóm tắt
+## Summary
 
 - Git Flow: `main` + `develop` + `feature` + `release` + `hotfix`, merge `--no-ff`, tag trên `main`.
 - Tác giả khuyên dùng workflow đơn giản hơn cho continuous delivery (ghi chú 03/2020).
 - git-flow-avh đã archived; git-flow-next còn phát triển.
 - Hợp lý cho thư viện, mobile, nhiều version song song; không hợp cho web service deploy liên tục.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Hotfix phải được merge vào những nhánh nào, vì sao?
 2. Vì sao Git Flow khó đi cùng continuous delivery?
 3. Kể 3 loại sản phẩm mà Git Flow còn phù hợp.
 4. Nên dùng tool nào nếu muốn lệnh `git flow` hiện nay?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `main` (để phát hành bản vá) và `develop` (hoặc release branch đang mở), nếu không bản vá sẽ mất ở lần release sau.
 2. Code nằm lâu trên `develop` và feature branch trước khi tới production; tích hợp muộn, release theo đợt, hai nhánh dài hạn dễ lệch.

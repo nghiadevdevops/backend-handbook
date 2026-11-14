@@ -1,10 +1,10 @@
-# Chương 3. Operator, NULL, LIKE, function bọc cột và data type: khi nào index dùng được
+# Chapter 3. Operators, NULL, LIKE, Wrapped Columns and Data Types: When an Index Can Be Used
 
 Nguyên tắc xuyên suốt từ chương 2: B-tree cần một **điểm bắt đầu** và một **hướng quét**. Một điều kiện "dùng được index" khi nó cho database biết nên đặt con trỏ ở đâu trong thứ tự của index.
 
 Dữ liệu: `users` 300.000 dòng; `status` có 2 giá trị (`active` 99%, `banned` 1%), `country` 5 giá trị, `name` NULL ở 10% dòng, `deleted_at` NULL ở 95% dòng.
 
-## 3.1 `!=` / `<>` và `LIKE '%x'`: hiểu đúng lý do
+## 3.1 `!=` / `<>` and `LIKE '%x'`: understanding the real reason
 
 Lời giải thích sai thường gặp: "optimizer không ước lượng được số dòng nên bỏ index". Sai. Optimizer ước lượng bình thường:
 
@@ -82,7 +82,7 @@ PostgreSQL cho phép chỉ rõ `NULLS FIRST` / `NULLS LAST`; MySQL thì không c
 
 - `UNIQUE` cho phép nhiều NULL ở cả hai DB (chi tiết ở chương 7).
 
-## 3.3 `LIKE 'abc%'` trên PostgreSQL: bẫy collation
+## 3.3 `LIKE 'abc%'` on PostgreSQL: the collation trap
 
 `LIKE 'abc%'` có prefix cố định, về lý thuyết là range `>= 'abc' AND < 'abd'`. Nhưng trên PostgreSQL, B-tree mặc định sắp xếp theo **collation của cột**, và với các collation ngôn ngữ (ví dụ `en_US.utf8`, mặc định của image Docker dùng để thử) thứ tự chuỗi không phải thứ tự byte, nên range prefix không hợp lệ. Kết quả thử nghiệm:
 
@@ -120,7 +120,7 @@ EXPLAIN SELECT * FROM users WHERE email LIKE 'user77777%';
 
 Lưu ý với MySQL: collation `_ci` (case-insensitive) nghĩa là `LIKE 'USER%'` cũng khớp `user...`. Với PostgreSQL, `LIKE` là case-sensitive; `ILIKE` thì không dùng được index B-tree thường.
 
-## 3.4 Đừng bọc cột trong function
+## 3.4 Don't wrap a column in a function
 
 Điều kiện `f(cột) = giá trị` làm database mất điểm bắt đầu trong index của `cột`, vì index sắp theo `cột`, không theo `f(cột)`. Viết lại thành range trên chính cột.
 
@@ -149,7 +149,7 @@ EXPLAIN SELECT * FROM users WHERE created_at >= '2024-02-01' AND created_at < '2
 
 Hai ngoại lệ chính đáng: nếu **không thể** viết lại (ví dụ `lower(email) = ...` khi dữ liệu có hoa thường lẫn lộn), dùng **expression index** (chương 7). Ngoài ra, function áp lên **giá trị constant** bên phải dấu `=` thì không sao.
 
-## 3.5 Data type không khớp
+## 3.5 Mismatched data types
 
 - **PostgreSQL**: so sánh khác type hoặc báo lỗi, hoặc cast theo quy tắc rõ ràng. String literal `'12345'` được hiểu là type của cột, nên `id = '12345'` vẫn dùng index. Nhưng so sánh với type `numeric` buộc cast **cột** sang numeric và mất index:
 
@@ -171,7 +171,7 @@ SELECT COUNT(*) FROM users WHERE id = '12abc';     -- 1 dòng khớp id = 12, k�
 
 Quy tắc: so sánh cột chuỗi với **string literal**, cột số với số. Dùng parameterized query và kiểm tra type ở application layer.
 
-## 3.6 Cạm bẫy thường gặp
+## 3.6 Common pitfalls
 
 - Khẳng định "`!=` không dùng index vì không ước lượng được": sai, xem 3.1.
 - `LIKE 'abc%'` trên PostgreSQL mà quên `text_pattern_ops` hay collation `C`.
@@ -179,7 +179,7 @@ Quy tắc: so sánh cột chuỗi với **string literal**, cột số với s�
 - `NOT IN` với danh sách có NULL.
 - MySQL: so sánh cột chuỗi với số.
 
-## 3.7 Tóm tắt
+## 3.7 Summary
 
 - Index B-tree cần điểm bắt đầu: `=`, range, prefix cố định thì được; `<>` (PG) và `%x` thì không.
 - Optimizer vẫn ước lượng được `<>`; lý do thật là cấu trúc B-tree và operator class.
@@ -187,7 +187,7 @@ Quy tắc: so sánh cột chuỗi với **string literal**, cột số với s�
 - Viết lại `function(cột) = x` thành range trên cột; nếu không được, dùng expression index.
 - Giữ type của constant khớp type của cột; MySQL implicit cast rất dễ mất index.
 
-## 3.8 Tự kiểm tra
+## 3.8 Self-check
 
 1. Vì sao PostgreSQL không dùng B-tree cho `status <> 'active'` dù chỉ 1% dòng khớp, còn MySQL lại có thể?
 2. Hai cách làm `LIKE 'abc%'` dùng index trên PostgreSQL với collation `en_US.utf8`?
@@ -195,7 +195,7 @@ Quy tắc: so sánh cột chuỗi với **string literal**, cột số với s�
 4. NULL được sắp ở đâu khi `ORDER BY name DESC` trên PostgreSQL và trên MySQL?
 5. Trên MySQL, `WHERE email = 12345` (email là VARCHAR) có dùng index trên `email` không, và vì sao?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `<>` không thuộc operator class B-tree của PostgreSQL, nên không là điều kiện index; MySQL chuyển thành range hai đoạn khi đủ chọn lọc.
 2. Index với `text_pattern_ops` (hoặc `varchar_pattern_ops`); hoặc index/cột với collation `"C"`.

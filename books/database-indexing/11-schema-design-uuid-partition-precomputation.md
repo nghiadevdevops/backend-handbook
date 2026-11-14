@@ -1,8 +1,8 @@
-# Chương 11. Thiết kế schema: primary key, UUID, partition, pre-sorting và precomputation
+# Chapter 11. Schema Design: Primary Keys, UUIDs, Partitioning, Pre-Sorting and Precomputation
 
 Index tốt nhất là index bạn không cần: schema tốt giảm số query khó. Chương này gom các quyết định thiết kế ảnh hưởng mạnh nhất đến index.
 
-## 11.1 Primary key: auto-increment, UUIDv4 hay UUIDv7
+## 11.1 Primary key: auto-increment, UUIDv4 or UUIDv7
 
 | Lựa chọn | Ưu | Nhược |
 |---|---|---|
@@ -12,7 +12,7 @@ Index tốt nhất là index bạn không cần: schema tốt giảm số query 
 
 **UUIDv4 gây fragmentation cho *mọi* B-tree index trên cột đó**, kể cả index primary key của PostgreSQL (heap thì không, vì dòng nối đuôi theo thứ tự chèn). Mỗi lần chèn rơi vào một leaf node ngẫu nhiên: leaf node đầy bị chia đôi (page split), leaf density thấp, cache kém hiệu quả.
 
-### Thực nghiệm PostgreSQL 18.6 (500.000 dòng mỗi bảng)
+### PostgreSQL 18.6 experiment (500,000 rows per table)
 
 PostgreSQL 18 có sẵn function `uuidv7()` built-in (đã kiểm: `uuid_extract_version(uuidv7())` trả 7).
 
@@ -37,7 +37,7 @@ SELECT avg_leaf_density, leaf_fragmentation FROM pgstatindex('t_v4_pkey');
 
 UUID (16 byte) vẫn lớn hơn bigint (8 byte) nên cả hai UUID đều hơn `t_ser`.
 
-### Thực nghiệm MySQL 9.7.4 (300.000 dòng, PK `BINARY(16)`)
+### MySQL 9.7.4 experiment (300,000 rows, `BINARY(16)` PK)
 
 MySQL **không có UUIDv7 built-in** (đã kiểm: `UUID_V7()` báo `FUNCTION does not exist` trên 9.7.4). `UUID()` sinh UUIDv1 (có thành phần thời gian nhưng các bit thấp đứng đầu). `UUID_TO_BIN(uuid, 1)` hoán đổi các phần để giá trị tăng theo thời gian. Bảng so sánh (kích thước clustered index = `data_length`):
 
@@ -51,11 +51,11 @@ MySQL **không có UUIDv7 built-in** (đã kiểm: `UUID_V7()` báo `FUNCTION do
 
 Khuyến nghị: nếu cần id sinh phân tán, ưu tiên UUIDv7 (PostgreSQL 18: `uuidv7()`; MySQL: sinh ở ứng dụng); nếu không, `bigint` identity là đơn giản nhất.
 
-## 11.2 Cột JSON: khi nào dùng
+## 11.2 JSON columns: when to use them
 
 JSON hợp cho thuộc tính thưa, thay đổi, ít khi dùng trong `WHERE`. Quy tắc: nếu một key JSON xuất hiện thường xuyên trong lọc/sắp xếp/join, nó nên là **cột thật** (có type, có constraint, có index B-tree rẻ). Chi tiết index JSON ở chương 8.
 
-## 11.3 Constraint: hàng rào cuối cùng
+## 11.3 Constraints: the last line of defense
 
 Constraint ở DB layer là thứ duy nhất chặn được dữ liệu sai từ mọi nguồn ghi:
 
@@ -78,7 +78,7 @@ INSERT INTO chk VALUES (1, -5);
 
 Các "điều kiện ma" ở chương 7 nên đi kèm `CHECK` để dữ liệu không phá vỡ giả định.
 
-## 11.4 Materialized path cho tree
+## 11.4 Materialized path for trees
 
 Lưu mỗi node kèm path từ root, ví dụ `'/1/7/123/'`. Lấy cả nhánh con = `LIKE '/1/7/%'`, một range prefix trên B-tree.
 
@@ -98,7 +98,7 @@ EXPLAIN FORMAT=TRADITIONAL SELECT * FROM cat WHERE path LIKE '/1/7/%';
 ```
 Đánh đổi: di chuyển một nhánh sang cha khác phải cập nhật `path` của mọi descendant. Phù hợp tree ít đổi (danh mục, cấu trúc tổ chức). Phương án khác: bảng đóng (closure table) hoặc `WITH RECURSIVE`.
 
-## 11.5 Partition: xóa dữ liệu lớn trong tích tắc
+## 11.5 Partitioning: deleting large data in an instant
 
 Partition chia bảng lớn thành các bảng con theo khoảng thời gian (thường). Lợi ích chính là **vận hành**: bỏ cả partition cũ chỉ là metadata operation, không phải `DELETE` hàng triệu dòng. Lợi ích query: *partition pruning* chỉ quét partition liên quan.
 
@@ -138,7 +138,7 @@ Giới hạn của MySQL (đã kiểm trên 9.7.4):
 
 Cả hai hệ đều đòi partition key trong unique key: nghĩa là bạn không thể đảm bảo `id` duy nhất toàn cục chỉ bằng constraint. Chỉ partition khi bảng đủ lớn (hàng trăm triệu dòng hoặc vận hành xóa theo kỳ); partition quá nhiều làm planner chậm.
 
-## 11.6 Pre-sorted table (clustering) cho range scan
+## 11.6 Pre-sorted table (clustering) for range scans
 
 Quét một khoảng liên tiếp rất nhanh khi các dòng kề nhau trên đĩa.
 
@@ -156,7 +156,7 @@ SELECT correlation FROM pg_stats WHERE tablename = 'cl' AND attname = 'v';   -- 
 ```
 `CLUSTER` **chỉ sắp xếp một lần**: dòng mới không được xếp theo thứ tự, correlation giảm dần (đã đo: 1 xuống 0,255 sau khi chèn thêm). Trong lúc chạy nó giữ lock `ACCESS EXCLUSIVE`, chặn cả đọc lẫn ghi, và viết lại toàn bộ bảng kèm index. Dùng cho bảng ít thay đổi sau khi nạp (dữ liệu lịch sử), chạy trong maintenance window. Nếu cần đảm bảo thứ tự thường xuyên, hãy xét partition theo thời gian, hoặc chuyển sang multicolumn index kèm covering để không cần đọc heap.
 
-## 11.7 Precomputation khi index cũng không đủ nhanh
+## 11.7 Precomputation when even an index isn't fast enough
 
 Với báo cáo tổng hợp trên hàng chục triệu dòng, không index nào giúp `GROUP BY` toàn bảng. Hãy tính trước:
 
@@ -175,7 +175,7 @@ ALTER TABLE daily_sales ADD PRIMARY KEY (d, status);
 ```
 Đánh đổi là dữ liệu có latency (độ trễ). Với yêu cầu gần thời gian thực, cập nhật cộng dồn trong cùng transaction (nhớ tránh counter nóng, chương 10).
 
-## 11.8 Cạm bẫy thường gặp
+## 11.8 Common pitfalls
 
 - UUIDv4 làm primary key InnoDB (phình toàn bảng) hoặc lưu `CHAR(36)`.
 - Khẳng định "chậm X lần" cho UUIDv4 mà không có phép đo trên phần cứng của mình.
@@ -184,7 +184,7 @@ ALTER TABLE daily_sales ADD PRIMARY KEY (d, status);
 - Dùng `DROP PARTITION` (MySQL-only) trên PostgreSQL.
 - Materialized view không có lịch refresh.
 
-## 11.9 Tóm tắt
+## 11.9 Summary
 
 - `bigint` là mặc định đơn giản; cần phân tán thì UUIDv7 (PG18 có `uuidv7()`); UUIDv4 phá B-tree index (cả PK PostgreSQL), nặng nhất với InnoDB.
 - Key JSON thường lọc nên là cột thật; JSON cho phần thưa.
@@ -192,7 +192,7 @@ ALTER TABLE daily_sales ADD PRIMARY KEY (d, status);
 - Partition là công cụ vận hành: PG dùng `DETACH PARTITION`/`DROP TABLE`; MySQL `DROP PARTITION`, partition key phải nằm trong mọi unique key, và không có FK.
 - `CLUSTER` chỉ sắp một lần và lock ACCESS EXCLUSIVE; InnoDB luôn cluster theo PK; tính trước bằng materialized view / bảng tổng hợp.
 
-## 11.10 Tự kiểm tra
+## 11.10 Self-check
 
 1. Vì sao UUIDv4 làm phình index primary key ngay cả trên PostgreSQL, và heap có bị không?
 2. PostgreSQL 18 có `uuidv7()` built-in không? MySQL 9.7 có `UUID_V7()` không?
@@ -200,7 +200,7 @@ ALTER TABLE daily_sales ADD PRIMARY KEY (d, status);
 4. Cách đúng để bỏ một partition cũ trên PostgreSQL?
 5. Vì sao `CLUSTER` không thay thế được clustered index của InnoDB?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Chèn ngẫu nhiên vào B-tree gây page split, leaf density thấp, fragmentation; heap thì không vì dòng nối đuôi theo thứ tự chèn (thí nghiệm: heap v4 = v7 = 33 MB).
 2. PostgreSQL 18: có. MySQL 9.7.4 (thử nghiệm): không có; sinh ở ứng dụng.

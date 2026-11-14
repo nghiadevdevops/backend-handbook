@@ -1,8 +1,8 @@
-# Chương 10. Supply chain tối thiểu: scan, SBOM, sign image
+# Chapter 10. Minimal Supply Chain: Scan, SBOM, Sign Images
 
 > Chương này chỉ giới thiệu. Một cuốn bảo mật khác sẽ đi sâu hơn.
 
-## 1. Vấn đề
+## 1. The problem
 
 Image của bạn không chỉ chứa code của bạn: nó chứa base OS, runtime (Go stdlib hoặc Node.js), và hàng trăm module Go hoặc package npm. Một vulnerability (lỗ hổng bảo mật) trong bất kỳ thành phần nào đều là vulnerability của bạn. Và khi image đến cluster, làm sao biết nó đúng là image do pipeline của bạn build, không bị thay giữa chừng? Ba biện pháp tối thiểu: **vulnerability scanning**, **SBOM**, **image signing**.
 
@@ -31,7 +31,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
 
 Lưu SBOM cùng artifact (hoặc đính kèm vào image dưới dạng attestation) để tra cứu sau này.
 
-## 4. Signing image với Sigstore/cosign
+## 4. Signing images with Sigstore/cosign
 
 Signing để chứng minh provenance và integrity. **Sigstore** là hệ sinh thái mở; **cosign** là công cụ sign/verify image. Phiên bản mới nhất tôi tra được: cosign v3.1.4.
 
@@ -52,7 +52,7 @@ cosign verify ghcr.io/example/deploy-demo@sha256:<digest> \
 
 Signature chỉ có giá trị khi có bước **verification enforcement**: một admission controller trong cluster (Kyverno, Sigstore policy-controller, Ratify...) từ chối Pod dùng image chưa signed. Sign mà không verify thì chỉ là trang trí. Phần lệnh cosign trên chưa chạy trong lab (cần identity OIDC thật); cú pháp theo tài liệu cosign.
 
-## 5. Lab đã chạy: scan image của lab
+## 5. Lab run: scanning the lab image
 
 
 Lệnh (Trivy chạy trong Docker, mount docker.sock): `trivy image --scanners vuln --severity HIGH,CRITICAL <image>`. Kết quả thật cho hai image của lab:
@@ -64,13 +64,13 @@ Lệnh (Trivy chạy trong Docker, mount docker.sock): `trivy image --scanners v
 
 Ý nghĩa: image Go gần như không có gì để scan nên sạch; image Node chứa cả hệ điều hành Debian cùng `npm`, mỗi thứ là một nguồn CVE. Hai cách giảm: dùng base ít package hơn (distroless nodejs, chưa build thử trong cuốn này) hoặc xóa `npm` khỏi image runtime nếu không cần (`rm -rf /usr/local/lib/node_modules/npm`; chưa thử). Nhiều CVE của Debian chưa có bản vá (`affected`), nên thường xử lý bằng cập nhật base image định kỳ thay vì ép pipeline đỏ. Hạn chế: Trivy chỉ biết package của OS và các lock file/binary nó nhận ra; "0" không chứng minh sạch hoàn toàn. Lab chưa chạy phần SBOM và cosign.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Scan chặn quá chặt (mọi CVE) làm pipeline đỏ liên tục và mọi người học cách bỏ qua; chọn threshold (HIGH/CRITICAL có patch) và có quy trình exception (VEX hoặc file ignore có hạn dùng).
 - Sign keyless tiện nhưng phụ thuộc service công cộng Sigstore; tổ chức có yêu cầu riêng có thể tự vận hành.
 - Cập nhật base image thường xuyên là biện pháp rẻ và hiệu quả nhất; bot cập nhật (Renovate/Dependabot) giúp.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 1. Scan một lần lúc build rồi không bao giờ scan lại.
 2. Sign theo tag (có thể bị trỏ lại) thay vì digest.
@@ -78,21 +78,21 @@ Lệnh (Trivy chạy trong Docker, mount docker.sock): `trivy image --scanners v
 4. SBOM sinh ra nhưng không lưu ở đâu để tra cứu.
 5. Scan image nhưng quên lock file ứng dụng (`govulncheck` cho Go, `npm audit` cho Node).
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Vulnerability scanning trong CI và định kỳ; threshold hợp lý, có quy trình exception.
 - SBOM (SPDX/CycloneDX) cho biết bạn chứa gì.
 - cosign sign theo digest; keyless dùng OIDC của CI; phải có verify khi admission.
 - `govulncheck` (Go) và `npm audit` (Node) bổ sung cho phần dependency của ứng dụng.
 
-## 9. Tự kiểm tra
+## 9. Self-check
 
 1. Vì sao scan định kỳ cả image đang chạy?
 2. SBOM giúp gì khi có CVE mới?
 3. Vì sao sign theo digest?
 4. Image signature không được verify thì có tác dụng gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Vulnerability được công bố sau khi deploy; image không đổi nhưng rủi ro đổi.
 2. Tra nhanh có dùng thành phần bị ảnh hưởng không và ở đâu.

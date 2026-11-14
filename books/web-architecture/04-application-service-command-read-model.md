@@ -1,6 +1,6 @@
-# Chương 4. Application Service, Command, Domain Service và Read Model
+# Chapter 4. Application Service, Command, Domain Service and Read Model
 
-## 4.1 Vấn đề
+## 4.1 The problem
 
 Ta đã có `Order` (luật) và `OrderRepository` (lưu trữ). Còn thiếu người **dàn dựng một use case**: nhận yêu cầu "khách X mua các sách Y", load sách từ catalog, kiểm tra luật mua lại, tạo đơn, lưu, báo tin. Nếu việc đó nằm trong controller thì ta quay lại chương 1: không dùng lại được cho CLI, khó test.
 
@@ -21,7 +21,7 @@ export interface PlaceOrderCommand {
 }
 ```
 
-### Command message khác Command của GoF
+### A command message is not the GoF Command
 
 Hai thứ cùng tên nhưng khác bản chất, rất hay bị nhầm:
 
@@ -35,7 +35,7 @@ Hai thứ cùng tên nhưng khác bản chất, rất hay bị nhầm:
 
 Command dùng kiểu nguyên thuỷ (`string`, `readonly string[]`) để adapter nào cũng dựng được dễ, kể cả một object literal; handler đổi sang ID branded (`CustomerId.of`, `EbookId.of`), nên dữ liệu sai kiểu lọt qua rìa vẫn bị chặn ở đó (test `Dữ liệu sai kiểu lọt qua rìa bị chặn ở handler`). **Command phải khớp handler**: handler đọc `command.customerId` và `command.ebookIds`, và đúng hai property đó tồn tại; nếu lệch, `tsc` báo lỗi ngay. Vì Command là `interface`, ta không cần class: với TypeScript, hình dạng là đủ.
 
-## 4.3 Handler hoàn chỉnh
+## 4.3 The complete handler
 
 File `lab/src/application/place-order/place-order-handler.ts`:
 
@@ -103,7 +103,7 @@ Ghi chú tiến hoá: dòng `implements PlaceOrderUseCase` ở bản cuối là 
 
 `PayOrderHandler` có cùng khuôn: load đơn bằng `get()`, gọi `markPaid()`, `save`, phát event. Xem `lab/src/application/pay-order/`.
 
-## 4.4 Domain service: khi luật không thuộc về một Entity
+## 4.4 Domain service: when a rule doesn't belong to one Entity
 
 Luật "không mua lại sách mình đã sở hữu" cần dữ liệu của **nhiều đơn** của khách, không thuộc riêng `Order` nào. Evans gọi chỗ chứa các luật kiểu này là **Domain Service**: stateless, tên theo ngôn ngữ nghiệp vụ, nằm trong domain (file `lab/src/domain/order/ebook-purchase-policy.ts`).
 
@@ -142,7 +142,7 @@ Phân biệt ba loại "service":
 | Application Service | Điều phối use case, không luật | `PlaceOrderHandler` |
 | Infrastructure Service/Adapter | Kỹ thuật | `LogOrderNotifier`, `PgOrderRepository` |
 
-## 4.5 Read Model: read side không cần aggregate
+## 4.5 Read Model: the read side doesn't need aggregates
 
 Màn hình "đơn của tôi" cần: mã đơn, trạng thái, tổng, danh sách tên sách, giờ đặt. Nếu load từng aggregate rồi map ra thì chậm và gò ép. Nguyên lý CQRS: **read side có model riêng**, hình dạng do màn hình quyết định.
 
@@ -232,7 +232,7 @@ flowchart LR
 
 Lưu ý rằng chỉ tách read/write model ở mức class như thế này chưa phải CQRS "đầy đủ" với hai database riêng; đây là bước nhẹ nhất và đã đủ lợi ích.
 
-## 4.6 Cạm bẫy thường gặp
+## 4.6 Common pitfalls
 
 - **Handler phình ra thành "God class"** chứa luật. Nếu thấy `if` nghiệp vụ trong handler, hãy chuyển vào Entity hoặc domain service.
 - **Chuyển luật tính tiền ra service sau khi đã dạy nó nằm trong Entity**: gây hai source of truth. Ở đây chỉ `Order.total()` tính tiền.
@@ -243,7 +243,7 @@ Lưu ý rằng chỉ tách read/write model ở mức class như thế này chư
 - **Domain service import class `Pg...` concrete**: phụ thuộc interface của domain mới hợp lệ.
 - **Quên `await`**: handler bất đồng bộ; thiếu `await` ở `save()` hay `publish()` khiến lỗi trôi thành unhandled rejection và event phát trước khi lưu xong. Bật rule `no-floating-promises` của linter để bắt.
 
-## 4.7 Tóm tắt
+## 4.7 Summary
 
 1. Handler điều phối một use case, mỗi use case một class, không chứa luật.
 2. Command message là DTO mang ý định, khác Command của GoF (có `execute()`).
@@ -251,7 +251,7 @@ Lưu ý rằng chỉ tách read/write model ở mức class như thế này chư
 4. Luật nhiều-entity vào domain service, phụ thuộc interface repository của domain là hợp lệ.
 5. Read side có read model riêng, trả DTO, không trả aggregate.
 
-## 4.8 Tự kiểm tra
+## 4.8 Self-check
 
 1. Hai điểm khác nhau chính giữa Command của GoF và `PlaceOrderCommand`.
 2. Vì sao `EbookPurchasePolicy` được phép phụ thuộc `OrderRepository`?
@@ -259,7 +259,7 @@ Lưu ý rằng chỉ tách read/write model ở mức class như thế này chư
 4. Khi nào nên dùng read model thay vì `OrderRepository.get`?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. GoF Command đóng gói hành động có `execute()` (có thể undo); `PlaceOrderCommand` chỉ là DTO dữ liệu, việc làm do handler. 
 2. Vì `OrderRepository` là interface thuộc domain; phụ thuộc contract chứ không phải implementation thì core vẫn thuần.

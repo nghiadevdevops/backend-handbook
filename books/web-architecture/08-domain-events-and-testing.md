@@ -1,8 +1,8 @@
-# Chương 8. Domain Event và testing theo từng layer
+# Chapter 8. Domain Events and Testing per Layer
 
 > Domain Event: Evans đề cập trong các bài về sau, Vernon mô tả chi tiết ở *Implementing DDD* (2013). Testing: áp dụng các chương trước.
 
-## 8.1 Vấn đề
+## 8.1 The problem
 
 Sau khi đơn được đặt, cần gửi email xác nhận. Nếu `PlaceOrderHandler` gọi thẳng "gửi email", handler biết nhiều việc không phải của nó, và mỗi nhu cầu mới (cộng điểm thưởng, báo kho, ghi log) lại sửa handler. Ta cần cách nói "**chuyện này vừa xảy ra**" mà không buộc người nói phải biết ai quan tâm.
 
@@ -145,7 +145,7 @@ sequenceDiagram
 
 Listener (chương 6) chỉ biết port `OrderNotifier`. Handler không biết có listener nào. Thêm hành vi mới nghĩa là thêm listener mới, không sửa handler.
 
-## 8.3 Các điểm tinh tế
+## 8.3 Subtle points
 
 - **Phát sau khi lưu.** Nếu phát trước `save()` và việc lưu lỗi, người dùng nhận email cho đơn không tồn tại.
 - **Nhưng phát sau lưu cũng có lỗ hổng:** nếu process chết giữa `save()` và `publish()`, event mất. Cách chuẩn khi cần chắc chắn là **outbox pattern**: ghi event vào table cùng transaction với aggregate, rồi một process khác phát đi. Sách này dừng ở bản synchronous để dễ học; hãy biết giới hạn của nó. `EventEmitter2` chạy trong cùng process và không bền: không phải message queue.
@@ -154,7 +154,7 @@ Listener (chương 6) chỉ biết port `OrderNotifier`. Handler không biết c
 - **Đẩy listener sang queue** (BullMQ, message broker...) là việc của adapter `EventPublisher` khác; core không đổi.
 - **Quên `await`** khi phát event: lỗi của listener thành unhandled rejection. Handler `await this.events.publish(...)`.
 
-## 8.4 Testing theo từng layer
+## 8.4 Testing per layer
 
 Vì mỗi layer phụ thuộc có giới hạn, mỗi layer có kiểu test rẻ riêng. Sách dùng test runner có sẵn của Node.js (`node:test`) và `node:assert/strict`, không thêm thư viện test nào; `@nestjs/testing` chỉ dùng để dựng module.
 
@@ -182,7 +182,7 @@ Có PostgreSQL 18.6:     tests 51, pass 51, fail 0
 
 Với NestJS, test event thường dùng `EventEmitter2` thật như trong `nest.e2e.test.ts`: gửi request, rồi kiểm `RecordingOrderNotifier.sent`. Ở core, ta assert bằng chính `SynchronousEventPublisher` cộng `RecordingOrderNotifier`, nên không cần framework.
 
-## 8.5 Cạm bẫy thường gặp
+## 8.5 Common pitfalls
 
 - **Đặt tên event ở thì mệnh lệnh** (`PlaceOrder`) thay vì quá khứ (`OrderPlaced`): lẫn với Command.
 - **Cho event mang cả aggregate** rồi listener sửa nó: hai nơi thay đổi aggregate.
@@ -194,7 +194,7 @@ Với NestJS, test event thường dùng `EventEmitter2` thật như trong `nest
 - **Test chạy song song dùng chung một database**: `node --test` chạy mỗi file trong một process riêng; lab dùng `--test-concurrency=1` vì các file PostgreSQL cùng xoá và tạo lại bảng.
 - **Dùng `as` trong test để "lách" kiểu** rồi quên rằng kiểu chỉ kiểm lúc compile: dùng `@ts-expect-error` để *khẳng định* lỗi kiểu, đừng im lặng bỏ qua.
 
-## 8.6 Tóm tắt
+## 8.6 Summary
 
 1. Domain Event là sự kiện quá khứ, immutable; aggregate ghi nhận, handler phát sau khi lưu.
 2. Handler chỉ gọi port `EventPublisher`; listener ở Application chỉ biết port của nó. Với NestJS, adapter dựa trên `@nestjs/event-emitter` và một subscriber mỏng có `@OnEvent`.
@@ -202,7 +202,7 @@ Với NestJS, test event thường dùng `EventEmitter2` thật như trong `nest
 4. Outbox pattern là hướng khi cần độ chắc chắn tuyệt đối.
 5. Test nhiều ở domain/application bằng adapter InMemory, ít ở adapter và end-to-end; `node:test` và `tsc --noEmit` là đủ để bắt đầu.
 
-## 8.7 Tự kiểm tra
+## 8.7 Self-check
 
 1. Vì sao `OrderPlaced` đặt ở thì quá khứ?
 2. Vì sao handler phát event sau khi `save()`?
@@ -211,7 +211,7 @@ Với NestJS, test event thường dùng `EventEmitter2` thật như trong `nest
 5. Vì sao listener trong core không dùng `@OnEvent` trực tiếp mà đi qua subscriber?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Vì nó mô tả điều đã xảy ra, không phải yêu cầu làm gì; lệnh yêu cầu là Command.
 2. Để không thông báo cho đơn chưa chắc đã tồn tại.

@@ -1,6 +1,6 @@
-# Chương 9. GitOps, Helm và Kustomize
+# Chapter 9. GitOps, Helm and Kustomize
 
-## 1. Vấn đề
+## 1. The problem
 
 Pipeline kiểu "CI chạy `kubectl apply`" có ba nhược điểm: CI cần quyền cao vào cluster; không ai biết actual state của cluster có khớp Git không (có người `kubectl edit` tay); rollback là chạy lại pipeline. **GitOps** đảo mô hình: Git là single source of truth; một controller *trong cluster* liên tục pull cấu hình từ Git và đưa cluster về đúng trạng thái đó.
 
@@ -15,7 +15,7 @@ flowchart LR
 
 Bốn nguyên tắc (theo OpenGitOps): declarative; versioned and immutable; pulled automatically; continuously reconciled.
 
-## 2. Argo CD và Flux
+## 2. Argo CD and Flux
 
 Cả hai đều là graduated project của CNCF. Phiên bản mới nhất tôi tra được: Argo CD v3.6.1 (04/11/2026), Flux v2.10.0 (26/10/2026).
 
@@ -90,14 +90,14 @@ patches:
 
 Ưu: YAML thuần, dễ đọc, dễ diff. Nhược: ít biểu đạt hơn Helm khi cần logic điều kiện phức tạp.
 
-## 5. Chọn gì
+## 5. What to choose
 
 - Triển khai phần mềm bên thứ ba (Postgres operator, cert-manager): dùng Helm chart có sẵn.
 - Ứng dụng của bạn với vài môi trường: Kustomize thường đủ và dễ review.
 - Dùng cả hai: Argo CD/Flux hỗ trợ cả Helm lẫn Kustomize; một số đội render Helm rồi vá bằng Kustomize.
 - Cluster đơn nhỏ, một đội: GitOps có chi phí học và vận hành, nhưng ngay cả khi chưa dùng controller, giữ manifest trong Git và validate trong CI (kubeconform) đã là bước tiến lớn.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Controller sync liên tục xung đột với HPA (cùng sửa `replicas`): bỏ trường `replicas` khỏi manifest hoặc cấu hình ignore difference.
 2. Secret thô trong Git.
@@ -106,21 +106,21 @@ patches:
 5. Cập nhật tag image bằng tay sai chỗ; hãy tự động hóa qua PR từ CI.
 6. Một repo cho tất cả môi trường mà nhánh `main` đồng nghĩa production, không có approval gate.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - GitOps: Git là source of truth, controller trong cluster pull và reconcile liên tục.
 - Rollback là `git revert`; có audit trail sẵn.
 - Argo CD (UI, nhiều cluster) và Flux (module nhỏ, thuần CRD) đều trưởng thành.
 - Helm cho gói bên thứ ba và parameterization; Kustomize cho overlay YAML thuần.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. GitOps khác "CI chạy kubectl apply" ở điểm nào về permission và reconciliation?
 2. `selfHeal` làm gì?
 3. Khi nào Kustomize thích hợp hơn Helm?
 4. Vì sao không nên dùng `latest` trong GitOps?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Controller trong cluster kéo cấu hình nên CI không cần quyền vào cluster, và nó liên tục reconcile, phát hiện drift.
 2. Tự đưa resource về state trong Git khi bị sửa tay.

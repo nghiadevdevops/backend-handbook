@@ -1,10 +1,10 @@
-# Chương 3. Docker Compose cho môi trường dev và test
+# Chapter 3. Docker Compose for Dev and Test Environments
 
-## 1. Vấn đề
+## 1. The problem
 
 Ứng dụng của bạn cần PostgreSQL, Redis, queue worker. Cài tất cả lên máy từng developer dẫn đến "máy tôi khác máy bạn". **Docker Compose** mô tả cả bộ service trong một file `compose.yaml` và khởi động bằng một lệnh. Cùng file đó (hoặc biến thể) chạy được trong CI để test tích hợp.
 
-## 2. Khái niệm
+## 2. Concepts
 
 - File tên chuẩn hiện nay là `compose.yaml` (vẫn đọc được `docker-compose.yml`). Lệnh là `docker compose` (plugin v2), không phải `docker-compose` (v1 đã ngừng).
 - Trường `version:` ở đầu file không còn cần; Compose Specification bỏ qua nó.
@@ -23,7 +23,7 @@ flowchart LR
   S -.mount.-> D
 ```
 
-## 3. Lab đã chạy
+## 3. Lab run
 
 File `lab/compose.yaml` (rút gọn):
 
@@ -86,7 +86,7 @@ docker compose --profile test run --rm tests
 docker compose --profile test down -v
 ```
 
-## 4. Dev khác test khác production
+## 4. Dev, test and production differ
 
 | | Dev | Test (CI) | Production |
 |---|---|---|---|
@@ -98,7 +98,7 @@ Cách tách: file `compose.yaml` làm nền, `compose.override.yaml` (tự độ
 
 Compose **không phải** công cụ production cho hệ thống nhiều node: nó không tự rolling update, không tự self-healing trên nhiều máy. Một server đơn nhỏ vẫn có thể dùng, chấp nhận downtime ngắn hoặc dùng thêm reverse proxy (xem chương 5).
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 1. Bind mount `node_modules/` từ host đè lên thư mục trong image, gây lỗi khác kiến trúc OS.
 2. Quyền file khi bind mount: container chạy UID 65532 (Go) hoặc 1000 (Node) không ghi được vào thư mục thuộc UID khác.
@@ -106,7 +106,7 @@ Compose **không phải** công cụ production cho hệ thống nhiều node: n
 4. Commit file secret thật vào git. Thư mục `secrets/` trong lab có `.gitignore`; mật khẩu lab chỉ dùng cho lab.
 5. Dùng tag `postgres:latest` trong compose của test, rồi một sáng CI đỏ vì major version đổi.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - `compose.yaml` mô tả cả hệ thống dev/test; các service gọi nhau bằng tên.
 - Dùng `healthcheck` + `depends_on: service_healthy` thay vì `sleep`.
@@ -114,13 +114,13 @@ Compose **không phải** công cụ production cho hệ thống nhiều node: n
 - PostgreSQL 18: mount volume tại `/var/lib/postgresql`.
 - Compose tốt cho dev và CI, không thay thế orchestration nhiều node.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. `depends_on` mặc định chờ gì?
 2. Vì sao dùng `down -v` trong CI?
 3. Làm thế nào để service `tests` không khởi động cùng `docker compose up`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Chỉ chờ container được khởi động, không chờ ứng dụng sẵn sàng; dùng `condition: service_healthy`.
 2. Để xóa volume dữ liệu, mỗi lần chạy test bắt đầu từ trạng thái sạch và không resource leak.

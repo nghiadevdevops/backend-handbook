@@ -1,10 +1,10 @@
-# Chương 6. Idempotent consumer và inbox pattern
+# Chapter 6. Idempotent consumer and the inbox pattern
 
-## 1. Tình huống
+## 1. Scenario
 
 Chương 3 kết luận: at-least-once nghĩa là duplicate sẽ xảy ra. Duplicate khi nào? Consumer crash trước ack; rebalance; publisher outbox gửi lại (chương 7); bạn tự redrive từ DLQ; replay có chủ đích. Nếu `OrderPlaced #123` trừ kho hai lần thì khách mất hàng. Consumer phải **idempotent**: xử lý N lần cho cùng kết quả như một lần.
 
-## 2. Hai hướng
+## 2. Two approaches
 
 **Idempotent tự nhiên** (ưu tiên nếu có thể): thao tác tự an toàn khi lặp.
 - `UPDATE orders SET status='PAID' WHERE id=? ` (gán, không cộng dồn).
@@ -56,7 +56,7 @@ COMMIT;
 
 Primary key trên `message_id` biến race condition giữa hai consumer xử lý duplicate cùng lúc thành an toàn: một bên INSERT thành công, bên kia đợi rồi gặp conflict.
 
-## 3. Message ID lấy ở đâu
+## 3. Where the message ID comes from
 
 - Producer sinh **event_id** (UUID) lúc tạo event và lưu trong outbox. Đây là ID ổn định qua mọi lần gửi lại.
 - **Không** dùng `topic-partition-offset` làm ID nếu có thể publish lại cùng event (publisher gửi duplicate sẽ có offset mới). Offset chỉ ổn định cho replay trên cùng log.
@@ -120,29 +120,29 @@ export async function handleOrderPlaced(e: Envelope): Promise<boolean> {
 }
 ```
 
-## 4. Dọn dẹp và hiệu năng
+## 4. Cleanup and performance
 
 Bảng inbox lớn dần. Cách xử lý: xóa record cũ hơn duplicate window tối đa có thể (retention của broker + thời gian redrive, ví dụ 14 ngày), hoặc partition bảng theo thời gian. Lưu ý: xóa quá sớm → bản duplicate đến muộn được xử lý lần nữa.
 
-## 5. Trade-off và cạm bẫy
+## 5. Trade-offs and pitfalls
 - Inbox chỉ bảo vệ effect **trong cùng DB**. Gọi API ngoài (thanh toán) thì truyền **idempotency key** (ví dụ `Idempotency-Key` của Stripe) trong request.
 - Dedup bằng cache Redis `SETNX` tách khỏi transaction DB: có khe hở (set xong, crash trước khi ghi DB → message bị coi là đã xử lý nhưng chưa).
 - Idempotent không đồng nghĩa đúng ordering: `OrderCancelled` đến trước `OrderPlaced` vẫn cần xử lý riêng.
 - ID inbox phải theo từng consumer: nếu hai consumer dùng chung một bảng và chung `message_id`, consumer thứ hai sẽ bị chặn sai (trong lab dùng primary key theo từng DB riêng của consumer; khi dùng chung DB, đặt primary key `(consumer, message_id)`).
 
-## Tóm tắt
+## Summary
 1. At-least-once bắt buộc consumer idempotent.
 2. Ưu tiên thao tác idempotent tự nhiên (gán, upsert); không được thì dùng inbox.
 3. Inbox: INSERT message_id và business effect trong cùng transaction.
 4. Event ID do producer sinh, ổn định qua các lần gửi lại; dọn inbox theo retention window.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. `UPDATE stock SET qty = qty - 1` có idempotent không? Làm sao sửa?
 2. Vì sao dòng inbox và thay đổi nghiệp vụ phải cùng transaction?
 3. Vì sao offset không phải ID dedup tốt khi có outbox publisher gửi lại?
 4. Làm sao đảm bảo idempotent khi consumer gọi API thanh toán ngoài?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không. Dùng inbox, hoặc đặt state tuyệt đối/kiểm tra version.
 2. Nếu tách, crash giữa hai bước dẫn đến bị bỏ sót hoặc làm hai lần.

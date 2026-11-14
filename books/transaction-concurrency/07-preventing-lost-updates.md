@@ -1,12 +1,12 @@
-# Chương 7. Năm cách chống lost update
+# Chapter 7. Five Ways to Prevent Lost Updates
 
-## 1. Tình huống
+## 1. Scenario
 
 Hai request cùng cộng tiền vào ví 1 (số dư 100): +10 và +20. Cả hai đọc `bal=100` ở application layer, tính, rồi ghi. Số dư cuối là 110 (hoặc 120), đúng ra 130. Chương 3 cho thấy lỗi này xảy ra ở mặc định của PostgreSQL (`READ COMMITTED`) và MySQL (`REPEATABLE READ`): kịch bản `lost_update` đã chạy, số dư cuối PG ở RC là **110**.
 
 Bảng dùng: `acct(id, bal, ver)`. Mọi kết quả dưới đây lấy từ `lab/scenarios/*/lost_update_*.sql` ở bản đã chạy.
 
-## 2. Cách 1: atomic UPDATE
+## 2. Way 1: atomic UPDATE
 
 Đẩy phép tính vào chính câu `UPDATE`, để DB tự read-modify-write dưới row lock:
 
@@ -28,7 +28,7 @@ Trong Go: `tx.Exec(ctx, "UPDATE acct SET bal = bal + $1 WHERE id = $2", 20, 1)` 
 UPDATE acct SET bal = bal - 20 WHERE id = 1 AND bal >= 20;   -- 0 dòng nghĩa là không đủ tiền
 ```
 
-## 3. Cách 2: SELECT ... FOR UPDATE (pessimistic locking)
+## 3. Way 2: SELECT ... FOR UPDATE (pessimistic locking)
 
 Khi logic quá phức tạp để nhét vào một câu `UPDATE` (ví dụ gọi code tính phí), lock dòng ngay khi đọc:
 
@@ -44,7 +44,7 @@ Kết quả đã chạy (`lost_update_forupdate`): PG `READ COMMITTED` đúng (B
 
 Điểm cần nhớ: lock chỉ giữ đến hết transaction, nên **chỉ giữ lock lúc cần** và giữ transaction ngắn (đừng gọi API ngoài khi đang giữ lock).
 
-## 4. Cách 3: optimistic locking bằng cột version
+## 4. Way 3: optimistic locking with a version column
 
 Không lock lúc đọc. Khi ghi, kiểm tra không ai sửa trong lúc mình tính:
 
@@ -66,15 +66,15 @@ Code Go khớp tên: `lab/go/optimistic.go` (`RowsAffected() == 1`, backoff có 
 
 CAS trên giá trị thay vì version: `UPDATE ... SET bal = 110 WHERE id = 1 AND bal = 100`. Đơn giản hơn nhưng dính vấn đề ABA (giá trị đổi rồi quay lại cũ thì CAS vẫn qua). Cột version đơn điệu tăng không bị.
 
-## 5. Cách 4: SERIALIZABLE + retry
+## 5. Way 4: SERIALIZABLE + retry
 
 Đặt `SERIALIZABLE` và để DB phát hiện. Kết quả đã chạy cho `lost_update` ở SERIALIZABLE: PG trả `40001`, MySQL trả deadlock `1213`. Cả hai hủy một transaction, kết quả cuối không mất dữ liệu, nhưng **bạn phải bắt lỗi và chạy lại cả transaction** (xem `lab/go/retry.go`, chương 10; đã chạy với pgx ở mục 4 của `lab/out/go.txt` và với MySQL ở mục 8). Ưu điểm: một cơ chế chung bảo vệ cả write skew (chương 8), không cần nhớ từng chỗ. Nhược điểm: tỷ lệ abort cao khi contention; transaction phải **idempotent trong phần DB** (chạy lại không có side effect ngoài DB).
 
-## 6. Cách 5: advisory lock
+## 6. Way 5: advisory lock
 
 `pg_advisory_xact_lock(key)` (PG) hoặc `GET_LOCK()` (MySQL) lock theo một con số/chuỗi bạn tự chọn, không cần có dòng nào. Dùng khi đối tượng cần bảo vệ chưa tồn tại như dòng. Xem chương 5.
 
-## 7. So sánh và khi nào dùng
+## 7. Comparison and when to use each
 
 | Cách | Chờ hay lỗi | Giữ lock lâu? | Khi nào dùng |
 |---|---|---|---|
@@ -86,7 +86,7 @@ CAS trên giá trị thay vì version: `UPDATE ... SET bal = 110 WHERE id = 1 AN
 
 Cây quyết định ngắn: (1) viết được thành một `UPDATE` atomic không? Dùng nó. (2) Người dùng mở form lâu? Optimistic. (3) Contention cao và phải đọc nhiều trước khi ghi? `FOR UPDATE`. (4) Invariant liên dòng khó lock? SERIALIZABLE + retry.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 1. `SELECT` rồi `UPDATE ... SET bal = :giá_trị_đọc_được + 20` ở level mặc định: chính là lost update.
 2. `FOR UPDATE` ở PG `REPEATABLE READ` mà không có retry, vì sẽ nhận `40001` thay vì chờ-và-đọc-mới.
@@ -95,7 +95,7 @@ Cây quyết định ngắn: (1) viết được thành một `UPDATE` atomic kh
 5. Retry vòng lặp không giới hạn và không backoff, gây bão retry.
 6. ORM `save()` ghi toàn bộ cột từ bản trong bộ nhớ: một lost update ngầm. Cân nhắc chỉ cập nhật cột thay đổi và dùng version.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Lost update xảy ra khi read-modify-write ở ứng dụng ở level mặc định; PG RC cho kết quả 110 trong kịch bản đã chạy.
 - Atomic `UPDATE` là cách rẻ và an toàn nhất; thử trước tiên.
@@ -103,14 +103,14 @@ Cây quyết định ngắn: (1) viết được thành một `UPDATE` atomic kh
 - SERIALIZABLE chặn bằng cách hủy transaction, buộc phải retry.
 - PG RR/SERIALIZABLE biến lost update thành lỗi `40001`; MySQL RR không phát hiện nên cần cách khác.
 
-## 10. Tự kiểm tra
+## 10. Self-check
 
 1. Vì sao `UPDATE acct SET bal = bal + 20` an toàn hơn đọc rồi ghi?
 2. Optimistic locking báo xung đột bằng cách nào?
 3. Vì sao `FOR UPDATE` ở PG `REPEATABLE READ` có thể ném `40001` còn ở MySQL thì không?
 4. Khi nào chọn SERIALIZABLE + retry thay vì `FOR UPDATE`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Phép tính và ghi diễn ra trong một câu lệnh dưới row lock, trên giá trị mới nhất.
 2. Câu `UPDATE ... WHERE ver = ?` ảnh hưởng 0 dòng.

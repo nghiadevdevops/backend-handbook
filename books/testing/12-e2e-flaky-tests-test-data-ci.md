@@ -1,16 +1,16 @@
-# Chương 12. E2E (Playwright Test), flaky test, test data và CI
+# Chapter 12. E2E (Playwright Test), flaky tests, test data, and CI
 
 > **Trạng thái kiểm chứng:** hai test Playwright (mục 3) đã chạy thật trong image chính thức `mcr.microsoft.com/playwright:v1.65.0-noble` với `@playwright/test` 1.65.0: `2 passed (15.1s)`. Lần đầu chạy phải kéo image nhiều GB nên mất rất lâu; phần chạy test thật chỉ vài chục giây. Phần builder (mục 5) là code thật, đã chạy trong lab. Workflow CI (mục 7) **chưa chạy thử** (cần GitHub Actions); đối chiếu tài liệu GitHub Actions.
 
-## 1. Tình huống
+## 1. Scenario
 
 Pipeline đỏ lúc 3 giờ sáng, chạy lại thì xanh. Cả đội bắt đầu bấm "re-run" mà không đọc lỗi. Một tuần sau, một bug thật bị bỏ qua vì mọi người nghĩ "lại flaky". Flaky test (test không ổn định) giết dần niềm tin vào cả bộ test, tệ hơn không có test.
 
-## 2. E2E: phần đỉnh nhỏ nhất của bộ test
+## 2. E2E: the smallest tip of the suite
 
 E2E đi qua toàn hệ thống như người dùng thật (trình duyệt, HTTP, DB thật). Giá trị: bắt lỗi tích hợp mà mọi test dưới không thấy. Giá: chậm, brittle, khó gỡ lỗi. Vì vậy chỉ giữ một số ít **critical user journey** (đăng nhập, đặt hàng, thanh toán), không dùng E2E để kiểm tra từng business rule (đã có ở các layer dưới).
 
-## 3. Playwright Test (đã chạy)
+## 3. Playwright Test (run)
 
 Playwright (`@playwright/test` 1.65.0) có test runner riêng (không dùng Vitest), tự động chờ element (auto-wait), và locator theo role. Lab có một trang giỏ hàng tí hon (`lab/src/http/cart-page.ts`, phục vụ ở `GET /`) để có UI thật cho journey đặt hàng. Test (`lab/tests/e2e/place-order.spec.ts`):
 
@@ -71,7 +71,7 @@ export default defineConfig({
 
 Với hệ sinh thái khác (Cypress, WebdriverIO, Selenium) bạn cũng có lựa chọn; Playwright được chọn vì có runner, auto-wait, trace viewer và đa trình duyệt sẵn. Mình chưa so sánh bằng thực nghiệm.
 
-## 4. Flaky test: nguyên nhân và cách chữa
+## 4. Flaky tests: causes and cures
 
 | Nguyên nhân | Dấu hiệu | Cách chữa |
 |---|---|---|
@@ -88,7 +88,7 @@ Trong lab, mọi thứ non-deterministic đã bị loại ngay từ thiết kế
 
 Quy trình xử lý test flaky: (1) **phát hiện**: theo dõi tỉ lệ đỏ-rồi-xanh khi retry (Vitest có `--retry`, Playwright có `retries` và gắn nhãn "flaky" trong báo cáo); (2) **quarantine** (cách ly): chuyển sang job không chặn merge, có hạn sửa; (3) **tìm root cause**; (4) **sửa hoặc xóa**. Cẩn thận với `retries`: nó che giấu vấn đề, chỉ nên dùng cho E2E và luôn báo cáo test cần retry.
 
-## 5. Test data: builder và object mother
+## 5. Test data: builders and object mothers
 
 Hai kỹ thuật tạo test data dễ đọc:
 
@@ -129,7 +129,7 @@ Mỗi method trả về một builder **mới** (spread object, `lines` cũng đ
 
 Quy tắc: dữ liệu mặc định phải **hợp lệ theo domain** (builder gọi `addLine` và `place` thật, nên không bao giờ tạo impossible state), và test chỉ nêu ra điều ảnh hưởng đến kết quả. Với test cần nhiều dữ liệu ngẫu nhiên hợp lệ, fast-check (chương 11) có thể sinh builder spec thay vì viết tay.
 
-## 6. Cấu trúc thư mục và cách chạy
+## 6. Directory structure and how to run
 
 Lab chia theo thư mục dưới `tests/`: `unit`, `application`, `acceptance`, `characterization`, `contract` (gồm `pact/`), `integration`, `http`, `e2e`, và lệnh con tương ứng trong `run.sh`. Vitest chạy theo đường dẫn (`vitest run tests/unit`) hoặc theo tên (`-t AC-ORD-3`); Playwright có runner riêng (`testMatch: '*.spec.ts'`, còn Vitest chỉ gom `*.test.ts`, để hai runner không nhặt nhầm file của nhau). Thứ tự chạy khuyến nghị trong CI: suite nhanh trước, chậm sau, để phản hồi sớm.
 
@@ -137,7 +137,7 @@ Lab chia theo thư mục dưới `tests/`: `unit`, `application`, `acceptance`, 
 typecheck -> unit -> application -> acceptance -> contract/characterization -> http -> integration -> (E2E, nightly)
 ```
 
-## 7. Chạy trong CI (chưa chạy thử)
+## 7. Running in CI (not yet run)
 
 Hai cách: dùng Docker như lab (nhất quán giữa máy dev và CI), hoặc cài runtime trên runner CI. Ví dụ GitHub Actions, minh họa:
 
@@ -170,14 +170,14 @@ Ghi chú: phiên bản các action (`@v5`) và `node-version` có thể đã đ�
 
 Thực hành tốt cho CI: giữ tổng thời gian bộ nhanh dưới vài phút; fail build khi test không có assertion (lab bật `expect.requireAssertions`) và khi `tsc` báo lỗi; lưu artifact (log, trace Playwright, báo cáo Stryker `reports/mutation/mutation.json`); cache `~/.npm`; cố định phiên bản Node bằng `engines` và image, vì lab phải ghim `typescript` ở 6.0.3 để Stryker chạy được (chương 11), nên CI và máy dev cần dùng cùng `package-lock.json`.
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - E2E ít mà chắc, không nhiều mà mong manh.
 - Retry giúp pipeline xanh nhưng che bệnh; đo và giảm.
 - Builder linh hoạt, mother tiện; đừng để dữ liệu mặc định ẩn điều quan trọng.
 - Chạy mọi thứ ở mỗi commit hay chia tier: trade-off giữa fast feedback và độ coverage; chia tier (nhanh mỗi commit, chậm theo lịch) thường hợp lý.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - `page.waitForTimeout(5000)` hoặc `await new Promise(r => setTimeout(r, 5000))` thay cho chờ điều kiện.
 - E2E kiểm tra business rule chi tiết, nhân rộng số E2E mà không ai bảo trì.
@@ -187,14 +187,14 @@ Thực hành tốt cho CI: giữ tổng thời gian bộ nhanh dưới vài phú
 - CI và máy dev dùng phiên bản khác nhau (chạy cùng image Docker để tránh).
 - Để Vitest nhặt file `*.spec.ts` của Playwright (hoặc ngược lại): hai runner có API `test`/`expect` khác nhau và sẽ báo lỗi khó hiểu.
 
-## 10. Tóm tắt
+## 10. Summary
 
 - E2E chỉ cho critical user journey; Playwright có auto-wait và trace; lab đã chạy hai test trong image chính thức.
 - Flaky test đến từ chờ cố định, dữ liệu chung, thời gian/ngẫu nhiên, infrastructure chưa sẵn sàng, `await` bị quên: loại bỏ bằng thiết kế deterministic.
 - Builder cho dữ liệu hợp lệ, chỉ nêu điều liên quan, immutable; object mother cho kịch bản dựng sẵn.
 - CI: chạy nhanh trước, chậm sau; fail khi test không có assertion hoặc `tsc` đỏ; nhất quán môi trường bằng Docker và lockfile.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao `waitForTimeout(5000)` là nguồn flaky?
 2. `OrderBuilder.withLine` trả builder mới thay vì sửa `this` để làm gì?
@@ -202,7 +202,7 @@ Thực hành tốt cho CI: giữ tổng thời gian bộ nhanh dưới vài phú
 4. Vì sao E2E không nên kiểm tra ngưỡng giảm giá 1.000.000?
 5. Vì sao Vitest và Playwright dùng hai đuôi file khác nhau (`.test.ts`, `.spec.ts`)?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Thời gian cần thực tế biến thiên theo tải; chờ cố định hoặc quá ngắn (đỏ) hoặc quá dài (chậm). Phải chờ theo điều kiện có timeout.
 2. Để builder immutable: mỗi test có bản riêng, không bị ô nhiễm bởi test khác dùng chung biến builder.

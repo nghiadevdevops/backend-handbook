@@ -1,8 +1,8 @@
-# Chương 1. Phỏng vấn System Design: bản chất và khung trả lời
+# Chapter 1. The System Design Interview: Purpose and Answer Framework
 
 > Cập nhật: 2026-11-07. Chương này không có con số kỹ thuật cần tra; các chương sau mới có.
 
-## 1.1 Vòng phỏng vấn này kiểm tra điều gì?
+## 1.1 What does this interview round test?
 
 **System Design Interview (SDI)** là buổi thảo luận 45–60 phút, trong đó bạn nhận một đề bài mơ hồ ("thiết kế dịch vụ rút gọn link", "thiết kế chat") và phải cùng người phỏng vấn dựng ra một hệ thống chạy được ở quy mô lớn. Không có đáp án duy nhất. Người phỏng vấn đánh giá **quá trình suy nghĩ**, không đánh giá bạn có nhớ kiến trúc của công ty nào đó hay không.
 
@@ -17,7 +17,7 @@ Họ thường chấm các nhóm năng lực sau:
 | Đánh đổi (trade-off) | Nêu cả ưu lẫn nhược, nói khi nào đổi ý | "Cái này tốt nhất" |
 | Communication | Nói to suy nghĩ, nhận góp ý, điều chỉnh | Im lặng vẽ, phản ứng phòng thủ |
 
-## 1.2 Vì sao người mới hay vấp
+## 1.2 Why beginners often stumble
 
 1. **Không có bài giải chuẩn.** Người quen thi cử cố đoán "đáp án" thay vì trình bày lập luận.
 2. **Thiếu kinh nghiệm vận hành quy mô lớn.** Cách bù: học con số (chương 2), học cơ chế (chương 4–9), luyện tính nhẩm.
@@ -25,7 +25,7 @@ Họ thường chấm các nhóm năng lực sau:
 4. **Nhớ tên công nghệ thay vì hiểu vấn đề nó giải quyết.** Nói "dùng Kafka" mà không giải thích vì sao cần queue sẽ bị hỏi vặn ngay.
 5. **Không nói ra giả định.** Mọi con số và lựa chọn đều dựa trên giả định; nếu giả định sai, người phỏng vấn cần biết để chỉnh bạn.
 
-## 1.3 Khung 6 bước (dùng cho mọi đề)
+## 1.3 The 6-step framework (for any prompt)
 
 ```mermaid
 flowchart LR
@@ -51,7 +51,7 @@ flowchart LR
 
 **Bước 6. Trade-off và vận hành.** Bottleneck, single point of failure (SPOF), cách monitoring, cách xử lý khi một thành phần chết, hướng mở rộng tiếp.
 
-## 1.4 Ví dụ mở đầu một buổi phỏng vấn
+## 1.4 Example: opening an interview
 
 Đề: "Thiết kế dịch vụ đặt vé xem phim."
 
@@ -61,12 +61,12 @@ Câu mở nên nghe như sau (tình huống thiết kế, tự soạn):
 
 Chú ý ba điều: hỏi có chủ đích, tuyên bố ưu tiên (đúng đắn hơn tốc độ), nêu giả định số.
 
-## 1.5 Đánh đổi (trade-off) trong chính cách phỏng vấn
+## 1.5 Trade-offs in the interview approach itself
 
 - **Rộng hay sâu?** Quá rộng thì nông; quá sâu vào một ô thì bỏ sót cả hệ thống. Quy tắc: 40% thời gian đầu cho rộng, 40% sau cho sâu, 20% còn lại cho trade-off.
 - **Công nghệ cụ thể hay khái niệm?** Nói khái niệm trước ("cần một key-value store có TTL"), rồi gợi ý sản phẩm cụ thể kèm lý do. Nếu bị hỏi, bạn nêu được sản phẩm đó *hiện nay* ra sao (giấy phép, phiên bản), thay vì nhắc lại kiến thức cũ.
 
-## 1.6 Khi phỏng vấn nên nói gì
+## 1.6 What to say in an interview
 
 - "Em xin phép làm rõ yêu cầu trước khi đi vào thiết kế."
 - "Em giả định X; nếu khác, em sẽ đổi Y."
@@ -74,7 +74,7 @@ Chú ý ba điều: hỏi có chủ đích, tuyên bố ưu tiên (đúng đắn
 - "Điểm yếu của phương án này là …, em giảm nhẹ bằng cách …"
 - "Nếu còn thời gian em muốn đào sâu phần … vì đó là phần rủi ro nhất."
 
-## 1.7 Cạm bẫy thường gặp
+## 1.7 Common pitfalls
 
 - Vẽ sơ đồ khổng lồ với Kafka, Redis, Elasticsearch, Kubernetes ngay từ đầu (over-engineering). Hãy bắt đầu từ thiết kế đơn giản nhất đáp ứng yêu cầu, rồi chỉ thêm thành phần khi con số ước lượng đòi hỏi.
 - Dùng buzzword mà không giải thích vấn đề nó giải quyết.
@@ -83,7 +83,7 @@ Chú ý ba điều: hỏi có chủ đích, tuyên bố ưu tiên (đúng đắn
 - Tranh cãi với người phỏng vấn thay vì xem gợi ý của họ là dữ kiện mới.
 - Nhớ nhầm sự thật (ví dụ coi "5 số 9" là vài giây downtime mỗi năm). Chương 2 sửa các nhầm lẫn kiểu này.
 
-## 1.8 Tóm tắt
+## 1.8 Summary
 
 1. SDI chấm quá trình lập luận, không chấm một kiến trúc "đúng".
 2. Luôn bắt đầu bằng làm rõ yêu cầu và giả định có con số.
@@ -91,7 +91,7 @@ Chú ý ba điều: hỏi có chủ đích, tuyên bố ưu tiên (đúng đắn
 4. Mỗi quyết định đi kèm trade-off và điều kiện đổi ý.
 5. Đi từ đơn giản đến phức tạp; mỗi thành phần thêm vào phải có lý do định lượng.
 
-## 1.9 Câu hỏi tự kiểm tra
+## 1.9 Self-check questions
 
 1. Hai nhóm yêu cầu chính cần làm rõ ở bước 1 là gì? Cho 3 ví dụ cho mỗi nhóm.
 2. Ước lượng ở bước 2 phục vụ quyết định nào?
@@ -100,7 +100,7 @@ Chú ý ba điều: hỏi có chủ đích, tuyên bố ưu tiên (đúng đắn
 5. Nêu một dấu hiệu của việc "đọc thuộc đáp án" mà người phỏng vấn dễ nhận ra.
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Functional (tạo, đọc, xóa, tìm kiếm…) và non-functional (latency, availability, consistency, durability, scale, security, cost).
 2. Chọn công nghệ và kiến trúc: một DB đủ hay cần shard, có cần cache, số server cần bao nhiêu, bandwidth và storage.

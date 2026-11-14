@@ -1,10 +1,10 @@
-# Chương 12. Ba bài thiết kế mẫu từ đầu đến cuối
+# Chapter 12. Three Worked Designs, End to End
 
 > Cập nhật: 2026-11-07. Khung chung: requirements → estimation → high-level design → deep dive → trade-off. Mọi con số là **giả định của bài**; trong phỏng vấn hãy nói rõ giả định và chấp nhận chỉnh. Hằng số: 1 ngày = 86.400 s; 1 tháng (30 ngày) = 2.592.000 s; đỉnh = 3 × trung bình.
 
 ---
 
-# Bài 1. URL Shortener
+# Design 1. URL Shortener
 
 ## 1.1 Requirements
 
@@ -26,7 +26,7 @@ Giả định: 100 triệu link mới/tháng; tỉ lệ đọc:ghi = 100:1; lưu
 
 Kết luận: tải thấp; thách thức chính là *sinh key không collision* và *read path nhanh, available*; chưa cần shard theo QPS, nhưng 3 TB và nhu cầu HA khiến dùng key-value store có replication là hợp lý.
 
-## 1.3 API và data model
+## 1.3 API and data model
 
 ```
 POST /v1/links        {long_url, alias?, expires_at?} -> 201 {short_url}
@@ -50,7 +50,7 @@ flowchart LR
 
 Read flow: cache hit → trả 302; miss → đọc DB → nạp cache (cache-aside, chương 6). Write flow: sinh key, ghi DB, trả short URL. Click event đẩy qua queue, async để không làm chậm redirect.
 
-## 1.5 Deep dive: sinh key
+## 1.5 Deep dive: key generation
 
 Hai cách:
 1. **Random key 7 ký tự base62 + unique constraint**. Fill ratio sau 5 năm là `6 × 10⁹ / 3,52 × 10¹² ≈ 0,17%`, nên xác suất collision mỗi lần insert ≤ 0,17%; `INSERT` vi phạm unique constraint thì sinh lại. Đơn giản, không cần coordination, khó đoán. Nhược: một vòng retry hiếm khi xảy ra.
@@ -60,7 +60,7 @@ Chọn cách 1 cho đơn giản. Alias riêng: check duplicate bằng cùng uniq
 
 **301 hay 302?** `301` (vĩnh viễn) được browser cache, giảm tải nhưng không đếm được click và khó đổi đích; `302/307` luôn đi qua hệ thống, cho analytics và revoke link. Chọn **302** vì cần analytics.
 
-## 1.6 Trade-off, rủi ro, vận hành
+## 1.6 Trade-offs, risks, operations
 
 - **Cache vs thống kê**: cache nhanh nhưng làm lệch số click nếu đếm ở DB; đếm ở event queue nên chính xác dù cache hit.
 - **Abuse**: rate limit theo IP/key khi tạo link (chương 9); quét URL độc hại; chặn redirect loop.
@@ -71,7 +71,7 @@ Chọn cách 1 cho đơn giản. Alias riêng: check duplicate bằng cùng uniq
 
 ---
 
-# Bài 2. News Feed
+# Design 2. News Feed
 
 ## 2.1 Requirements
 
@@ -110,7 +110,7 @@ flowchart LR
 Luồng đăng: ghi bài vào Post store (source of truth) → phát event `new_post` vào queue (qua outbox, chương 7) → worker đọc follower list, insert ID bài vào timeline của từng người.
 Luồng xem: Feed service đọc danh sách ID từ timeline cache → lấy chi tiết bài (batch từ cache/DB) → trả về, pagination theo **cursor** (chương 8).
 
-## 2.4 Deep dive: fan-out on write, on read hay hybrid
+## 2.4 Deep dive: fan-out on write, on read, or hybrid
 
 | | Fan-out on write (push) | Fan-out on read (pull) |
 |---|---|---|
@@ -129,7 +129,7 @@ Chi tiết quan trọng:
 - **Social graph** lưu hai chiều (followers, following) vì hai query khác nhau; shard theo `user_id`.
 - **Ranking**: thêm bước ranking sau khi lấy candidate; tách thành service riêng.
 
-## 2.5 Trade-off
+## 2.5 Trade-offs
 
 - Read latency thấp đổi lấy chi phí ghi/bộ nhớ lớn và độ phức tạp hybrid.
 - Timeline là *derived view*, mất thì dựng lại từ Post store và social graph: cache không cần durability như DB.
@@ -139,7 +139,7 @@ Chi tiết quan trọng:
 
 ---
 
-# Bài 3. Chat system (1–1 và group)
+# Design 3. Chat system (1-to-1 and group)
 
 ## 3.1 Requirements
 
@@ -190,7 +190,7 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 
 **Gateway failure**: client tự reconnect (với backoff + jitter, chương 9) tới gateway khác; Registry cập nhật; tin chưa ack được redeliver từ store theo `seq`. Khi deploy bản mới, drain connection từ từ để tránh 3 triệu client cùng reconnect (thundering herd).
 
-## 3.5 Trade-off
+## 3.5 Trade-offs
 
 - **Long-lived connection** làm gateway stateful (khó scale hơn REST): đổi lại latency thấp. Dùng LB *least connections* và drain khi deploy.
 - **Ghi store trước, đẩy sau** đảm bảo không mất tin, nhưng thêm write latency vào đường đi; đổi lại durability (chọn durability hơn tốc độ).
@@ -201,14 +201,14 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 
 ---
 
-## Khi phỏng vấn nên nói gì (chung)
+## What to say in an interview (general)
 
 - "Em xin chốt requirement và giả định số; sau đó estimation để biết chỗ nào là bottleneck."
 - "Bottleneck của bài này không phải bandwidth mà là X (key generation / fan-out / số connection)."
 - "Phương án đơn giản nhất là …; em chỉ thêm … khi ước lượng cho thấy cần."
 - "Em đánh đổi A lấy B vì yêu cầu ưu tiên …; nếu yêu cầu đổi, em chuyển sang …"
 
-## Cạm bẫy chung
+## Common pitfalls
 
 - Bỏ bước estimation hoặc tính sai bậc độ lớn (ví dụ nhầm giữa trung bình và đỉnh).
 - Đi vào Kafka/microservice ngay cả khi tải 40 QPS.
@@ -216,7 +216,7 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 - Quên cơ chế xử lý lỗi/retry/idempotency.
 - Không nêu giả định nên người phỏng vấn không biết bạn đang tính theo gì.
 
-## Tóm tắt
+## Summary
 
 1. Mỗi bài có một "điểm khó": key generation, fan-out, quản lý connection + ordering.
 2. Estimation chỉ ra bottleneck thật; URL shortener đọc nặng nhưng tải nhỏ, feed write amplification, chat nặng connection.
@@ -224,7 +224,7 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 4. Chat cần ordering theo cuộc trò chuyện, idempotency bằng client_msg_id, at-least-once + dedup.
 5. Luôn kết thúc bằng trade-off, vận hành, monitoring.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Với 100 triệu link/tháng và 100:1 đọc/ghi, QPS đọc trung bình xấp xỉ bao nhiêu?
 2. Vì sao URL shortener nên dùng 302 thay vì 301 khi cần thống kê?
@@ -233,7 +233,7 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 5. Tính nhanh số gateway cần nếu 3 triệu connection và mỗi gateway giữ 100.000 (chưa redundancy).
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Ghi ≈ 38,6 QPS; đọc ≈ 100 × 38,6 ≈ 3.860 QPS (~4k), đỉnh ~12k.
 2. 301 được trình duyệt cache nên lượt click sau không đi qua hệ thống, không đếm được và khó đổi/revoke link; 302/307 luôn qua hệ thống.
@@ -243,6 +243,6 @@ Luồng 1–1 khi B online: A gửi qua WebSocket tới G1 → Chat service gán
 
 </details>
 
-## Nguồn
+## Sources
 
 Chương này là thiết kế tự soạn; các con số đầu vào là giả định của bài, phép tính được ghi rõ. Các nguyên tắc nền tảng (cache-aside, outbox, retry/jitter, quorum, PACELC) dẫn nguồn ở các chương 4, 6, 7, 9.

@@ -1,12 +1,12 @@
-# Chương 11. Caching trong ứng dụng Go và Node.js
+# Chapter 11. Caching in Go and Node.js applications
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn đã hiểu cơ chế ở các chương trước. Giờ cần dùng chúng trong code thật: Go là ngôn ngữ chính (có chạy thật), Node.js/TypeScript là phần bổ sung. Toàn bộ code nằm trong `lab/go/` và `lab/node/`; mọi đoạn trích bên dưới ghi rõ file nguồn. Tên file chương giữ nguyên là `11-caching-in-go-and-nodejs.md` (tên cũ) để không vỡ link; nội dung đã viết lại hoàn toàn.
 
 Hai nguyên tắc xuyên suốt: ít dependency (stdlib khi đủ) và **đo số query DB thật** thay vì tin vào trực giác.
 
-## 2. Chọn thư viện (tra 11/2026)
+## 2. Choosing libraries (checked 11/2026)
 
 | Thư viện | Phiên bản | Trạng thái | Ghi chú |
 |---|---|---|---|
@@ -26,7 +26,7 @@ Việc chọn:
 - **Node: `ioredis`**, vì phổ biến và API ngắn gọn (`set(k, v, "PX", ms, "NX")`). `node-redis` cũng tốt; `iovalkey` đáng cân nhắc nếu muốn client do cộng đồng Valkey duy trì.
 - **Local cache: `otter`** (API generic, đơn giản). Ristretto vẫn được maintain, nhưng admission policy của nó có thể từ chối ghi mục mới, nên khó dự đoán hơn trong ví dụ nhỏ.
 
-## 3. Cache-aside với pgx và singleflight (Go)
+## 3. Cache-aside with pgx and singleflight (Go)
 
 Nguồn: `lab/go/repo.go`. Đây là cache-aside của chương 4, thêm `singleflight` để các request cùng key trong process chỉ nạp một lần:
 
@@ -70,7 +70,7 @@ Chạy lại kịch bản shell của chương 6 (`lab/go`, lệnh `lab repo`: 2
 
 Hàm nạp `DB.Load` (`lab/go/cache.go`) dùng một CTE ghi vào `query_log` rồi `pg_sleep`, đúng như hàm `dbq` của shell, nên `SELECT count(*) FROM query_log` là số query thật phía PostgreSQL.
 
-### Ba điểm cần nhớ khi dùng singleflight
+### Three things to remember when using singleflight
 
 - **Context của người đến đầu tiên chi phối tất cả.** Nếu request đầu bị hủy (`ctx` cancel), các request đang đợi cùng nhận lỗi. Với tải thật, nạp bằng `context.WithoutCancel(ctx)` kèm timeout riêng, hoặc dùng `DoChan` để mỗi người đợi tự `select` trên `ctx` của mình.
 - **Lỗi cũng được chia sẻ.** Một lần nạp lỗi làm hỏng mọi người đợi trong lần đó; gọi `Forget(key)` nếu muốn lần sau thử lại ngay.
@@ -117,7 +117,7 @@ func (c *Cache) XFetch(ctx context.Context, key string, ttl time.Duration, beta 
 
 `math/rand/v2.Float64()` trả về giá trị trong `[0,1)`, nên dùng `1 - Float64()` để được `(0,1]` và `math.Log` không bao giờ nhận 0.
 
-## 5. Distributed lock bằng `SET NX PX` (Go)
+## 5. A distributed lock with `SET NX PX` (Go)
 
 Nguồn: `lab/go/cache.go`. Token ngẫu nhiên 16 byte; release bằng Lua để so token và xóa atomic:
 
@@ -182,7 +182,7 @@ case "both": // singleflight inside the process, lock across processes
 
 Lock này là lease có TTL, cùng giới hạn như chương 9: tốt cho cache (nạp trùng một lần là chấp nhận được), không đủ cho correctness tuyệt đối.
 
-## 6. Local cache trong process (L1) với otter
+## 6. In-process local cache (L1) with otter
 
 Nguồn: `runL1` trong `lab/go/main.go`. L1 với TTL 2 giây đứng trước Valkey:
 
@@ -205,7 +205,7 @@ read := func() string {
 
 Kết quả chạy thật: 1.000 lần đọc đầu chỉ tạo **1** lệnh `GET` tới Valkey; sau khi L1 hết hạn (2 giây), 1.000 lần đọc nữa chỉ thêm 1 lệnh (tổng 2). Đổi lại, mỗi instance có thể lệch tối đa bằng TTL của L1 (chương 1). Otter v2 còn có API nạp theo key (`Get` với loader) tự gộp các lần nạp đồng thời; trong cuốn này chưa chạy nên không dùng.
 
-## 7. Node.js: client, coalescing và stale-while-revalidate
+## 7. Node.js: client, coalescing, and stale-while-revalidate
 
 Nguồn: `lab/node/src/`. Chạy trên Node 26 (LTS "Lithium", 26.13.0) với TypeScript 7.0.2; Node chạy thẳng file `.ts` (type stripping), còn `tsc --noEmit` dùng để kiểm kiểu.
 
@@ -253,7 +253,7 @@ swr: 10 reads over ~1314ms, per-read latency = 204ms 2ms 4ms 22ms 2ms 4ms 2ms 1m
 
 Ở demo SWR (`fresh` 300 ms, `stale` 2.000 ms, đọc mỗi 100 ms): chỉ lần đọc đầu (hard miss) phải chờ 204 ms; hai lần làm mới sau đó chạy nền và không đọc nào bị chặn (độ trễ tối đa của các lần đọc còn lại là 22 ms).
 
-## 8. Kết quả chạy thật: stampede trong Go
+## 8. Real run results: stampede in Go
 
 Chương trình `lab/go` mô phỏng đúng kịch bản chương 6: key `product:42` vừa hết hạn, **100 goroutine** cùng đọc tại một thời điểm (chờ chung một mốc `start`), mỗi lần nạp là query `pg_sleep(0.2)` có ghi `query_log`; số query lấy từ `SELECT count(*) FROM query_log` của PostgreSQL 18. Mỗi cấu hình chạy **3 lần**; "5 process" nghĩa là 5 process Go, mỗi process 20 goroutine, cùng chờ một mốc thời gian.
 
@@ -296,7 +296,7 @@ docker exec bookcheck-cache-go sh /app/demo.sh      # repo, L1, XFetch
 docker exec bookcheck-cache-node sh /app/run.sh     # Node: tsc + demo
 ```
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Gọi `DEL` trước khi transaction commit: request khác nạp lại giá trị cũ.
 - `singleflight` dùng `ctx` của người đầu tiên: hủy một request làm lỗi cả nhóm.
@@ -307,14 +307,14 @@ docker exec bookcheck-cache-node sh /app/run.sh     # Node: tsc + demo
 - Lưu struct bằng định dạng gắn với một phiên bản code (gob): đổi struct làm hỏng cache cũ. Dùng JSON kèm trường version.
 - Promise map không xóa entry khi loader lỗi: dùng `finally` như ví dụ để entry luôn được dọn.
 
-## 10. Tóm tắt
+## 10. Summary
 
 - Go: `valkey-go` (hoặc `go-redis`) + `pgx` + `singleflight` là bộ tối thiểu cho cache-aside chống stampede trong một process.
 - Nhiều process cần thêm lock `SET NX PX` có token và release bằng Lua (hoặc `DELIFEQ` trên Valkey 9+); kết hợp `singleflight` + lock cho số query DB thấp nhất.
 - XFetch không cần lock; SWR cho người dùng không phải chờ; L1 (otter) giảm tải Valkey đổi lấy độ lệch tối đa bằng TTL của L1.
 - Node: Promise map thay `singleflight`; SWR và lock tự cài trên `ioredis`.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao `singleflight` một mình chưa đủ khi service chạy 5 instance?
 2. Vì sao `DEL` cache phải đặt sau khi transaction commit?
@@ -322,7 +322,7 @@ docker exec bookcheck-cache-node sh /app/run.sh     # Node: tsc + demo
 4. Vì sao Node không cần mutex khi cài Promise map?
 5. Khi nào lock `SET NX PX` là chưa đủ?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Mỗi process có `Group` riêng, nên mỗi instance vẫn nạp một lần: 5 instance là 5 query (đo được ở mục 8).
 2. Nếu xóa trước commit, request khác có thể đọc giá trị cũ từ DB và ghi lại vào cache sau khi ta xóa.

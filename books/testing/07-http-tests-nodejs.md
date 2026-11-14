@@ -1,12 +1,12 @@
-# Chương 7. Test HTTP/handler trong Node.js (Fastify, Supertest) và test cấu hình
+# Chapter 7. Testing HTTP handlers in Node.js (Fastify, Supertest) and configuration tests
 
 > **Trạng thái kiểm chứng:** mọi code Fastify, `app.inject`, Supertest và test composition root trong chương này là code thật trong `lab/`, đã chạy xanh (Fastify 5.12.8, Supertest 7.3.2, Vitest 5.1.0). Chỉ mục 6 (NestJS `Test.createTestingModule`) là mẫu theo docs, **chưa chạy thử**. (Tên file chương giữ nguyên `07-http-tests-nodejs.md` để không vỡ link; nội dung đã viết lại cho stack Node.js.)
 
-## 1. Tình huống
+## 1. Scenario
 
 Use case đã xanh, adapter đã xanh, nhưng POST `/orders` vẫn trả 500: quên truyền `OrderRepository` thật vào `buildApp`, route thiếu hook auth, schema validation không khớp body mà client gửi. Những lỗi này nằm ở **glue layer của framework**, nơi mọi mảnh ghép gặp nhau. Cần một ít test đi qua toàn bộ stack HTTP.
 
-## 2. HTTP handler trong Hexagonal là driving adapter
+## 2. An HTTP handler in Hexagonal is a driving adapter
 
 Handler chỉ nên: validate input → gọi use case → map kết quả/exception thành HTTP. Vì business logic đã được test ở các layer dưới, **HTTP test chỉ kiểm tra phần HTTP**:
 
@@ -21,7 +21,7 @@ Handler chỉ nên: validate input → gọi use case → map kết quả/except
 
 KHÔNG lặp lại các ca nghiệp vụ (ngưỡng giảm giá...) ở đây.
 
-## 3. Lựa chọn công cụ (11/2026)
+## 3. Choosing tools (11/2026)
 
 | Cách | Mô tả | Khi nào chọn |
 |---|---|---|
@@ -32,7 +32,7 @@ KHÔNG lặp lại các ca nghiệp vụ (ngưỡng giảm giá...) ở đây.
 
 Lab dùng Fastify làm ví dụ chính vì nó có sẵn `inject`; Express 5.3.0 và Supertest hoạt động theo cùng mô hình (`request(app)`), nên các nguyên tắc dưới đây áp dụng như nhau.
 
-## 4. Test bằng `app.inject`
+## 4. Testing with `app.inject`
 
 Handler của lab (`lab/src/http/app.ts`) nhận mọi dependency qua `buildApp(deps)`, nên test dựng app với fake mà không cần container DI:
 
@@ -115,7 +115,7 @@ Với Fastify, truyền `app.server` (đối tượng `http.Server`) sau khi `ap
 
 Lưu ý `.expect(201)` trong Supertest ném lỗi nếu sai status, nhưng chỉ khi bạn `await` cả chuỗi (hoặc `return` nó). Quên `await` là cách phổ biến nhất để có test xanh giả. Một chi tiết nữa: `.expect()` của Supertest là assertion riêng của nó, **không** được Vitest đếm; test chỉ có `.expect(401)` bị `expect.requireAssertions` báo đỏ (`expected any number of assertion, but got none`, đã gặp thật khi chạy bộ test đầy đủ), nên lab thêm một `expect(res.status).toBe(401)` của Vitest.
 
-## 5. Thay external dependency và test phần cấu hình
+## 5. Replacing external dependencies and testing configuration
 
 Payment gateway không được gọi thật: `buildApp` nhận `payments: PaymentGateway`, nên test truyền `FakePaymentGateway`. Cách này giữ nguyên nguyên tắc chương 4: fake ở boundary, còn DB (khi cần) thì là thật. Không có "container DI" ma thuật nào để tự cấu hình sai, nhưng vẫn có glue: file `lab/src/composition.ts` đọc environment và quyết định adapter nào cắm vào port nào. Đây là loại lỗi "chạy trên máy tôi" rất hay gặp, và test của nó rẻ (`lab/tests/http/composition.test.ts`):
 
@@ -136,7 +136,7 @@ Test này không cần PostgreSQL chạy vì `pg.Pool` kết nối lười (lazy
 
 Hai ý tưởng khác: smoke test khởi động `node src/server.ts` thật và gọi `GET /` (chương 12 làm gián tiếp bằng Playwright), và kiểm tra `tsc --noEmit` trong CI để bắt lỗi chữ ký giữa handler và use case trước khi chạy test.
 
-## 6. NestJS (chưa chạy thử)
+## 6. NestJS (not yet run)
 
 Nếu dự án dùng NestJS (`@nestjs/testing` 12.4.0 ở 11/2026), ý tưởng giống hệt: thay provider bằng fake, gọi qua HTTP in-process. Mẫu theo docs, chưa chạy trong lab:
 
@@ -156,13 +156,13 @@ const res = await app.inject({ method: 'POST', url: '/orders', payload: { /* ...
 
 Điểm khác: Nest dùng decorator và DI container, nên "lỗi wiring" (thiếu `@Injectable()`, thiếu provider trong module) mới thực sự xuất hiện lúc `compile()`; test `Test.createTestingModule(...).compile()` thành công đã là một smoke test cấu hình hữu ích. Vitest cần cấu hình thêm cho decorator metadata (`emitDecoratorMetadata`), nên đó là lý do lab không đưa Nest vào.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - HTTP test chậm hơn use case test; giữ ở mức vài cái mỗi endpoint (happy path, validation, một lỗi domain, auth).
 - Handler mỏng thì HTTP test mỏng. Nếu bạn phải viết nhiều HTTP test để kiểm tra business logic, có lẽ logic đang nằm sai chỗ (trong handler).
 - Gọi qua HTTP in-process (`inject`, hoặc Supertest với cổng ngẫu nhiên) nhanh hơn E2E nhiều và đủ cho đa số lỗi wiring.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Test business logic qua HTTP: chậm, vỡ khi đổi định dạng response dù logic đúng.
 - Quên `await` với `inject`/Supertest/`rejects`: test xanh giả.
@@ -172,7 +172,7 @@ const res = await app.inject({ method: 'POST', url: '/orders', payload: { /* ...
 - Dùng SQLite cho HTTP test trong khi production là PostgreSQL (nhắc lại chương 6).
 - HTTP test phụ thuộc thứ tự chạy hoặc dữ liệu seed chung. Mỗi test của lab tự tạo `InMemoryOrderRepository` mới.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - HTTP test đi qua toàn stack HTTP để bắt lỗi wiring, validation, error mapping, auth.
 - Handler mỏng nên HTTP test mỏng; business logic test ở layer dưới.
@@ -181,7 +181,7 @@ const res = await app.inject({ method: 'POST', url: '/orders', payload: { /* ...
 - Test cấu hình rẻ nhưng bắt lỗi "chạy trên máy tôi". Lab đã bắt được một lỗi thật (`coerceTypes`).
 - NestJS: cùng ý tưởng, mẫu code chưa chạy thử.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. HTTP test nên kiểm tra những gì mà test use case không làm được?
 2. Vì sao không nên test ngưỡng giảm giá qua HTTP?
@@ -189,7 +189,7 @@ const res = await app.inject({ method: 'POST', url: '/orders', payload: { /* ...
 4. Vì sao `composeFromEnv` nhận `env` làm tham số?
 5. Ca nào trong lab đã phát hiện `coerceTypes`, và sửa thế nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Routing, validation, hook/auth, map lỗi sang HTTP status code, định dạng JSON, wiring của composition root.
 2. Chậm và brittle; ngưỡng đã được unit test ở domain, HTTP chỉ cần kiểm tra mapping.

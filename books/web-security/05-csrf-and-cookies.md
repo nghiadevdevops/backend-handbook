@@ -1,12 +1,12 @@
-# Chương 5. CSRF và cookie
+# Chapter 5. CSRF and Cookies
 
-## 1. Vấn đề
+## 1. The problem
 
 Browser tự động đính cookie vào mọi request tới domain đó, kể cả request do trang khác kích hoạt. **Cross-Site Request Forgery (CSRF)**: `evil.example` chứa form tự submit tới `shop.example/api/orders/42/cancel`; nếu nạn nhân đang login vào shop, session cookie được gửi kèm, và server tưởng đó là hành động của họ. Attacker không đọc được response, nhưng gây được **side effect** (đổi email, chuyển tiền, hủy đơn).
 
 CSRF chỉ liên quan khi authentication dựa vào thứ browser tự gửi (cookie, HTTP Basic, client certificate). API dùng header `Authorization: Bearer ...` do JS tự gắn thì không có CSRF kiểu này (nhưng có rủi ro lưu token, chương 7).
 
-## 2. "Site" và "origin"
+## 2. "Site" and "origin"
 
 - **Origin** = scheme + host + port. `https://a.example.com` và `https://b.example.com` là hai origin khác nhau.
 - **Site** = scheme + *registrable domain* (eTLD+1). Hai origin trên **cùng site** (`example.com`).
@@ -65,13 +65,13 @@ app.use((req, res, next) => {
 
 Hãy giữ danh sách loại trừ (route không kiểm tra CSRF) thật ngắn, chỉ cho webhook đã authenticate bằng chữ ký.
 
-### Quy tắc thiết kế
+### Design rules
 
 - Không dùng GET cho thao tác đổi trạng thái.
 - Kiểm tra `Origin`/`Referer` phía server như layer phụ cho các request nhạy cảm.
 - Hành động rất nhạy cảm (đổi password, chuyển tiền): yêu cầu nhập lại password hoặc MFA (re-authentication).
 
-## 5. Cookie flag
+## 5. Cookie flags
 
 ```
 Set-Cookie: __Host-session=abc123; Path=/; Secure; HttpOnly; SameSite=Lax
@@ -85,14 +85,14 @@ Set-Cookie: __Host-session=abc123; Path=/; Secure; HttpOnly; SameSite=Lax
 | `Path`, `Domain` | Scope. Không đặt `Domain` thì cookie chỉ thuộc đúng host (host-only), an toàn hơn đặt `Domain=example.com` làm mọi subdomain đọc/ghi được |
 | `Max-Age`/`Expires` | Thời hạn; cookie chứa session nên ngắn hạn hoặc là session cookie |
 
-### Prefix `__Host-` và `__Secure-`
+### The `__Host-` and `__Secure-` prefixes
 
 Tên cookie có prefix được browser ép điều kiện:
 
 - `__Secure-`: phải có `Secure` và được set từ trang HTTPS.
 - `__Host-`: ngoài đó còn **không có `Domain`** và `Path=/`. Nghĩa là host-only, subdomain không ghi đè được cookie này. Đây là lựa chọn mạnh nhất cho session cookie.
 
-### Cấu hình cookie trong Express
+### Configuring cookies in Express
 
 Cookie thủ công (`res.cookie` của Express):
 
@@ -120,13 +120,13 @@ app.use(session({
 
 (Đoạn cấu hình trên theo tài liệu package, chưa chạy trong lab. Tên option giữ ổn định qua nhiều năm, nhưng hãy đối chiếu README bản bạn cài.)
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - `Strict`: an toàn nhất nhưng người dùng click link từ email tới shop sẽ thấy như chưa login ở lần tải đầu. `Lax` là cân bằng thường dùng.
 - `SameSite=None`: cần cho iframe thanh toán/SSO cross-site; khi đó CSRF token là bắt buộc.
 - API thuần dùng Bearer token tránh CSRF nhưng chuyển rủi ro sang chỗ lưu token.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Tin mặc định `Lax` của browser.
 - Loại trừ cả `/api/*` khỏi middleware CSRF trong khi API vẫn authenticate bằng cookie.
@@ -135,21 +135,21 @@ app.use(session({
 - Subdomain yếu/bị takeover cho phép ghi cookie lên domain cha.
 - Không đổi session ID sau login (session fixation, chương 7).
 
-## 8. Tóm tắt
+## 8. Summary
 
 - CSRF lợi dụng việc browser tự gửi cookie; chỉ cần quan tâm khi authentication bằng cookie.
 - SameSite là layer tốt nhưng phải đặt tường minh; vẫn cần CSRF token cho thao tác đổi trạng thái.
 - Cookie phiên nên: `Secure; HttpOnly; SameSite=Lax/Strict`, tên `__Host-`, không đặt `Domain`.
 - Hành động nhạy cảm cần re-authentication.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Khác biệt giữa origin và site? Vì sao nó quan trọng với SameSite?
 2. Request POST cross-site có gửi cookie `SameSite=Lax` không?
 3. Điều kiện của prefix `__Host-` là gì?
 4. Vì sao API dùng Bearer token trong header không bị CSRF kiểu cookie?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Origin = scheme+host+port; site = scheme+eTLD+1. SameSite so sánh theo site nên các subdomain cùng site vẫn là "same-site".
 2. Không (ngoại trừ ngoại lệ Lax+POST tạm thời của Chrome ngay sau khi set cookie).

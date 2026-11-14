@@ -1,6 +1,6 @@
-# Chương 12. Monitoring: hit ratio, latency, SLOWLOG, LATENCY, memory
+# Chapter 12. Monitoring: hit ratio, latency, SLOWLOG, LATENCY, memory
 
-## 1. Vấn đề
+## 1. The problem
 
 Cache "chạy tốt" cho đến khi không còn: hit ratio tụt vì ai đó đổi key, một lệnh O(N) chặn server 300 ms, bộ nhớ đầy và eviction xóa nhầm. Không đo thì chỉ biết khi người dùng phàn nàn. Chương này liệt kê các chỉ số tối thiểu và lệnh để xem. Lệnh chạy được trên cả Redis 8.10 và Valkey 9.1.
 
@@ -56,7 +56,7 @@ SLOWLOG RESET
 
 Trong thực tế latency mà client thấy lớn hơn `SLOWLOG`: gồm mạng, queue chờ main thread (do lệnh chậm khác), serialize/deserialize ở client. Đo cả hai phía.
 
-## 4. Bộ nhớ
+## 4. Memory
 
 ```
 INFO memory
@@ -71,7 +71,7 @@ MEMORY DOCTOR
 - `mem_fragmentation_ratio` quá cao có thể xử lý bằng `activedefrag` (kiểm tra hỗ trợ build của bạn) hoặc restart có kế hoạch.
 - `--bigkeys`/`--memkeys` (chương 7) để tìm key lớn.
 
-## 5. Các chỉ số nên có trên dashboard
+## 5. Metrics to put on the dashboard
 
 | Nhóm | Chỉ số | Lấy từ |
 |---|---|---|
@@ -84,7 +84,7 @@ MEMORY DOCTOR
 
 Công cụ thu thập thường dùng: `redis_exporter` (cũng chạy được với Valkey) đẩy sang Prometheus. Alert gợi ý: `used_memory/maxmemory > 0.9`, hit ratio giảm đột ngột, `evicted_keys` > 0 kéo dài, `rdb_last_bgsave_status != ok`, `master_link_status != up`.
 
-## 6. Quy trình điều tra khi chậm
+## 6. Investigation workflow when things are slow
 
 1. `valkey-cli --latency` từ máy ứng dụng: mạng chậm hay server chậm?
 2. `SLOWLOG GET`: lệnh nào chậm, có big key không?
@@ -93,7 +93,7 @@ Công cụ thu thập thường dùng: `redis_exporter` (cũng chạy được v
 5. `INFO memory`: gần `maxmemory`? swap (`mem_fragmentation_ratio < 1`)?
 6. Hot key (LFU `--hotkeys`) hoặc dồn tải một slot (cluster)?
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Đọc `keyspace_hits/misses` cộng dồn thay vì delta.
 - Chạy `MONITOR` trên production (tăng tải mạnh).
@@ -102,14 +102,14 @@ Công cụ thu thập thường dùng: `redis_exporter` (cũng chạy được v
 - Không alert khi persistence lỗi (`bgsave` thất bại âm thầm).
 - Nhầm `SLOWLOG` (thời gian thực thi) với latency end-to-end.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Hit ratio = hits/(hits+misses), dùng delta; kết hợp `evicted_keys`.
 - `SLOWLOG` cho lệnh chậm; `LATENCY` cho spike nội bộ (fork, expire, fsync).
 - `INFO memory` + `maxmemory` + fragmentation; `--bigkeys` tìm key lớn.
 - Có dashboard và alert trước khi incident, không sau.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Tính hit ratio từ `INFO` thế nào, và vì sao cần delta?
 2. `SLOWLOG` đo gì và không đo gì?
@@ -117,7 +117,7 @@ Công cụ thu thập thường dùng: `redis_exporter` (cũng chạy được v
 4. `mem_fragmentation_ratio` nhỏ hơn 1 báo hiệu điều gì?
 5. Nêu ba alert nên đặt.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `keyspace_hits / (keyspace_hits + keyspace_misses)`; counter cộng dồn nên chỉ delta mới phản ánh hiện tại.
 2. Đo thời gian thực thi lệnh bên trong server; không đo mạng, queue và xử lý ở client.

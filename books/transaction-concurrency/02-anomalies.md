@@ -1,6 +1,6 @@
-# Chương 2. Các anomaly khi chạy đồng thời
+# Chapter 2. Anomalies Under Concurrent Execution
 
-## 1. Tình huống
+## 1. Scenario
 
 Mỗi transaction chạy một mình đều đúng. Hai transaction đồng thời thì sai, nhưng chỉ thỉnh thoảng, chỉ trên production, và log không có lỗi. Chương này liệt kê các kiểu sai có tên gọi (**anomaly**, hiện tượng bất thường), mỗi kiểu có một kịch bản hai session tái hiện được trong `lab/`. Biết tên và hình dạng của chúng là điều kiện để chương 3 (isolation level) có nghĩa.
 
@@ -15,7 +15,7 @@ VERBOSE=1 ./run.sh pg lost_update "REPEATABLE READ"   # xem toàn bộ output
 
 Cột "kết quả" bên dưới là kết quả đã chạy. Bảng tổng hợp theo level ở chương 3.
 
-## 2. Bảy anomaly
+## 2. The seven anomalies
 
 ### 2.1 Dirty write
 
@@ -125,7 +125,7 @@ Kết quả đã chạy (`write_skew`):
 
 Write skew là anomaly mà **snapshot isolation không chặn**. Phantom là một dạng gốc của nó khi điều kiện kiểm tra là "không có dòng nào" (đặt phòng, chương 8). Lost update thực ra là trường hợp riêng: hai bên ghi *cùng* một dòng.
 
-## 3. Bản đồ nhanh
+## 3. Quick map
 
 ```mermaid
 flowchart TD
@@ -138,11 +138,11 @@ flowchart TD
   R -- write decision based on read --> WS[Write skew]
 ```
 
-## 4. Trade-off
+## 4. Trade-offs
 
 Càng chặn nhiều anomaly càng tốn chờ đợi hoặc retry. Không có level "miễn phí" bảo vệ mọi thứ; chương 3 cho biết mỗi DB cho bạn gì ở mỗi level, chương 7 và 8 cho biết cách chặn chọn lọc đúng chỗ cần.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 1. Chỉ test single-threaded rồi kết luận code đúng.
 2. Nghĩ "SELECT rồi UPDATE trong một transaction" là an toàn. Chương này có bốn anomaly xảy ra chính trong tình huống đó.
@@ -150,7 +150,7 @@ Càng chặn nhiều anomaly càng tốn chờ đợi hoặc retry. Không có l
 4. Nhầm phantom với non-repeatable read: một bên là dòng *thay đổi*, một bên là dòng *xuất hiện hoặc biến mất*.
 5. Tin rằng `REPEATABLE READ` của InnoDB đảm bảo mọi câu lệnh thấy cùng một snapshot (xem `phantom_update`).
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Có bảy anomaly cơ bản: dirty write, dirty read, non-repeatable read, phantom, lost update, read skew, write skew.
 - Dirty write bị chặn ở mọi level của cả hai DB; dirty read chỉ có ở MySQL `READ UNCOMMITTED`.
@@ -158,14 +158,14 @@ Càng chặn nhiều anomaly càng tốn chờ đợi hoặc retry. Không có l
 - Câu có ghi trong InnoDB `REPEATABLE READ` thấy dữ liệu mới nhất, khác snapshot của `SELECT` thường.
 - Mọi kịch bản có thể chạy lại bằng `lab/run.sh`.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. Phân biệt lost update và write skew bằng số dòng bị ghi.
 2. Vì sao `pg_dump` cần `REPEATABLE READ`?
 3. Trong `phantom_update`, vì sao MySQL đếm ra 3 còn PostgreSQL đếm ra 2?
 4. Dirty write xảy ra ở level nào của PG và MySQL?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Lost update: hai bên ghi cùng một dòng. Write skew: ghi các dòng khác nhau, vi phạm invariant liên dòng.
 2. Để mọi bảng được đọc từ cùng một snapshot, tránh read skew giữa các bảng.

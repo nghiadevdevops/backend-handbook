@@ -1,10 +1,10 @@
-# Chương 2. Redis và Valkey: bối cảnh năm 2026
+# Chapter 2. Redis and Valkey: the 2026 landscape
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn đọc tài liệu cũ, thấy "Redis là BSD, miễn phí cho mọi mục đích". Rồi cloud provider đưa ra "Valkey", còn Redis lại nói "đã mở nguồn trở lại". Chọn cái nào cho dự án? Có tương thích không? Chương này tóm tắt bối cảnh để bạn quyết định có cơ sở. Các số phiên bản dưới đây tra ngày 07-08/11/2026 trên trang releases của GitHub và Docker Hub.
 
-## 2. Dòng thời gian license
+## 2. License timeline
 
 | Mốc | Sự kiện |
 |---|---|
@@ -15,7 +15,7 @@ Bạn đọc tài liệu cũ, thấy "Redis là BSD, miễn phí cho mọi mục
 
 Trang license chính thức của Redis (redis.io/legal/licenses) nói AGPLv3 là một lựa chọn thêm cho Redis Open Source từ Redis 8 và hãng dự định giữ nó. Hệ quả thực tế: nếu bạn chỉ **dùng** Redis như một dịch vụ nội bộ cho ứng dụng của mình thì ràng buộc license thường không phát sinh; nếu bạn **cung cấp Redis như dịch vụ** cho bên thứ ba, hoặc **sửa mã nguồn Redis và cho người khác truy cập qua mạng**, hãy đọc kỹ AGPLv3/SSPLv1 và hỏi pháp chế. Cuốn sách này không phải tư vấn pháp lý.
 
-## 3. Phiên bản hiện tại (tra 11/2026)
+## 3. Current versions (checked 11/2026)
 
 | Sản phẩm | Bản ổn định mới nhất | Ghi chú |
 |---|---|---|
@@ -24,7 +24,7 @@ Trang license chính thức của Redis (redis.io/legal/licenses) nói AGPLv3 l�
 
 Cả hai đều ra bản vá bảo mật ngày 26/10/2026, nhắc ta rằng **phải cập nhật bản vá** và không để Redis/Valkey mở ra Internet. Lab của cuốn này dùng image `valkey/valkey:9.1.3-alpine` và `redis:8.10.3-alpine`.
 
-## 4. Khác biệt chính
+## 4. Key differences
 
 Hai bên chia tay từ nhánh 7.2 nên lệnh nền tảng (string, hash, list, set, zset, stream, pub/sub, Lua, Functions, ACL, Cluster, Sentinel) **tương thích rất cao**. Client Go (`valkey-go`, `go-redis`) và Node (`ioredis`, `node-redis`) dùng được cho cả hai. Khác biệt nằm ở phần mới:
 
@@ -39,33 +39,33 @@ Hai bên chia tay từ nhánh 7.2 nên lệnh nền tảng (string, hash, list, 
 
 > Chưa xác minh: danh sách đầy đủ các lệnh chỉ có ở một bên thay đổi theo từng bản nhỏ. Trước khi dùng lệnh "mới" (ví dụ lệnh set có điều kiện mới), hãy chạy `COMMAND INFO <tên>` trên đúng server của bạn. Ở lab chương 9 mình có thử một lệnh như vậy.
 
-## 5. Chọn cái nào?
+## 5. Which one to choose?
 
 - **Dịch vụ managed của cloud** (ElastiCache, Memorystore, Azure Cache...): theo những gì nhà cung cấp hỗ trợ; nhiều nhà cung cấp lớn đã có Valkey, thường rẻ hơn. Kiểm tra bảng giá hiện hành.
 - **Tự host, cần JSON/vector/time series trong cùng một server**: Redis 8 có sẵn.
 - **Cần license BSD thuần, hoặc không muốn rủi ro pháp lý**: Valkey.
 - **Chỉ cần cache và lock như cuốn sách này**: cả hai đều đủ. Code ứng dụng giữ ở tập lệnh chung để đổi được qua lại.
 
-## 6. Cách viết code trung lập
+## 6. Writing vendor-neutral code
 
 - Dùng client nói giao thức RESP (`valkey-go`, `go-redis`, `ioredis`); đừng dựa vào lệnh chỉ có ở một bên khi không cần.
 - Cấu hình hai bên qua biến môi trường (ví dụ `CACHE_ADDR`); cùng một client nói chuyện được với cả hai.
 - Có integration test chạy trên cả hai image trong CI (compose của `lab/` làm đúng việc này).
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Nhầm "Redis không còn mở" thành "không dùng được": từ Redis 8 đã có AGPLv3. Ngược lại, không giả định mọi tài liệu Redis cũ đúng cho Valkey.
 - Dùng image tag `latest` trong production: khó tái lập; ghim phiên bản đến minor/patch.
 - Bỏ qua bản vá bảo mật: cả hai hãng vừa vá lỗi nghiêm trọng vào 26/10/2026.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Redis đổi license 03/2024; Valkey (Linux Foundation, BSD) fork từ 7.2.4; Redis thêm AGPLv3 từ 8.0 (05/2025).
 - Tháng 11/2026: Valkey 9.1.3 và Redis 8.10.3 là bản ổn định mới nhất.
 - Lõi lệnh tương thích; khác ở module (JSON, vector, search), cluster và tối ưu nội bộ.
 - Chọn theo license, nhu cầu module và dịch vụ managed; viết code ở tập lệnh chung.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Valkey fork từ phiên bản Redis nào và thuộc tổ chức nào?
 2. Redis 8 dùng những license nào?
@@ -73,7 +73,7 @@ Hai bên chia tay từ nhánh 7.2 nên lệnh nền tảng (string, hash, list, 
 4. Làm sao biết một lệnh có tồn tại trên server đang chạy?
 5. Nêu một lý do chọn Redis 8 và một lý do chọn Valkey.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Redis 7.2.4; Linux Foundation.
 2. RSALv2, SSPLv1 hoặc AGPLv3 (chọn một).

@@ -1,4 +1,4 @@
-# Phụ lục B. PR template và quy ước git
+# Appendix B. PR template and git conventions
 
 ## B.1. PR template
 
@@ -31,7 +31,7 @@
 - [ ] Test không bị sửa cho khớp code (hoặc đã giải thích)
 ````
 
-## B.2. Quy ước commit và branch
+## B.2. Commit and branch conventions
 
 Quy ước đề xuất (của team, không phải tính năng của git):
 
@@ -58,11 +58,11 @@ git log --since="1 year ago" --format= --name-only | sort | uniq -c | sort -rn |
 
 Kết quả thử: ba commit `feat(UC-001)`, `fix(UC-001)`, `fix(UC-002)` trên repo thử; `--grep="UC-001"` trả đúng hai commit đầu. Bản thiếu `--format=` đếm lẫn các dòng `commit`, `Author:`, `Date:` và dòng trống.
 
-## B.3. Gợi ý CI
+## B.3. CI suggestions
 
 Chạy hai việc trong container ở mỗi PR: bộ test acceptance, và `scripts/check-ac-coverage.sh` (xem lab). Thất bại nếu có AC thiếu test.
 
-## B.4. CODEOWNERS (tùy chọn)
+## B.4. CODEOWNERS (optional)
 
 Để yêu cầu PO duyệt mọi thay đổi dưới `specs/`, dùng file `CODEOWNERS` của GitHub:
 

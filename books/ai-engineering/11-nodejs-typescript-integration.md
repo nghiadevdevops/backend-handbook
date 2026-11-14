@@ -1,12 +1,12 @@
-# Chương 11. Tích hợp vào ứng dụng Node.js/TypeScript
+# Chapter 11. Integrating into a Node.js/TypeScript Application
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn đã có mọi mảnh: prompt (chương 3), tool (chương 4), RAG (chương 5 đến 7), eval (8), security (9), vận hành (10). Giờ nối vào ứng dụng Node.js/TypeScript của ShopAssist: một endpoint hỏi đáp, lưu conversation history, chạy tác vụ dài ngoài request, và không giữ request HTTP mở hàng chục giây.
 
 Toàn bộ mã của chương nằm trong `lab/ts/` (Node.js LTS, TypeScript 7.0.2, kiểm bằng `tsc --noEmit`). Mỗi đoạn mã bên dưới là nguyên văn một file trong `lab/ts/src/`, có ghi tên file. Phần nào cần API key hoặc Redis thì ghi rõ ở từng mục; mục 8 tổng hợp cái gì đã chạy thật và cái gì chưa.
 
-## 2. Chọn cách gọi: SDK hay HTTP client
+## 2. Choosing how to call: SDK or HTTP client
 
 | Cách | Khi nào | Lưu ý |
 |---|---|---|
@@ -18,7 +18,7 @@ Nếu cần so sánh hoặc làm fallback sang nhà cung cấp khác (chương 2
 
 Gợi ý thực tế: học bằng `fetch` hoặc đọc kỹ SDK để hiểu hình dạng request, rồi dùng SDK chính thức cho code production. Dù chọn gì, **bọc sau một interface của bạn** (ở đây là `Runnable` trong `askService.ts` và `Embedder`) để test được bằng fake và đổi nhà cung cấp được. Mã trong chương này đã làm đúng như vậy: `AgentLoop` nhận client qua constructor, nên `demoAgentLoop.ts` thay được bằng client giả.
 
-## 3. Kiến trúc cho ShopAssist
+## 3. Architecture for ShopAssist
 
 ```mermaid
 flowchart TD
@@ -34,7 +34,7 @@ Vì sao dùng queue: một lượt có thể 5 đến 60 giây (nhiều vòng to
 
 Về thư viện hàng đợi: BullMQ (6.7.2, npm, tra 08/11/2026, đang được cập nhật; cần Redis) là lựa chọn phổ biến cho Node.js nên sách dùng nó. Có thể thay bằng `pg-boss` (hàng đợi trên chính PostgreSQL, đỡ thêm Redis) hoặc dịch vụ queue của cloud; hai lựa chọn này tôi chưa tra phiên bản và chưa thử.
 
-## 4. Lưu conversation history
+## 4. Storing conversation history
 
 Schema (file `lab/ts/sql/schema.sql`, đã chạy thật trên PostgreSQL 18 với pgvector 0.8.7; phần đầu gồm `orders` và `kb_chunks` cho demo):
 
@@ -71,7 +71,7 @@ Quyết định thiết kế:
 
 Truy vấn từ Node.js dùng `pg` (8.23.1) và, khi cần đọc cột `vector` ra thành `number[]`, package `pgvector` (0.3.1) với `pgvector.registerTypes(client)`. Khi ghi hoặc truy vấn, `pgvector.toSql(vec)` đổi mảng số thành chuỗi `'[...]'` để truyền như tham số, như `retrieveChunks` ở mục 6.
 
-## 5. HTTP handler và job
+## 5. HTTP handlers and jobs
 
 Handler dùng `node:http` và Zod (4.6.7) để validate, để không kéo thêm framework; trong dự án thật bạn thay bằng framework đang dùng (Express, Fastify, Hono...) và đặt xác thực, rate limit ở middleware (ví dụ 20 request/phút mỗi người dùng). File `lab/ts/src/askController.ts`:
 
@@ -225,7 +225,7 @@ export function createAskWorker(connection: ConnectionOptions, db: Db, ask: AskS
 - Handler trả 202 và để client poll hoặc nhận qua SSE/pub-sub; filter `user_id` khi tìm hội thoại; đặt `max` độ dài câu hỏi.
 - API BullMQ ở đây đã qua `tsc --noEmit`, nhưng **chưa chạy với Redis**: chưa kiểm thực tế hành vi retry, stalled và `lockDuration`.
 
-## 6. `AskService`: ráp các chương lại
+## 6. `AskService`: putting the chapters together
 
 File `lab/ts/src/askService.ts`. Hàm `retrieveChunks` (truy vấn pgvector với filter tenant) đã chạy thật; toàn bộ `AskService.answer` cần API key (qua `AgentLoop`) nên chưa chạy end-to-end:
 
@@ -334,11 +334,11 @@ export class AskService {
 
 Lưu ý: `escapeHtml` escape nội dung chunk retrieved để không đóng thẻ `</doc>` giả mạo (một defense layer nhỏ, không thay thế least privilege). `tenant_id` luôn lấy từ bảng `conversations`, rồi truyền vào cả SQL vector lẫn tool `lookup_order`.
 
-## 7. Streaming về trình duyệt
+## 7. Streaming to the browser
 
 Hai hướng: (a) worker publish từng đoạn text qua pub/sub (Redis pub/sub, hoặc `LISTEN/NOTIFY` của PostgreSQL) cho tiến trình web đẩy xuống trình duyệt qua SSE hoặc WebSocket; (b) SSE trực tiếp từ handler, hợp khi không cần queue, nhưng giữ socket mở suốt thời gian sinh. Chọn (a) cho tải lớn. Mã gọi stream từ SDK nằm ở chương 10 (`streamAnswer.ts`); chi tiết proxy và lỗi giữa stream cũng ở chương 10.
 
-## 8. Test
+## 8. Testing
 
 - **Fake client**: nhờ `AgentLoop` nhận client qua constructor, `demoAgentLoop.ts` chạy vòng lặp với client giả theo kịch bản: kiểm `tool_result` đúng `tool_use_id`, `is_error` khi tool ném lỗi, và dừng ở `maxSteps`.
 - Test authorization bằng cách thử truy cập hội thoại và đơn hàng của người khác (phải 404). `demoPg.ts` làm đúng việc này với PostgreSQL thật: người dùng khác dùng `conversation_id` của người kia nhận 404, đơn của tenant khác không tra được, chunk của tenant khác không bao giờ xuất hiện trong kết quả vector.
@@ -357,13 +357,13 @@ Kết quả chạy thật (`lab/run-ts.sh`, Docker, image `node:lts-alpine` là 
 | Gọi API Claude thật (`AgentLoop`, `AskService.answer`, streaming, structured output, prompt caching) | **cần API key** | chưa chạy, chỉ `tsc --noEmit` |
 | BullMQ worker và retry | **cần Redis** | chưa chạy, chỉ `tsc --noEmit` |
 
-## 9. Trade-off
+## 9. Trade-offs
 
 - SDK chính thức cho bạn retry, timeout, streaming và type, nhưng gắn code với một nhà cung cấp; bọc sau interface để giảm rủi ro. Tính năng beta (như `toolRunner`) có thể đổi.
 - Queue thêm độ phức tạp (poll hoặc pub/sub, thêm Redis) nhưng đáng với tác vụ trên vài giây.
 - Lưu `content` nguyên block tốn dung lượng JSON nhưng tránh lỗi khi tiếp tục hội thoại.
 
-## 10. Cạm bẫy
+## 10. Pitfalls
 
 - Gọi LLM synchronous trong request web (timeout của proxy, giữ socket).
 - `lockDuration` của worker nhỏ hơn thời gian job, dẫn tới job bị coi là stalled, chạy trùng và tính tiền hai lần.
@@ -374,7 +374,7 @@ Kết quả chạy thật (`lab/run-ts.sh`, Docker, image `node:lts-alpine` là 
 - Không đặt `max` cho độ dài câu hỏi nên một lần dán file lớn gây hóa đơn lớn.
 - `await` thiếu trong handler async: lỗi thành unhandled rejection và request treo. Luôn bọc `try/catch` ở handler như mã trên.
 
-## 11. Tóm tắt
+## 11. Summary
 
 1. Bọc nhà cung cấp sau interface của bạn; SDK chính thức cho code production.
 2. Tác vụ LLM chạy trong queue; trả 202; timeout job > timeout HTTP; `lockDuration` > timeout job.
@@ -382,14 +382,14 @@ Kết quả chạy thật (`lab/run-ts.sh`, Docker, image `node:lts-alpine` là 
 4. Mọi query hội thoại và dữ liệu filter theo người dùng/tenant từ login session.
 5. Có fake client để test, và script eval riêng.
 
-## 12. Câu hỏi tự kiểm tra
+## 12. Self-check questions
 
 1. Vì sao nên đưa vào queue và trả 202 thay vì chờ model trong handler?
 2. `lockDuration` nhỏ hơn thời gian chạy job gây hậu quả gì với LLM?
 3. Vì sao phải lưu nguyên `content` block của lượt assistant?
 4. Vì sao `AgentLoop` nhận client qua constructor thay vì tự `new Anthropic()` bên trong?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Lượt có thể kéo dài nhiều giây, dễ bị timeout ở proxy; queue cho retry, giới hạn concurrency, tách tải.
 2. Queue coi job là treo và giao lại cho worker khác trong khi job đầu còn chạy: gọi model hai lần, tốn tiền và có thể lặp tác dụng phụ của tool.

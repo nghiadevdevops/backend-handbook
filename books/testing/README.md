@@ -1,55 +1,55 @@
-# Testing cho layered architecture và Hexagonal
+# Testing Layered & Hexagonal Architectures
 
-Bản học dành cho developer TypeScript/Node.js đã biết layered architecture, Ports & Adapters, DDD cơ bản và Spec-Driven Development (acceptance criteria dạng Given/When/Then), và giờ muốn **viết test tốt**: test bảo vệ được hành vi, sống sót qua refactor, chạy nhanh, và có traceability về yêu cầu.
+A study edition for TypeScript/Node.js developers who already know layered architecture, Ports & Adapters, basic DDD and Spec-Driven Development (acceptance criteria in Given/When/Then form), and who now want to **write good tests**: tests that protect behavior, survive refactoring, run fast, and trace back to requirements.
 
-Điểm xuyên suốt: mỗi layer của kiến trúc có một loại test "hợp" với nó. Domain thì unit test thuần. Use case thì dùng fake adapter. Adapter thì integration test với infrastructure thật. HTTP boundary thì test qua `app.inject`/Supertest. Yêu cầu nghiệp vụ thì acceptance test gắn mã AC. Sau cùng là các kỹ thuật bổ trợ: contract (Pact), characterization, mutation, property-based, E2E.
+The thread running through the book: each architectural layer has a kind of test that suits it. The domain gets pure unit tests. Use cases use fake adapters. Adapters get integration tests against real infrastructure. The HTTP boundary is tested through `app.inject`/Supertest. Business requirements get acceptance tests tagged with AC IDs. Finally come the supporting techniques: contract (Pact), characterization, mutation, property-based, and E2E.
 
-## Ai nên đọc, cần biết gì
+## Who this book is for and prerequisites
 
-- Đã đọc/làm quen: layered architecture, Hexagonal (port/adapter), entity/value object/aggregate, Given/When/Then.
-- Biết TypeScript và `async/await` ở mức viết được một test đơn giản với Vitest hoặc Jest.
-- Không cần biết trước Docker; lab chỉ cần Docker.
+- You have read or are familiar with: layered architecture, Hexagonal (port/adapter), entity/value object/aggregate, Given/When/Then.
+- You know TypeScript and `async/await` well enough to write a simple test with Vitest or Jest.
+- No prior Docker knowledge is needed; the lab only requires Docker.
 
-## Mục lục
+## Contents
 
-1. [Test để làm gì và thế nào là một test tốt](01-why-test-and-good-tests.md)
-2. [Hình dạng bộ test: pyramid, trophy, honeycomb; classical và London](02-test-suite-shapes.md)
-3. [Unit test cho domain: output, state, communication](03-unit-test-domain.md)
-4. [Test double và ranh giới mock](04-test-doubles.md)
-5. [Test use case bằng fake adapter](05-testing-use-cases-with-fakes.md)
-6. [Integration test cho adapter với PostgreSQL thật](06-integration-test-adapter-db.md)
-7. [Test HTTP/handler trong Node.js (Fastify, Supertest) và test cấu hình](07-http-tests-nodejs.md)
-8. [Acceptance test và traceability từ AC tới test](08-acceptance-tests-and-traceability.md)
-9. [Contract test (Pact JS) và schema test](09-contract-test.md)
-10. [Characterization test, snapshot và approval test cho legacy](10-characterization-tests-legacy.md)
-11. [Mutation testing (StrykerJS) và property-based testing (fast-check)](11-mutation-and-property-based-testing.md)
-12. [E2E (Playwright Test), flaky test, test data và CI](12-e2e-flaky-tests-test-data-ci.md)
+1. [Chapter 1. Why we test and what makes a good test](01-why-test-and-good-tests.md)
+2. [Chapter 2. Test suite shapes: pyramid, trophy, honeycomb; classical and London](02-test-suite-shapes.md)
+3. [Chapter 3. Unit tests for the domain: output, state, communication](03-unit-test-domain.md)
+4. [Chapter 4. Test doubles and the mocking boundary](04-test-doubles.md)
+5. [Chapter 5. Testing use cases with fake adapters](05-testing-use-cases-with-fakes.md)
+6. [Chapter 6. Integration tests for adapters with a real PostgreSQL](06-integration-test-adapter-db.md)
+7. [Chapter 7. Testing HTTP handlers in Node.js (Fastify, Supertest) and configuration tests](07-http-tests-nodejs.md)
+8. [Chapter 8. Acceptance tests and traceability from acceptance criteria to tests](08-acceptance-tests-and-traceability.md)
+9. [Chapter 9. Contract tests between services (Pact JS) and schema tests](09-contract-test.md)
+10. [Chapter 10. Characterization, snapshot, and approval tests for legacy code](10-characterization-tests-legacy.md)
+11. [Chapter 11. Mutation testing (StrykerJS) and property-based testing (fast-check)](11-mutation-and-property-based-testing.md)
+12. [Chapter 12. E2E (Playwright Test), flaky tests, test data, and CI](12-e2e-flaky-tests-test-data-ci.md)
 
-## Phiên bản đã dùng (kiểm tra 11/2026)
+## Versions used (checked 11/2026)
 
-| Thành phần | Phiên bản | Ghi chú |
+| Component | Version | Notes |
 |---|---|---|
-| Node.js | 26.13.0 (image `node:26`, cũng là tag `node:lts` ở thời điểm viết) | chạy TypeScript trực tiếp (`node src/server.ts`) nhờ type stripping |
-| npm | 11.20.0 | đi kèm image |
-| TypeScript | **6.0.3** trong lab; 7.0.2 là bản mới nhất | `tsc --noEmit` của 7.0.2 chạy sạch trên lab, nhưng StrykerJS 10.1.1 chưa chạy được với TS 7 (thiếu API compiler cũ), nên lab ghim 6.0.3 |
-| Vitest | 5.1.0 | test runner chính (đã cân nhắc `node:test`, xem bên dưới) |
+| Node.js | 26.13.0 (image `node:26`, also the `node:lts` tag at the time of writing) | runs TypeScript directly (`node src/server.ts`) thanks to type stripping |
+| npm | 11.20.0 | bundled with the image |
+| TypeScript | **6.0.3** in the lab; 7.0.2 is the latest | `tsc --noEmit` from 7.0.2 runs clean on the lab, but StrykerJS 10.1.1 cannot run with TS 7 (missing old compiler API), so the lab pins 6.0.3 |
+| Vitest | 5.1.0 | main test runner (`node:test` was considered, see below) |
 | fast-check | 4.10.2 | property-based testing |
 | StrykerJS | `@stryker-mutator/core`, `vitest-runner`, `typescript-checker` 10.1.1 | mutation testing |
-| Fastify | 5.12.8 | HTTP handler của lab (`app.inject`) |
-| Supertest | 7.3.2 (+ `@types/supertest` 7.2.1) | test HTTP qua `http.Server` thật |
-| pg (node-postgres) | 8.23.1 (+ `@types/pg` 8.23.1) | adapter PostgreSQL |
+| Fastify | 5.12.8 | the lab's HTTP handler (`app.inject`) |
+| Supertest | 7.3.2 (+ `@types/supertest` 7.2.1) | HTTP tests through a real `http.Server` |
+| pg (node-postgres) | 8.23.1 (+ `@types/pg` 8.23.1) | PostgreSQL adapter |
 | PostgreSQL | 18 (image `postgres:18-alpine`) | |
-| Pact JS | `@pact-foundation/pact` 17.1.4 | consumer + provider verification, đã chạy |
-| Playwright | `@playwright/test` 1.65.0, image `mcr.microsoft.com/playwright:v1.65.0-noble` | E2E, đã chạy |
-| Testcontainers for Node | 12.2.1 (`testcontainers`, `@testcontainers/postgresql`) | chỉ tra cứu, lab không dùng (chương 6 giải thích trade-off) |
-| NestJS testing | `@nestjs/testing` 12.4.0 | chỉ tra cứu, chưa chạy (chương 7) |
-| Express | 5.3.0 | chỉ tra cứu; Supertest dùng cùng cách |
+| Pact JS | `@pact-foundation/pact` 17.1.4 | consumer + provider verification, run |
+| Playwright | `@playwright/test` 1.65.0, image `mcr.microsoft.com/playwright:v1.65.0-noble` | E2E, run |
+| Testcontainers for Node | 12.2.1 (`testcontainers`, `@testcontainers/postgresql`) | looked up only, not used by the lab (chapter 6 explains the trade-off) |
+| NestJS testing | `@nestjs/testing` 12.4.0 | looked up only, not run (chapter 7) |
+| Express | 5.3.0 | looked up only; Supertest works the same way |
 
-**Vì sao Vitest mà không phải `node:test`.** `node:test` (có sẵn trong Node, không cần dependency) hoàn toàn đủ cho unit test và đúng tinh thần "ít dependency". Lab chọn Vitest vì ba thứ cần trong sách: runner chính thức của StrykerJS (`vitest-runner` tận dụng `coverageAnalysis: perTest`), `toMatchFileSnapshot` cho approval test (chương 10) và `vi.fn()` có kiểu (chương 4). Nếu bạn chỉ cần unit test và không dùng Stryker, hãy cân nhắc `node:test`.
+**Why Vitest and not `node:test`.** `node:test` (built into Node, no dependency needed) is perfectly adequate for unit tests and fits the "few dependencies" spirit. The lab picks Vitest for three things the book needs: it is StrykerJS's official runner (`vitest-runner` takes advantage of `coverageAnalysis: perTest`), `toMatchFileSnapshot` for approval tests (chapter 10), and typed `vi.fn()` (chapter 4). If you only need unit tests and do not use Stryker, consider `node:test`.
 
-## Cách chạy lab
+## Running the labs
 
-Lab nằm ở [`lab/`](lab/), chạy hoàn toàn trong Docker (không cài gì lên máy, kể cả Node). Mọi tài nguyên có tiền tố `bookcheck-testts-`; không map port ra host.
+The lab is in [`lab/`](lab/) and runs entirely in Docker (nothing is installed on your machine, not even Node). All resources are prefixed `bookcheck-testts-`; no ports are mapped to the host.
 
 ```bash
 cd lab
@@ -70,9 +70,9 @@ cd lab
 ./run.sh down        # xóa container, network, volume, thư mục sinh ra
 ```
 
-Trên Windows dùng Git Bash (script đã đặt `MSYS_NO_PATHCONV=1`). Các container tự giới hạn `--memory`. Muốn chạy một lệnh bất kỳ trong container: `./run.sh exec npx vitest run -t AC-ORD-5`.
+On Windows use Git Bash (the script already sets `MSYS_NO_PATHCONV=1`). The containers limit themselves with `--memory`. To run any command inside the container: `./run.sh exec npx vitest run -t AC-ORD-5`.
 
-## Kết quả chạy thực tế (ghi lại từ lab)
+## Actual run results (recorded from the lab)
 
 ```
 typecheck        tsc --noEmit sạch (TypeScript 6.0.3; bản 7.0.2 cũng sạch khi thử lúc đầu)
@@ -90,18 +90,18 @@ stryker vòng 2   140 mutant: 41 CompileError, 99 chạy: 99 killed; MSI 100% (1
 e2e (Playwright) 2 passed (15,1 giây) trong image mcr.microsoft.com/playwright:v1.65.0-noble
 ```
 
-Ba điểm đáng nhớ từ lần chạy thật (chi tiết ở chương tương ứng): fake giữ reference che lỗi quên `save()` (chương 5), Ajv của Fastify ép kiểu `"2"` thành `2` (chương 7), và StrykerJS 10.1.1 không chạy được với TypeScript 7 nên lab ghim TypeScript 6.0.3 (chương 11).
+Three points worth remembering from the real runs (details in the corresponding chapters): a reference-holding fake hides a forgotten `save()` (chapter 5), Fastify's Ajv coerces the string `"2"` into the number `2` (chapter 7), and StrykerJS 10.1.1 cannot run with TypeScript 7, so the lab pins TypeScript 6.0.3 (chapter 11).
 
-Chi tiết và cách đọc kết quả ở chương 11 (mutation) và chương 12 (E2E).
+Details and how to read the results are in chapter 11 (mutation) and chapter 12 (E2E).
 
-## Đọc thêm (sách và tài liệu có thật)
+## Further reading (real books and documentation)
 
 - Vladimir Khorikov, *Unit Testing: Principles, Practices, and Patterns* (Manning, 2020).
 - Steve Freeman, Nat Pryce, *Growing Object-Oriented Software, Guided by Tests* (Addison-Wesley, 2009).
 - Michael Feathers, *Working Effectively with Legacy Code* (Prentice Hall, 2004).
-- Martin Fowler, "Mocks Aren't Stubs" (martinfowler.com/articles/mocksArentStubs.html) và "TestPyramid", "Practical Test Pyramid" (Ham Vocke, martinfowler.com).
-- Tài liệu chính thức: [Vitest](https://vitest.dev), [node:test](https://nodejs.org/api/test.html), [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/), [fast-check](https://fast-check.dev), [Fastify testing](https://fastify.dev/docs/latest/Guides/Testing/), [Supertest](https://github.com/ladjs/supertest), [Pact](https://docs.pact.io), [Playwright](https://playwright.dev/docs/intro), [Testcontainers for Node](https://node.testcontainers.org).
+- Martin Fowler, "Mocks Aren't Stubs" (martinfowler.com/articles/mocksArentStubs.html), "TestPyramid", and "Practical Test Pyramid" (Ham Vocke, martinfowler.com).
+- Official documentation: [Vitest](https://vitest.dev), [node:test](https://nodejs.org/api/test.html), [StrykerJS](https://stryker-mutator.io/docs/stryker-js/introduction/), [fast-check](https://fast-check.dev), [Fastify testing](https://fastify.dev/docs/latest/Guides/Testing/), [Supertest](https://github.com/ladjs/supertest), [Pact](https://docs.pact.io), [Playwright](https://playwright.dev/docs/intro), [Testcontainers for Node](https://node.testcontainers.org).
 
-## Quy ước
+## Conventions
 
-Mọi đoạn code TypeScript xuất hiện trong sách đều lấy từ `lab/` (cùng tên file, cùng chữ ký) và đã chạy xanh, trừ các mục ghi rõ "chưa chạy thử" hoặc "minh họa" (Testcontainers, NestJS, workflow GitHub Actions, Pact Broker). Thông điệp lỗi trong code lab viết không dấu để tránh vấn đề encoding.
+Every TypeScript snippet in the book comes from `lab/` (same file names, same signatures) and has run green, except sections explicitly marked "not yet run" or "illustrative" (Testcontainers, NestJS, the GitHub Actions workflow, Pact Broker). Error messages in the lab code are written without diacritics to avoid encoding problems.

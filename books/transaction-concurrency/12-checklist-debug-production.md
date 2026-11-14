@@ -1,14 +1,14 @@
-# Chương 12. Checklist debug concurrency incident trên production
+# Chapter 12. Checklist for Debugging Production Concurrency Incidents
 
-## 1. Tình huống
+## 1. Scenario
 
 03:10 sáng. Alert: p99 tăng vọt, một phần request timeout, CPU DB bình thường. Hoặc: khách báo số dư sai, nhưng log không có lỗi. Hai loại incident khác nhau: **kẹt** (chờ lock, deadlock, transaction treo) và **sai** (anomaly im lặng: lost update, write skew). Chương này là danh sách các bước để chẩn đoán, và chữa cháy an toàn.
 
 Các query dưới đây đã được thử trên PostgreSQL 18.6 và MySQL 9.7.4 của lab (một số xem trong chương 5 và 6); luôn thử trên môi trường của bạn trước khi dựa vào chúng trong incident.
 
-## 2. Loại 1: hệ thống kẹt
+## 2. Type 1: the system is stuck
 
-### Bước 1. Ai đang chờ ai?
+### Step 1. Who is waiting for whom?
 
 PostgreSQL:
 
@@ -41,15 +41,15 @@ FROM information_schema.innodb_trx ORDER BY trx_started;
 
 `trx_mysql_thread_id` là id dùng cho `KILL`. Transaction `trx_started` rất xưa là ứng viên.
 
-### Bước 2. Có transaction dài không?
+### Step 2. Are there long transactions?
 
 PG: `SELECT pid, now()-xact_start AS age, state, query FROM pg_stat_activity WHERE xact_start IS NOT NULL ORDER BY xact_start LIMIT 10;`. MySQL: query `innodb_trx` ở trên. Transaction dài giữ lock, và còn chặn cleanup (chương 4): VACUUM không dọn được, `history list length` tăng.
 
-### Bước 3. Có `ALTER TABLE`/DDL đang xếp hàng không? (PG)
+### Step 3. Is an `ALTER TABLE`/DDL statement queued? (PG)
 
 Trong kết quả bước 1, nếu `query` đầu queue chờ là `ALTER TABLE ...` và blocker của nó là một `SELECT` trong transaction treo thì mọi query khác đang xếp sau DDL (chương 5, queue effect). Hủy DDL (không phải transaction treo) giải phóng queue ngay.
 
-### Bước 4. Hành động an toàn
+### Step 4. Safe actions
 
 | Việc | PostgreSQL | MySQL |
 |---|---|---|
@@ -58,13 +58,13 @@ Trong kết quả bước 1, nếu `query` đầu queue chờ là `ALTER TABLE .
 
 Thứ tự ưu tiên: hủy **blocker ở đầu chuỗi** (kẻ không chờ ai), không phải victim. Rollback transaction lớn có thể tốn thời gian (đặc biệt InnoDB); đừng kill lặp đi lặp lại khi đang rollback. Ghi lại câu lệnh và `pid` trước khi kill để điều tra sau.
 
-### Bước 5. Deadlock
+### Step 5. Deadlocks
 
 - PG: tìm `deadlock detected` trong log; DETAIL ghi hai process và loại lock. Bật `log_lock_waits = on` để thấy cả những lần chờ vượt `deadlock_timeout`. Đếm: `SELECT datname, deadlocks FROM pg_stat_database;`.
 - MySQL: `SHOW ENGINE INNODB STATUS\G` mục `LATEST DETECTED DEADLOCK` (chỉ deadlock gần nhất). Bật `innodb_print_all_deadlocks = ON` (mặc định OFF, đã kiểm) để ghi mọi deadlock vào error log.
 - Đối chiếu code: hai code path nào lấy lock theo thứ tự ngược nhau (chương 6)?
 
-## 3. Loại 2: dữ liệu sai nhưng không có lỗi
+## 3. Type 2: wrong data but no errors
 
 Không có cái gì "kẹt", bạn không thấy chờ lock. Hãy nghi ngờ anomaly:
 
@@ -75,7 +75,7 @@ Không có cái gì "kẹt", bạn không thấy chờ lock. Hãy nghi ngờ ano
 5. **Dựng lại bằng hai session.** Chép mẫu kịch bản của `lab/scenarios/`, thay bảng của bạn. Nếu tái hiện được, bạn đã biết cần gì (chương 7 hoặc 8).
 6. **Thêm constraint để lộ vấn đề:** `UNIQUE`, `CHECK`, hoặc exclusion constraint (PG). Dữ liệu sai sẽ biến thành lỗi rõ ràng thay vì im lặng.
 
-## 4. Những tín hiệu cần monitor trước khi incident xảy ra
+## 4. Signals to monitor before an incident happens
 
 | Metric | PostgreSQL | MySQL |
 |---|---|---|
@@ -97,7 +97,7 @@ ALTER ROLE app SET idle_in_transaction_session_timeout = '60s';
 
 MySQL: giảm `innodb_lock_wait_timeout` (mặc định 50 giây) cho tải web; kết hợp `max_execution_time` cho `SELECT`.
 
-## 5. Checklist một trang
+## 5. One-page checklist
 
 1. Kẹt hay sai? (có chờ/timeout/deadlock, hay chỉ dữ liệu lệch)
 2. Kẹt: lấy danh sách chờ (`pg_blocking_pids` / `data_lock_waits`), tìm blocker đầu chuỗi.
@@ -109,7 +109,7 @@ MySQL: giảm `innodb_lock_wait_timeout` (mặc định 50 giây) cho tải web;
 8. Thêm retry có giới hạn cho lỗi `40001`/`40P01`/`1213`.
 9. Thêm test hoặc script tái hiện vào repo để lỗi không quay lại.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Kill victim thay vì blocker.
 2. Kill transaction lớn của InnoDB rồi kill tiếp vì "chưa thấy hết": rollback đang chạy.
@@ -117,7 +117,7 @@ MySQL: giảm `innodb_lock_wait_timeout` (mặc định 50 giây) cho tải web;
 4. Sửa triệu chứng (retry) mà không tìm gốc (thứ tự lock, transaction quá rộng).
 5. Không monitor idle-in-transaction cho tới khi incident.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Phân loại trước: kẹt hay sai.
 - Kẹt: tìm wait chain, blocker đầu chuỗi, tuổi transaction, DDL xếp hàng; hủy câu lệnh rồi mới kill session.
@@ -125,14 +125,14 @@ MySQL: giảm `innodb_lock_wait_timeout` (mặc định 50 giây) cho tải web;
 - Đặt sẵn timeout và monitor transaction dài.
 - Cuối cùng luôn thêm retry và test.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. Query nào cho biết transaction nào đang chặn một câu `UPDATE` bị kẹt trên PG?
 2. Vì sao hủy `ALTER TABLE` đang xếp hàng có thể cứu cả hệ thống?
 3. Đặt `idle_in_transaction_session_timeout` để làm gì?
 4. Dữ liệu lệch không có lỗi: hai mẫu code cần tìm đầu tiên?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `pg_blocking_pids(pid)` trong `pg_stat_activity`, rồi tra pid chặn.
 2. Mọi query đến sau xếp sau DDL; hủy DDL gỡ queue.

@@ -1,12 +1,12 @@
-# Chương 4. Consistency và availability: replication, quorum, CAP, PACELC
+# Chapter 4. Consistency and Availability: Replication, Quorum, CAP, PACELC
 
 > Cập nhật: 2026-11-07.
 
-## 4.1 Vì sao đây là chương khó nhất
+## 4.1 Why this is the hardest chapter
 
 Ngay khi dữ liệu có nhiều replica (để fault tolerance và tăng tốc đọc), câu hỏi xuất hiện: *nếu hai replica khác nhau, người dùng thấy bản nào?* Mọi thiết kế phân tán đều trả lời câu hỏi này bằng cách chọn một **consistency model** và chấp nhận cái giá về latency hoặc availability.
 
-## 4.2 Các consistency model (từ mạnh đến yếu)
+## 4.2 Consistency models (strong to weak)
 
 | Mô hình | Ý nghĩa dễ hiểu | Ví dụ |
 |---|---|---|
@@ -84,7 +84,7 @@ Kết luận đúng: **trong lúc có network partition, hệ thống không th�
 
 Nhãn CP/AP hay bị gán cứng cho sản phẩm; thực tế nhiều hệ có tham số (consistency level theo từng query), nên nhãn phụ thuộc cấu hình.
 
-## 4.7 PACELC: phần CAP bỏ sót
+## 4.7 PACELC: what CAP leaves out
 
 CAP chỉ nói về lúc có partition, mà phần lớn thời gian mạng ổn. **PACELC** (Daniel Abadi, 2012) mở rộng: *nếu có Partition (P) thì chọn Availability (A) hay Consistency (C); Else (E), khi không có partition, chọn Latency (L) hay Consistency (C).* Nguyên nhân: đồng bộ nhiều replica để giữ consistency luôn tốn thêm round trip, tức là thêm latency, kể cả khi mọi thứ khỏe.
 
@@ -96,18 +96,18 @@ Ví dụ phân loại (theo bài báo gốc 2012, có thể đổi theo cấu h�
 
 Trong phỏng vấn, câu "nếu không có partition thì hệ thống này đánh đổi latency với consistency thế nào?" cho thấy bạn hiểu sâu hơn việc đọc thuộc CAP.
 
-## 4.8 Ví dụ thiết kế: đặt chỗ khách sạn multi-region
+## 4.8 Design example: multi-region hotel booking
 
 Yêu cầu: không bán hai lần một phòng. Dùng leader duy nhất cho mỗi khách sạn (partition theo `hotel_id`), ghi sync sang một replica cùng region, async sang region khác. Trade-off: người ở xa leader chịu latency cao hơn (EC trong PACELC); khi region của leader bị cô lập, đặt phòng khách sạn đó tạm dừng (chọn C hơn A cho thao tác ghi). Đọc danh sách phòng (tìm kiếm) lấy từ replica cục bộ với eventual consistency, và kiểm tra lại trên leader khi người dùng bấm đặt.
 
-## 4.9 Khi phỏng vấn nên nói gì
+## 4.9 What to say in an interview
 
 - "Với thao tác trừ tiền em cần linearizable, em chấp nhận ghi bị từ chối khi partition. Với bảng tin em dùng eventual consistency."
 - "Em không dựa vào W + R > N để bảo đảm strong consistency; nó chỉ đảm bảo giao nhau. Em sẽ dùng leader/Raft."
 - "Theo PACELC, ngay cả khi không có lỗi, replicate sync cross-region thêm vài chục đến vài trăm mili-giây; em đặt leader gần người dùng chính."
 - "Failover tự động cần cơ chế chống split-brain: majority vote và fencing token."
 
-## 4.10 Cạm bẫy
+## 4.10 Pitfalls
 
 - Trình bày CAP như "chọn 2 trong 3" tuyệt đối, hoặc coi A là "nhanh".
 - Dán nhãn CP/AP cố định cho sản phẩm.
@@ -116,7 +116,7 @@ Yêu cầu: không bán hai lần một phòng. Dùng leader duy nhất cho mỗ
 - Dùng last-write-wins với đồng hồ lệch cho dữ liệu không được phép mất.
 - Nhầm "C" của ACID và CAP.
 
-## 4.11 Tóm tắt
+## 4.11 Summary
 
 1. Chọn consistency model theo giá trị nghiệp vụ của dữ liệu.
 2. Replication async nhanh nhưng có thể mất ghi khi failover; sync an toàn nhưng chậm hơn.
@@ -124,7 +124,7 @@ Yêu cầu: không bán hai lần một phòng. Dùng leader duy nhất cho mỗ
 4. CAP: khi có partition, chọn linearizable hoặc available; không phải "chọn 2 trong 3".
 5. PACELC bổ sung trade-off latency vs consistency khi không có lỗi.
 
-## 4.12 Câu hỏi tự kiểm tra
+## 4.12 Self-check questions
 
 1. Hệ thống N=5, W=3, R=3: chịu mất tối đa mấy node để vẫn đọc và ghi được? Nó có linearizable không?
 2. Định nghĩa "A" trong CAP.
@@ -133,7 +133,7 @@ Yêu cầu: không bán hai lần một phòng. Dùng leader duy nhất cho mỗ
 5. Split-brain là gì và phòng thế nào?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Cần 3 node cho cả đọc và ghi nên chịu mất tối đa 2 node. Không tự động linearizable; vẫn bị ảnh hưởng bởi sloppy quorum, last-write-wins, partial write failure.
 2. Mọi node còn sống nhận request đều phải trả lời không lỗi; không có yêu cầu về tốc độ.
@@ -143,7 +143,7 @@ Yêu cầu: không bán hai lần một phòng. Dùng leader duy nhất cho mỗ
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - Abadi, "Consistency Tradeoffs in Modern Distributed Database System Design" (2012): https://cs.umd.edu/~abadi/papers/abadi-pacelc.pdf
 - Gilbert & Lynch (2002), định nghĩa C/A/P: kiến thức chuẩn, chưa tra lại trực tiếp trong phiên này (xem phần "điểm chưa chắc" trong báo cáo).

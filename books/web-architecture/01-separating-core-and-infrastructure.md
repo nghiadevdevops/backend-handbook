@@ -1,8 +1,8 @@
-# Chương 1. Tách core code khỏi infrastructure code
+# Chapter 1. Separating Core Code from Infrastructure Code
 
 > Mục tiêu chương: hiểu vì sao "code nghiệp vụ" nên sống độc lập với framework, database, mail, và nhìn thấy điều đó bằng một script TypeScript thuần chạy được không cần NestJS.
 
-## 1.1 Vấn đề: một controller làm tất cả
+## 1.1 The problem: one controller does everything
 
 Hầu hết ứng dụng web bắt đầu như sau. Khách bấm "Mua", handler của route nhận request, kiểm tra, tính tiền, ghi DB, gửi mail, rồi trả về trang. Đoạn dưới đây là **phản ví dụ cố ý viết xấu** (không nằm trong `lab/`, không chạy):
 
@@ -29,7 +29,7 @@ Mọi thứ dính vào nhau. Hậu quả quen thuộc:
 - Đổi cách lưu (SQL sang dịch vụ khác) kéo theo sửa cả luật tính tiền.
 - Người mới đọc không phân biệt nổi đâu là "luật của cửa hàng", đâu là "chuyện kỹ thuật".
 
-## 1.2 Giải pháp: hai loại code, một chiều dependency
+## 1.2 The solution: two kinds of code, one direction of dependency
 
 | | Core code | Infrastructure code |
 |---|---|---|
@@ -59,7 +59,7 @@ flowchart LR
 
 Mũi tên liền là "gọi/biết tới", mũi tên đứt là "implement interface". Đừng lo chi tiết ngay, các chương 5 và 6 sẽ giải thích.
 
-## 1.3 Ví dụ xuyên suốt: cửa hàng e-book
+## 1.3 Running example: an e-book store
 
 Toàn bộ sách dùng **một** domain: khách đặt mua e-book. Các khái niệm cố định:
 
@@ -70,7 +70,7 @@ Toàn bộ sách dùng **một** domain: khách đặt mua e-book. Các khái ni
 
 Toàn bộ code core nằm trong `lab/src/domain` và `lab/src/application`, **TypeScript thuần** (không `import` NestJS, `pg` hay bất kỳ package nào). Phần của NestJS nằm riêng trong `lab/src/nest/`, adapter PostgreSQL trong `lab/src/infrastructure/postgres/`.
 
-## 1.4 Bằng chứng: chạy core mà không có NestJS
+## 1.4 Proof: running the core without NestJS
 
 Script `lab/script/demo.ts` lắp các class với adapter in-memory và gọi use case. Chạy trong Docker (Node.js 26 LTS; `npm ci` và `npm run build` đã chạy trước, xem README):
 
@@ -91,7 +91,7 @@ Tóm tắt: paid | 215000 VND | Domain-Driven Design nhập môn + Kiến trúc 
 
 Không có HTTP server, không có database, không có DI container. Đó chính là lợi ích đầu tiên: **core chạy được và test được một mình**.
 
-## 1.5 Boundary nằm ở đâu? Các vùng xám
+## 1.5 Where is the boundary? The gray areas
 
 | Việc | Xếp vào | Lý do |
 |---|---|---|
@@ -105,19 +105,19 @@ Không có HTTP server, không có database, không có DI container. Đó chín
 
 Mẹo phân loại: hỏi "nếu ngày mai bỏ web, chỉ còn dòng lệnh, thứ này có còn cần không?" Còn cần thì nhiều khả năng là core.
 
-## 1.6 Lợi ích và cái giá
+## 1.6 Benefits and costs
 
 Lợi ích: test nhanh (không IO), nhiều entry point dùng chung một logic, thay công nghệ cục bộ, đọc code thấy luật rõ ràng.
 
 Cái giá, nói thẳng: nhiều file hơn, nhiều interface hơn, phải học từ vựng mới. Với màn hình CRUD thuần (danh mục, cài đặt) cách làm này thừa. Hãy dùng cho phần **lõi nghiệp vụ có luật phức tạp và sống lâu**, còn lại cứ để NestJS (hoặc Express/Fastify) đơn giản.
 
-## 1.7 Cạm bẫy thường gặp
+## 1.7 Common pitfalls
 
 - **Tách theo thư mục chứ không theo dependency.** Tạo thư mục `domain/` nhưng trong đó vẫn `import { Injectable } from '@nestjs/common'` hay `import { Pool } from 'pg'` thì chưa tách gì cả.
 - **Tách mọi thứ từ ngày đầu.** Dễ sa vào over-engineering; tách dần khi luật bắt đầu phức tạp.
 - **Nhầm "không dùng framework" với "không dùng thư viện".** Core được dùng thứ có sẵn trong ngôn ngữ và runtime (`Date`, `Map`, `crypto.randomUUID()`); điều cấm là dính vào thứ gắn với infrastructure cụ thể.
 
-## 1.8 Tóm tắt
+## 1.8 Summary
 
 1. Core là luật và quy trình nghiệp vụ; infrastructure là công nghệ thực hiện.
 2. Dependency chỉ đi một chiều: infrastructure biết core, core không biết infrastructure.
@@ -125,7 +125,7 @@ Cái giá, nói thẳng: nhiều file hơn, nhiều interface hơn, phải học
 4. Bằng chứng tốt nhất: chạy được core bằng TypeScript thuần.
 5. Chỉ đầu tư cho phần lõi có luật phức tạp.
 
-## 1.9 Tự kiểm tra
+## 1.9 Self-check
 
 1. Nêu hai phản ví dụ khiến controller "làm tất cả" khó test.
 2. Đoạn code nào trong `lab/` chứng minh core không cần NestJS?
@@ -133,7 +133,7 @@ Cái giá, nói thẳng: nhiều file hơn, nhiều interface hơn, phải học
 4. Khi nào KHÔNG nên áp dụng cách tách này?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Phải dựng HTTP, DB, mail để test một luật; muốn thêm entry point CLI thì phải sao chép logic.
 2. `lab/script/demo.ts` và `lab/test/domain.test.ts`, `lab/test/application.test.ts` chạy trên TypeScript thuần với adapter in-memory.

@@ -1,6 +1,6 @@
-# Chương 1. Transaction và ACID
+# Chapter 1. Transactions and ACID
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn viết chức năng chuyển 100.000đ từ ví A sang ví B. Code gồm hai câu lệnh: trừ tiền A, cộng tiền B. Nếu process chết (OOM, deploy, mất mạng) ngay giữa hai câu thì tiền "bốc hơi". Nếu hai request chuyển tiền chạy cùng lúc, số dư có thể sai theo những cách rất khó tái hiện. **Transaction** (giao dịch) là cơ chế để database gom nhiều thao tác thành một đơn vị: hoặc tất cả có hiệu lực, hoặc không cái nào có.
 
@@ -24,19 +24,19 @@ Mọi kết quả "đã chạy" trong sách lấy từ lab trong thư mục `lab
 | **I**solation (cô lập) | Các transaction chạy đồng thời không "thấy" nhau ở mức mà level cho phép (chương 3). | Engine, theo isolation level |
 | **D**urability (bền) | Đã `COMMIT` thành công thì mất điện cũng không mất. | WAL/redo log + `fsync` |
 
-### Chữ C của ACID khác chữ C của CAP
+### The C in ACID is not the C in CAP
 
 - **C trong ACID** là *invariant* của dữ liệu: tổng tiền không đổi, foreign key trỏ đúng, `bal >= 0`. Database chỉ giữ được các invariant mà nó biết (PRIMARY KEY, UNIQUE, FOREIGN KEY, CHECK, exclusion constraint). Invariant kiểu "luôn có ít nhất một bác sĩ trực" (chương 8) database không tự biết, và các level thấp sẽ để nó vỡ. Nhiều tác giả nhận xét chữ C được thêm vào để từ viết tắt đọc được, nó khác bản chất với ba chữ còn lại.
 - **C trong CAP** là *linearizability*: distributed system có nhiều replica, mọi client thấy dữ liệu như thể chỉ có một bản. Nó nói về replication, không liên quan đến constraint.
 
 Hai khái niệm trùng chữ cái, khác hoàn toàn. Khi nghe "consistency", hãy hỏi lại: invariant của ứng dụng, hay các replica có đồng bộ.
 
-### Durability không phải tuyệt đối
+### Durability is not absolute
 
 - PostgreSQL: `synchronous_commit = on` (mặc định) nghĩa là `COMMIT` chỉ trả về sau khi WAL được flush xuống đĩa. Đặt `off` thì có thể mất vài trăm ms transaction cuối khi crash (nhưng không hỏng dữ liệu).
 - InnoDB: `innodb_flush_log_at_trx_commit = 1` (mặc định) flush redo log mỗi commit. Giá trị `0`/`2` đổi durability lấy tốc độ.
 
-## 3. Cú pháp, autocommit và transaction boundary
+## 3. Syntax, autocommit and transaction boundaries
 
 Cả PostgreSQL và MySQL đều chạy ở chế độ **autocommit**: mỗi câu lệnh đơn lẻ tự là một transaction nhỏ. Bạn phải mở transaction tường minh để gom nhiều câu:
 
@@ -58,7 +58,7 @@ COMMIT;
 
 Kiểm tra trên lab: `SELECT @@autocommit;` trả về `1` trong MySQL. `SET autocommit=0` khiến câu đầu tiên tự mở transaction, một nguồn gây transaction "treo" khi quên commit.
 
-### Savepoint
+### Savepoints
 
 `SAVEPOINT` đặt một điểm rollback *bên trong* transaction. `ROLLBACK TO SAVEPOINT sp` hủy phần sau điểm đó nhưng giữ phần trước. Trong Go, `pgx.Tx.Begin` bên trong một transaction đang mở cũng tạo savepoint (chương 10).
 
@@ -72,11 +72,11 @@ Kết quả đã chạy (`lab/scripts/ch01_pg.sql`, `ch01_my.sql`): chèn dòng 
 
 Hệ quả cho code: trong PostgreSQL, "bắt exception rồi tiếp tục" trong cùng transaction chỉ hoạt động nếu bạn bọc đoạn có thể lỗi trong savepoint. Đây là lý do mẫu `INSERT ... ON CONFLICT DO NOTHING` được ưa chuộng hơn "thử rồi bắt lỗi" ở PG.
 
-### DDL và transaction
+### DDL and transactions
 
 Đã chạy: `BEGIN; CREATE TABLE t2(x int); ROLLBACK;` trên PostgreSQL rồi `to_regclass('t2')` trả NULL, tức **DDL có transaction**, rollback được cả `CREATE TABLE`. Trên MySQL, `CREATE TABLE` giữa transaction gây **implicit commit**: dòng id=3 chèn trước đó vẫn còn (`COUNT(*) = 1`) dù đã gọi `ROLLBACK`. Hệ quả: migration lỗi giữa chừng trên MySQL để lại schema nửa vời, trên PG thì hoàn tác sạch.
 
-### Transaction boundary nên đặt ở đâu
+### Where to place the transaction boundary
 
 ```mermaid
 flowchart LR
@@ -85,13 +85,13 @@ flowchart LR
 
 Đặt boundary **hẹp**: chỉ gói những thao tác DB phải atomic. Việc chậm hoặc không rollback được (HTTP ra ngoài, gửi mail) để ngoài. Lý do kỹ thuật ở chương 4 (transaction dài giữ snapshot, gây bloat) và chương 10.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - Transaction bọc càng rộng thì càng an toàn về logic nhưng giữ lock lâu, tăng deadlock và queueing.
 - Không dùng transaction cho thao tác đọc thuần ở mức mặc định, trừ khi cần nhìn thấy một snapshot nhất quán cho nhiều câu SELECT (chương 2: read skew).
 - Một câu `UPDATE` đơn lẻ đã atomic. Đừng bọc `BEGIN/COMMIT` quanh một câu vô ích, nhưng cũng đừng nghĩ "một câu SQL" luôn đủ: `SELECT` rồi `UPDATE` là hai câu.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 1. Tin rằng "ACID nghĩa là không bao giờ có race condition". Isolation mặc định của cả hai DB cho phép nhiều anomaly (chương 3).
 2. Quên rằng MySQL có implicit commit với DDL (và một số lệnh khác).
@@ -99,7 +99,7 @@ flowchart LR
 4. Mở transaction rồi chờ input người dùng hoặc gọi API ngoài.
 5. Nhầm C của ACID với C của CAP.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Transaction gom nhiều thao tác thành một khối atomic, bền sau commit.
 - C của ACID là invariant do bạn và constraint giữ; C của CAP là linearizability. Hai thứ khác nhau.
@@ -107,14 +107,14 @@ flowchart LR
 - PG: lỗi làm transaction aborted, DDL rollback được. MySQL: lỗi chỉ hủy câu đó, DDL gây implicit commit.
 - Giữ transaction ngắn và hẹp.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. Hai chữ C (ACID, CAP) khác nhau thế nào?
 2. Vì sao `SELECT` bị từ chối sau một lỗi `duplicate key` trong PostgreSQL nhưng chạy được trong MySQL?
 3. Bạn chạy migration có `CREATE TABLE` rồi `ALTER TABLE` và lệnh thứ hai lỗi. Trên PG và MySQL kết quả khác nhau thế nào?
 4. Savepoint dùng để làm gì và pgx dùng nó khi nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. ACID-C: dữ liệu thỏa các constraint/invariant sau mỗi transaction. CAP-C: linearizability giữa các replica trong distributed system.
 2. PostgreSQL đánh dấu transaction là aborted khi có lỗi, chỉ chấp nhận `ROLLBACK` hoặc `ROLLBACK TO SAVEPOINT`. InnoDB chỉ hủy câu lệnh lỗi và giữ transaction mở.

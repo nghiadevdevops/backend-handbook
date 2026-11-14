@@ -1,6 +1,6 @@
-# Chương 7. Commit tốt
+# Chapter 7. Good Commits
 
-## Vấn đề
+## The problem
 
 Sáu tháng sau, bạn chạy `git blame` vào một dòng lạ và thấy message "fix". Lịch sử là tài liệu, và nó chỉ hữu ích nếu mỗi commit nói được **vì sao** thay đổi tồn tại.
 
@@ -18,7 +18,7 @@ git add -p src/orders.ts   # y/n/s(split)/e(edit) từng hunk
 git commit -m "refactor(orders): extract totalOf helper"
 ```
 
-## Commit message
+## Commit messages
 
 Cấu trúc: dòng tiêu đề, dòng trống, body, footer.
 
@@ -53,13 +53,13 @@ Spec **Conventional Commits 1.0.0** (conventionalcommits.org). Dạng:
 
 Lợi ích: sinh changelog và tính version tự động (Chương 9), lọc lịch sử (`git log --grep '^feat'`), message đồng nhất. Chi phí: cần kỷ luật, nên kiểm tra bằng commitlint (Chương 12). Với team squash merge, chỉ cần **tiêu đề PR** theo Conventional Commits, và cấu hình repo dùng tiêu đề PR làm message squash.
 
-## Liên kết issue và spec
+## Linking issues and specs
 
 - Trong footer: `Refs: ORD-142`, `Closes #57` (GitHub tự đóng issue khi merge vào default branch).
 - Với phát triển theo spec (cuốn "Spec-Driven Development" trong bộ sách): ghi đường dẫn spec hoặc id requirement ở footer, ví dụ `Spec: docs/specs/order-cancel.md#AC-3`, để từ code truy được về acceptance criteria và ngược lại.
 - Tên branch chứa id issue (`feature/ORD-142-cancel-shipped`) giúp công cụ tự liên kết.
 
-## fixup và autosquash
+## fixup and autosquash
 
 Phát hiện lỗi nhỏ trong commit cũ của chính PR của bạn? Đừng tạo commit "fix typo" vô nghĩa.
 
@@ -87,14 +87,14 @@ Commit `fixup!` đã được gộp vào `feat(a): add a` (hash mới `16e3119`)
 
 Các biến thể: `--fixup=amend:<hash>` (sửa cả message), `--fixup=reword:<hash>` (chỉ sửa message), có từ Git 2.32.
 
-## Cấu hình hữu ích
+## Useful configuration
 
 ```sh
 git config --global commit.template ~/.gitmessage
 git config --global commit.verbose true     # hiện diff trong editor khi viết message
 ```
 
-## Cạm bẫy
+## Pitfalls
 
 - Message "wip", "fix", "update": vô giá trị khi blame.
 - Commit lẫn file sinh tự động (lockfile là ngoại lệ hợp lý nếu đi kèm đổi dependency).
@@ -102,21 +102,21 @@ git config --global commit.verbose true     # hiện diff trong editor khi viế
 - Viết body mô tả "làm gì" mà không nói "vì sao".
 - Dùng `!` hoặc `BREAKING CHANGE` tùy tiện, làm release bump major sai.
 
-## Tóm tắt
+## Summary
 
 - Atomic commit: một thay đổi logic, build và test pass tại commit đó.
 - Message giải thích vì sao; tiêu đề ngắn, thể mệnh lệnh.
 - Conventional Commits 1.0.0 cho phép tự động hóa version và changelog.
 - `--fixup` cộng `rebase -i --autosquash` dọn commit trước khi chia sẻ.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Type nào trong Conventional Commits gây bump MINOR, và cái nào gây bump MAJOR?
 2. Vì sao atomic commit giúp `bisect`?
 3. Lệnh nào tạo commit fixup và lệnh nào áp dụng nó?
 4. Với squash merge, cần kiểm soát message ở đâu?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `feat` ứng với MINOR; mọi type kèm `!` hoặc footer `BREAKING CHANGE:` ứng với MAJOR.
 2. Mỗi commit build được và có một thay đổi, nên commit đầu tiên làm test fail chính là thủ phạm, không lẫn thay đổi khác.

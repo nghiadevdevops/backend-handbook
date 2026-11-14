@@ -1,17 +1,17 @@
-# Chương 5. Chiến lược release: rolling, blue-green, canary, shadow
+# Chapter 5. Release Strategies: Rolling, Blue-Green, Canary, Shadow
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn có image mới đã qua CI. Làm sao đưa nó đến người dùng mà không làm họ gián đoạn, và nếu hỏng thì quay lại nhanh thế nào? Báo cáo *Accelerate* (Forsgren, Humble, Kim) dùng bốn metric DORA: deployment frequency, lead time for changes, change failure rate, time to restore service. Chiến lược release tốt cải thiện đồng thời cả bốn: deploy thường xuyên *và* an toàn.
 
-## 2. Phân biệt deploy và release
+## 2. Deploy versus release
 
 - **Deploy**: đưa phiên bản mới của code lên infrastructure production.
 - **Release**: cho người dùng thật thấy tính năng mới.
 
 Hai việc này có thể tách rời. Deploy code với tính năng đang tắt sau feature flag (chương 6), rồi bật dần: release không cần deploy mới, và rollback tính năng chỉ là tắt flag.
 
-## 3. Các chiến lược
+## 3. The strategies
 
 ### Recreate
 Tắt bản cũ, bật bản mới. Đơn giản nhất, có downtime. Chấp nhận được cho hệ thống nội bộ hoặc ngoài giờ.
@@ -45,7 +45,7 @@ flowchart LR
 ### Shadow (mirroring)
 Mirror traffic thật sang bản mới, bỏ qua phản hồi của nó. Người dùng không bị ảnh hưởng. Hợp với performance testing hoặc so sánh kết quả của logic mới. Cẩn trọng: bản shadow **không được có side effect thật** (gửi email, trừ tiền, ghi vào DB production).
 
-## 4. So sánh nhanh
+## 4. Quick comparison
 
 | Chiến lược | Downtime | Extra resource | Tốc độ rollback | Độ phức tạp |
 |---|---|---|---|---|
@@ -65,7 +65,7 @@ Quy tắc thực tế:
 4. **Roll forward** (sửa nhanh rồi deploy bản mới) đôi khi tốt hơn rollback, nhất là khi migration đã không thể đảo. Quyết định trước: chiến lược nào cho từng loại thay đổi.
 5. Giữ image cũ trong registry đủ lâu và đừng dùng retention policy xóa nó.
 
-## 6. Lab mini: blue-green thủ công với Docker (ý tưởng)
+## 6. Mini lab: manual blue-green with Docker (idea)
 
 Hai container `bookcheck-deploygo-blue` (v1) và `bookcheck-deploygo-green` (v2) từ `lab/go-app` với `APP_VERSION` khác nhau, một proxy đổi `upstream`. Do giới hạn thời gian, lab này **chưa được chạy**; phần chạy thật của cuốn sách là image và migration. Việc chuyển traffic ở Kubernetes xem chương 8 (đổi `selector` của Service hoặc dùng `HTTPRoute` có `weight`).
 
@@ -78,14 +78,14 @@ rules:
       - { name: app-canary, port: 80, weight: 10 }
 ```
 
-## 7. Trade-off: chọn gì khi nào
+## 7. Trade-offs: what to choose when
 
 - Đội nhỏ, ứng dụng CRUD: **rolling** + health check tốt + migration an toàn là đủ.
 - Cần quay lại tức thì và có ngân sách resource: **blue-green**.
 - Traffic lớn, thay đổi rủi ro (thuật toán, thanh toán): **canary** + feature flag.
 - Viết lại một thành phần quan trọng: **shadow** trước, canary sau.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 1. Blue-green nhưng quên rằng DB chung: migration phá vỡ làm cả hai màu hỏng.
 2. Canary không có metric tự động: "xem bằng mắt" không bền.
@@ -93,21 +93,21 @@ rules:
 4. Shadow gửi email thật hai lần.
 5. Background job (queue worker) chạy cả hai phiên bản trên cùng queue với payload khác định dạng.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Deploy khác release; feature flag tách chúng.
 - Rolling mặc định, blue-green cho rollback tức thì, canary giới hạn thiệt hại, shadow để thử không rủi ro.
 - Mọi chiến lược đều chạy hai phiên bản cùng lúc, nên DB phải tương thích hai chiều.
 - Rollback phải được tập dượt; dữ liệu mới là phần khó.
 
-## 10. Tự kiểm tra
+## 10. Self-check
 
 1. Khác nhau giữa deploy và release?
 2. Vì sao blue-green không tự giải quyết vấn đề migration DB?
 3. Khi nào chọn roll forward thay vì rollback?
 4. Điều kiện để canary có ý nghĩa?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Deploy đặt code lên infrastructure; release cho người dùng thấy tính năng. Có thể deploy mà chưa release.
 2. Cả hai màu dùng chung một DB; migration không tương thích làm hỏng cả hai.

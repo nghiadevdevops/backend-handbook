@@ -1,10 +1,10 @@
-# Chương 4. Các pattern cache
+# Chapter 4. Cache patterns
 
-## 1. Vấn đề
+## 1. The problem
 
 Cache có trước hay DB có trước? Ai chịu trách nhiệm nạp dữ liệu vào cache? Khi ghi thì ghi vào đâu trước? Năm pattern kinh điển trả lời các câu hỏi đó, mỗi pattern có đánh đổi riêng về consistency, độ phức tạp và latency.
 
-## 2. Năm pattern
+## 2. Five patterns
 
 ```mermaid
 flowchart TB
@@ -87,7 +87,7 @@ Mẫu đơn giản cho lượt xem: `INCR views:42` mỗi request; job mỗi ph�
 
 Làm mới giá trị **trước khi hết hạn** nếu key đang được đọc nhiều, để người dùng không bao giờ gặp miss. Cài đặt: khi `TTL` còn dưới ngưỡng, kích hoạt nạp lại ở nền. Stale-while-revalidate (chương 6, 11) và probabilistic early expiration (chương 6) là biến thể. Hợp với key nóng, nạp đắt; không hợp key lâu mới đọc (nạp thừa).
 
-## 3. So sánh
+## 3. Comparison
 
 | Pattern | Đọc lần đầu | Ghi | Consistency | Rủi ro mất dữ liệu | Phức tạp |
 |---|---|---|---|---|---|
@@ -97,28 +97,28 @@ Làm mới giá trị **trước khi hết hạn** nếu key đang được đ�
 | Write-behind | nhanh | rất nhanh | DB trễ | **có** | cao |
 | Refresh-ahead | luôn nhanh (key nóng) | tùy | cửa sổ cũ ngắn | không | trung bình |
 
-## 4. Chọn thế nào
+## 4. How to choose
 
 - Mặc định: **cache-aside + TTL + xóa khi ghi + chống stampede**.
 - Key rất nóng: thêm refresh-ahead.
 - Counter, telemetry: write-behind có kiểm soát.
 - Cần đọc-sau-ghi chính xác ngay trên cùng người dùng: write-through, hoặc đọc thẳng DB cho session của người vừa ghi.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - **Cache giá trị `null`/không tồn tại**: nếu không lưu "không có" (negative caching) thì query id không tồn tại luôn xuyên xuống DB (cache penetration). Lưu marker với TTL ngắn (ví dụ 30 giây).
 - **Đặt cache trước khi commit transaction**: reader khác có thể thấy giá trị chưa commit hoặc bị rollback. Xóa cache **sau** commit.
 - **Serialize gắn với kiểu của ngôn ngữ** (`gob` trong Go, `v8.serialize` trong Node) khiến key mang theo định nghĩa struct/class; đổi struct làm hỏng cache cũ. Ưu tiên JSON, có trường `v` (version schema).
 - Quên bắt lỗi kết nối Redis: cache lỗi không được làm sập request.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Cache-aside là mặc định; ghi DB trước rồi xóa key.
 - Write-through đổi tốc độ ghi lấy consistency; write-behind đổi an toàn lấy tốc độ.
 - Refresh-ahead tránh miss cho key nóng.
 - Negative caching và xóa sau commit là hai chi tiết hay bị quên.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Cache-aside và read-through khác nhau ở đâu?
 2. Vì sao write-behind không hợp cho đơn hàng?
@@ -126,7 +126,7 @@ Làm mới giá trị **trước khi hết hạn** nếu key đang được đ�
 4. Vì sao xóa cache sau commit chứ không trước?
 5. Khi nào refresh-ahead lãng phí?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Cache-aside: app tự nạp khi miss. Read-through: cache layer tự nạp, app chỉ gọi cache.
 2. Dữ liệu nằm ở cache trước, nếu cache mất trước khi flush thì mất đơn hàng.

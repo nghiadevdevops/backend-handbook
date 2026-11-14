@@ -1,10 +1,10 @@
-# Chương 5. Trunk-based development
+# Chapter 5. Trunk-Based Development
 
-## Vấn đề
+## The problem
 
 Team ship chậm, mỗi lần release đều có "ngày merge địa ngục". Nguyên nhân thường không phải code khó mà là **tích hợp muộn**. Trunk-based development (TBD) đảo ngược: tích hợp liên tục vào một nhánh chung (trunk, tức `main`) với thay đổi nhỏ.
 
-## Quy tắc cốt lõi
+## Core rules
 
 - Một trunk. Developer commit thẳng vào trunk (team nhỏ) hoặc qua **short-lived branch** sống tối đa vài giờ đến 1-2 ngày, merge vào trunk (team lớn hơn, qua PR).
 - Trunk luôn xanh: CI nhanh, chạy trên mọi thay đổi, hỏng thì sửa hoặc revert ngay.
@@ -27,7 +27,7 @@ gitGraph
   commit id: "t4" tag: "v1.4.0"
 ```
 
-## Các kỹ thuật đi kèm
+## Supporting techniques
 
 **Feature flag** (cờ tính năng): code mới nằm sau một điều kiện chạy lúc runtime, mặc định tắt. Cho phép merge sớm, deploy trước, bật dần cho một nhóm người dùng, tắt ngay khi có sự cố mà không cần rollback. Cách thiết kế flag, vòng đời và dọn flag xem cuốn "Triển khai an toàn" trong bộ sách này.
 
@@ -59,7 +59,7 @@ Chương trình nghiên cứu DORA (sách *Accelerate* của Forsgren, Humble, K
 
 Cách đo từ git: lead time ≈ từ commit đầu của PR đến lúc deploy; PR size và tuổi của PR là chỉ số dẫn trước (leading indicator) dễ đo nhất.
 
-## Điều kiện để TBD chạy
+## Conditions for TBD to work
 
 | Điều kiện | Vì sao |
 |---|---|
@@ -69,7 +69,7 @@ Cách đo từ git: lead time ≈ từ commit đầu của PR đến lúc deploy
 | Review nhanh (PR nhỏ, SLA vài giờ) | nhánh sống ngắn |
 | Văn hóa: trunk hỏng thì ưu tiên sửa | giữ trunk luôn release được |
 
-## Khi nào không hợp
+## When it doesn't fit
 
 - Team chưa có test và CI đáng tin; TBD sẽ làm `main` hỏng liên tục. Hãy xây CI trước.
 - Sản phẩm phát hành theo version với nhiều bản hỗ trợ song song: vẫn dùng TBD cho nhánh chính và release branch cho bản cũ, nhưng cần quy trình cherry-pick (Chương 9).
@@ -91,28 +91,28 @@ v1.3.0          Release 1.3.0 from trunk
 
 So với Git Flow ở Chương 3, đồ thị là một đường thẳng; mỗi dòng là một đơn vị có thể revert hoặc bisect.
 
-## Cạm bẫy
+## Pitfalls
 
 - Gọi là TBD nhưng nhánh sống một tuần.
 - Feature flag không bao giờ bị xóa, tích tụ thành nợ.
 - Merge code chưa xong mà không có flag, làm lộ tính năng dở.
 - Không có quy tắc revert nhanh; trunk hỏng nhiều giờ.
 
-## Tóm tắt
+## Summary
 
 - TBD = tích hợp thường xuyên vào một trunk với thay đổi nhỏ, nhánh sống ngắn.
 - Feature flag và branch by abstraction cho phép merge công việc chưa xong.
 - Release bằng tag trên trunk; release branch chỉ cắt muộn khi cần hotfix.
 - DORA gắn TBD với deployment frequency và lead time tốt hơn; cần CI nhanh và test tin cậy.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Short-lived branch là bao lâu?
 2. Feature flag giúp gì khi merge code chưa hoàn thành?
 3. Bốn chỉ số DORA là gì?
 4. Branch by abstraction gồm những bước nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Vài giờ đến tối đa 1-2 ngày.
 2. Code vào trunk nhưng bị tắt lúc runtime, nên chưa ảnh hưởng người dùng; bật dần hoặc tắt nhanh khi có sự cố.

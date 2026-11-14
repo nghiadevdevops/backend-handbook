@@ -1,12 +1,12 @@
-# Chương 3. Data structure và bài toán tương ứng
+# Chapter 3. Data structures and the problems they fit
 
-## 1. Vấn đề
+## 1. The problem
 
 Nhiều người chỉ dùng `GET`/`SET` với chuỗi JSON. Như vậy bạn bỏ phí sức mạnh chính của Redis/Valkey: server hiểu data structure và thao tác **atomic** trên chúng. Chọn đúng data structure giúp bớt round trip, bớt race condition và bớt RAM.
 
 Mọi lệnh dưới đây chạy được trên Valkey 9.1 và Redis 8.10 (tập lệnh lõi). Thử bằng `valkey-cli` hoặc `redis-cli`.
 
-## 2. Bảng chọn nhanh
+## 2. Quick selection table
 
 | Data structure | Dùng cho | Lệnh tiêu biểu |
 |---|---|---|
@@ -20,7 +20,7 @@ Mọi lệnh dưới đây chạy được trên Valkey 9.1 và Redis 8.10 (tậ
 | HyperLogLog | Đếm số phần tử khác nhau gần đúng | `PFADD PFCOUNT` |
 | JSON, vector | Document, tìm kiếm tương tự | Module/lõi tùy sản phẩm |
 
-## 3. Từng data structure
+## 3. Each data structure
 
 ### String
 
@@ -90,7 +90,7 @@ XREADGROUP GROUP workers w1 COUNT 10 STREAMS orders:events >
 
 Hữu ích để phát event invalidation đến nhiều node (chương 5), nhẹ hơn Kafka nhưng không thay thế được khi cần retention lớn.
 
-### Bitmap và HyperLogLog
+### Bitmap and HyperLogLog
 
 ```
 SETBIT dau:2026-11-08 1001 1        # user 1001 hoạt động hôm nay
@@ -101,40 +101,40 @@ PFCOUNT visitors:2026-11-08         # xấp xỉ, sai số chuẩn khoảng 0.81
 
 HyperLogLog luôn dùng tối đa khoảng 12 KB mỗi key bất kể số phần tử.
 
-### JSON và vector
+### JSON and vector
 
 - Redis 8 gồm JSON, Search/Query Engine (có vector search), Time Series và các probabilistic data structure trong bản phân phối; Vector Sets là data type mới.
 - Valkey cung cấp các chức năng tương tự qua module riêng (valkey-json, valkey-search...).
 - Với **cache**, bạn hiếm khi cần chúng. Dùng khi Redis/Valkey còn phục vụ vai trò tìm kiếm. Chi tiết nằm ngoài phạm vi cuốn này; hãy đọc docs của sản phẩm bạn chọn.
 
-## 4. Thiết kế key
+## 4. Key design
 
 - Quy ước: `service:entity:id[:variant]`, ví dụ `shop:product:42:v3`.
 - **Ngắn nhưng đọc được**. Key dài tốn RAM nhân với số key.
 - **Có version/namespace** để invalidate hàng loạt bằng cách đổi version (chương 5).
 - **Cluster hash tag**: nếu cần nhiều key cùng slot cho Lua/MULTI, bọc phần chung trong `{}`: `{user:7}:cart`, `{user:7}:profile`.
 
-## 5. Trade-off
+## 5. Trade-offs
 
 - Hash tiết kiệm RAM với đối tượng nhỏ, nhưng JSON string đơn giản hơn khi luôn đọc cả đối tượng.
 - Sorted set mạnh nhưng tốn RAM hơn set và list.
 - Mọi data structure lớn đều có nguy cơ **big key** (chương 7).
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - `KEYS *` trên production (quét toàn bộ, chặn server). Dùng `SCAN`.
 - Dùng `SMEMBERS`, `HGETALL`, `LRANGE 0 -1` trên data structure không giới hạn kích thước.
 - Lưu một danh sách khổng lồ trong một key thay vì chia nhỏ.
 - Đọc-sửa-ghi trong ứng dụng thay vì lệnh atomic (`INCR`, `HINCRBY`).
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Mỗi data structure giải một nhóm bài toán; chọn theo thao tác bạn cần.
 - Lệnh atomic phía server loại bỏ nhiều race condition.
 - Thiết kế key có quy ước, version và hash tag nếu dùng cluster.
 - Tránh lệnh O(N) không giới hạn: `KEYS`, `SMEMBERS` trên set lớn.
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Khi nào hash tốt hơn JSON string?
 2. Data structure nào hợp cho leaderboard top 10?
@@ -142,7 +142,7 @@ HyperLogLog luôn dùng tối đa khoảng 12 KB mỗi key bất kể số phầ
 4. HyperLogLog trả về gì và đánh đổi gì?
 5. Hash tag `{}` dùng để làm gì trong cluster?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Khi cần cập nhật hoặc đọc từng field mà không phải đọc-sửa-ghi cả đối tượng.
 2. Sorted set (`ZADD` + `ZREVRANGE`).

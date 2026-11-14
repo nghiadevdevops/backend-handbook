@@ -1,12 +1,12 @@
-# Chương 1. Khi nào nên cache, khi nào KHÔNG, và các cache layer
+# Chapter 1. When to cache, when NOT to, and the cache layers
 
-## 1. Vấn đề
+## 1. The problem
 
 Trang chi tiết sản phẩm của shop sách chạy `SELECT ... FROM products WHERE id = ?` cho mỗi lượt xem. Lúc 100 req/s thì PostgreSQL không có vấn đề. Lúc có đợt khuyến mãi, 20.000 req/s cùng đọc vài trăm sản phẩm, và database trở thành bottleneck. Dữ liệu sản phẩm gần như không đổi trong vài phút, nên đọc đi đọc lại cùng một row là lãng phí.
 
 **Cache** là lưu bản sao của kết quả đắt (query, render, gọi API ngoài) ở nơi rẻ hơn và gần hơn, để lần sau trả lời nhanh hơn. Cái giá phải trả: bản sao có thể **cũ** (stale). Mọi chương sau của cuốn này xoay quanh việc quản lý cái giá đó.
 
-## 2. Khi nào nên cache
+## 2. When to cache
 
 Cache đáng giá khi đủ ba điều kiện:
 
@@ -16,7 +16,7 @@ Cache đáng giá khi đủ ba điều kiện:
 
 Một phép tính nhanh: nếu hit ratio là `h`, thời gian đọc cache `tc`, thời gian query gốc `tq` thì thời gian trung bình là `h*tc + (1-h)*(tc+tq)` (miss vẫn tốn một lần thử cache). Với `tq=20ms`, `tc=0.5ms`, `h=0.9` ta được khoảng 2.5ms; với `h=0.5` là 10.5ms. Hit ratio thấp thì cache gần như vô ích.
 
-## 3. Khi nào KHÔNG nên cache
+## 3. When NOT to cache
 
 - **Dữ liệu cần strong consistency (nhất quán mạnh)**: số dư, tồn kho khi đặt hàng, quyền truy cập vừa bị thu hồi. Đọc cũ ở đây gây sai nghiệp vụ, không chỉ chậm.
 - **Query chưa được tối ưu**: nếu thiếu index khiến query chậm 2 giây, hãy sửa index trước. Cache che giấu vấn đề và nó sẽ quay lại mỗi khi cache miss.
@@ -26,7 +26,7 @@ Một phép tính nhanh: nếu hit ratio là `h`, thời gian đọc cache `tc`,
 
 > Nguyên tắc: cache là một **bản sao có thời hạn của sự thật**, không phải nguồn sự thật. Hệ thống phải đúng (dù chậm hơn) khi cache trống hoặc chết. Nếu mất cache mà mất dữ liệu thì bạn đang dùng Redis như database, đó là bài toán khác (xem chương 8).
 
-## 4. Các cache layer
+## 4. The cache layers
 
 ```mermaid
 flowchart LR
@@ -50,11 +50,11 @@ Chọn layer theo nguyên tắc: **cache càng gần người dùng càng nhanh 
 
 Lưu ý về cache trong DB: PostgreSQL đã tự cache page trong `shared_buffers` và OS page cache. Query lặp lại thường không chạm đĩa, nhưng vẫn tốn CPU để parse, plan, execute và qua mạng. Đó là phần mà Redis tiết kiệm được, chứ không phải I/O đĩa.
 
-### In-process và distributed: dùng cả hai (L1/L2)
+### In-process and distributed: use both (L1/L2)
 
 Với dữ liệu cực nóng (ví dụ cấu hình, danh mục), ta thêm L1 trong process (otter trong Go, `Map` có TTL trong Node) với TTL vài giây, phía sau là L2 Redis. Giảm tải Redis, nhưng chấp nhận mỗi node có thể lệch nhau tối đa bằng TTL của L1. Ví dụ chạy thật ở chương 11: 1.000 lần đọc chỉ tạo 1 lệnh `GET` tới Valkey.
 
-## 5. Ví dụ xuyên suốt của cuốn sách
+## 5. The book's running example
 
 Mọi chương dùng cùng một mô hình:
 
@@ -72,7 +72,7 @@ CREATE TABLE products (
 - Hàm: `getProduct(int $id): ?array`, `updateProduct(int $id, array $fields): void`.
 - Lab (thư mục `lab/`) chạy PostgreSQL và Valkey/Redis trong Docker, đo số query thật vào DB.
 
-## 6. Cạm bẫy thường gặp
+## 6. Common pitfalls
 
 - **Cache như thuốc giảm đau**: đặt cache trước khi hiểu vì sao query chậm.
 - **Quên rằng cache có thể chết**: ứng dụng phải chịu được lỗi kết nối Redis (timeout ngắn, fallback về DB, circuit breaker).
@@ -80,7 +80,7 @@ CREATE TABLE products (
 - **TTL "vĩnh viễn" mà quên invalidate**.
 - **Đặt TTL theo cảm tính** thay vì theo độ cũ chấp nhận được của nghiệp vụ.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Cache hợp với dữ liệu đọc nhiều, tính toán đắt và chịu được độ cũ.
 - Không cache khi cần strong consistency, hoặc khi chưa sửa nguyên nhân gốc (index, query).
@@ -88,7 +88,7 @@ CREATE TABLE products (
 - Hệ thống phải đúng khi cache trống: cache là bản sao, không phải nguồn sự thật.
 - Hit ratio quyết định lợi ích thực tế, vì vậy phải đo (chương 12).
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Nêu ba điều kiện để cache đáng giá và cho một ví dụ vi phạm điều kiện thứ ba.
 2. Với `tc=1ms`, `tq=30ms`, `h=0.8`, thời gian đọc trung bình là bao nhiêu?
@@ -96,7 +96,7 @@ CREATE TABLE products (
 4. Tại sao cache layer càng gần người dùng thì càng khó invalidate?
 5. L1 in-process kết hợp L2 Redis đánh đổi điều gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Đọc nhiều hơn ghi; tính toán/truy xuất đắt; chấp nhận được độ cũ. Ví dụ vi phạm điều kiện 3: cache số dư tài khoản ngân hàng, hoặc tồn kho lúc thanh toán.
 2. `0.8*1 + 0.2*(1+30) = 0.8 + 6.2 = 7.0ms`.

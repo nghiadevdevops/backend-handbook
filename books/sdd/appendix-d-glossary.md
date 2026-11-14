@@ -1,4 +1,4 @@
-# Phụ lục D. Glossary
+# Appendix D. Glossary
 
 | Thuật ngữ | Giải thích |
 |---|---|

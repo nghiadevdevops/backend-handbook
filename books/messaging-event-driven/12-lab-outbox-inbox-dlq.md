@@ -1,12 +1,12 @@
-# Chương 12. Lab: outbox, duplicate publish, inbox, retry và DLQ
+# Chapter 12. Lab: outbox, duplicate publish, inbox, retry, and DLQ
 
 Chương này đi qua lab trong thư mục `lab/` và dẫn ra output thật đã chạy (Kafka 4.3.1 KRaft, PostgreSQL 18, 08/11/2026). Log đầy đủ nằm ở `lab/RESULTS.md`.
 
-## 1. Vấn đề
+## 1. The problem
 
 Ghép các chương 3 đến 7: order và event phải atomic write (outbox); publisher có thể gửi duplicate (at-least-once); consumer phải dedup (inbox); transient error thì retry, permanent error thì DLQ.
 
-## 2. Kiến trúc lab
+## 2. Lab architecture
 
 ```mermaid
 flowchart LR
@@ -22,7 +22,7 @@ flowchart LR
 - Phần chính không cài thư viện nào: publisher và consumer là shell script dùng `psql` và CLI của Kafka qua `docker exec`, nhờ vậy nhìn rõ cơ chế mà không bị framework che. Phần cuối chương thêm consumer Go (`lab/go/`) và code TypeScript (`lab/ts/`), chạy trong container, không cài gì lên host.
 - Schema (`lab/sql/init.sql`) khớp chương 6 và 7: `orders`, `outbox` ở DB `shop`; `processed_messages`, `ledger`, `ledger_naive` ở DB `inventory`.
 
-## 3. Chạy lại
+## 3. Running it again
 
 ```bash
 cd lab
@@ -41,7 +41,7 @@ docker compose down -v                    # dọn dẹp
 
 Trên Windows dùng Git Bash (script đã đặt `MSYS_NO_PATHCONV=1`). Mọi lệnh `docker exec` trong script đều bọc `timeout`, consumer luôn có `--max-messages` và `--timeout-ms`. Lưu ý: topic cần tạo trước khi chạy publisher, `setup.sh` làm việc đó. Nếu `sh` không thực thi được script, dùng `bash scripts/<tên>.sh`.
 
-## 4. Kết quả thật
+## 4. Real results
 
 **Outbox và duplicate publish.** Publisher lần 1 publish id 1,2,3,4 rồi "crash"; lần 2 publish lại đúng 4 event rồi đánh dấu; lần 3 báo không còn gì. Offset cuối của topic `orders` là 2 + 2 + 4 = 8 message cho 4 event.
 
@@ -83,30 +83,30 @@ docker run --rm --network bookcheck-msg-net -v "$PWD/go:/app" golang:latest sh /
 
 **DLQ.** Đơn có `total_cents=-500` vào `orders.dlq` kèm lý do và message gốc.
 
-## 5. Điều lab dạy thêm (từ lỗi thật)
+## 5. What the lab taught additionally (from real failures)
 
 1. Vòng `while read` mà bên trong gọi `docker exec -i` sẽ **nuốt stdin** của vòng lặp: mất message mà không có lỗi. Đã sửa bằng `</dev/null`.
 2. Bản gửi duplicate của message poison cũng vào DLQ hai lần: DLQ cũng cần dedup theo `event_id`.
 3. Client chạy ngoài container Kafka (Go, TS) cần `KAFKA_ADVERTISED_LISTENERS` trỏ theo tên container, nếu không broker trả metadata `localhost:9092` và client không kết nối lại được.
 4. Naive chỉ minh họa việc ghi ledger bị nhân đôi; trong thực tế mọi side effect đều bị nhân đôi.
 
-## 6. Giới hạn của lab
+## 6. Limits of the lab
 - Một publisher, không `FOR UPDATE SKIP LOCKED`; một node Kafka (không kiểm tra replication/failover).
 - Retry chạy ngay trong vòng consumer (blocking) với backoff không jitter, không dùng retry topic.
 - Debezium, RabbitMQ, share group: chưa chạy thử.
 - Parse JSON bằng `sed`: chỉ đủ cho lab.
 
-## Tóm tắt
+## Summary
 1. Outbox ghi order và event trong một transaction; publisher gửi lại sau crash nên có duplicate.
 2. Inbox (`processed_messages` + business effect cùng transaction) chặn duplicate; naive thì không.
 3. Retry cho transient error, DLQ cho permanent error, đều thấy rõ trong output.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Vì sao tổng offset là 8 chứ không phải 4?
 2. Nếu bỏ `ON CONFLICT DO NOTHING`, điều gì xảy ra với bản duplicate?
 3. Vì sao phải alert khi `orders.dlq` có message?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Publisher "crash" trước khi đánh dấu nên lần chạy sau gửi lại cả 4 event.
 2. INSERT vi phạm primary key, transaction lỗi: message không ack được và bị redeliver mãi (thành poison). Cần bắt lỗi duplicate key hoặc dùng `ON CONFLICT`.

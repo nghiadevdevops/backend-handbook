@@ -1,12 +1,12 @@
-# Chương 4. MVCC: PostgreSQL và InnoDB
+# Chapter 4. MVCC: PostgreSQL and InnoDB
 
-## 1. Tình huống
+## 1. Scenario
 
 Vì sao một báo cáo chạy 10 phút không chặn việc cập nhật đơn hàng, và ngược lại? Vì sao sau một đợt `UPDATE` toàn bảng, bảng phình gấp nhiều lần dù số dòng không đổi? Vì sao một transaction "quên commit" từ sáng khiến cả database dần chậm lại? Cả ba câu trả lời đều nằm ở **MVCC** (Multi-Version Concurrency Control, điều khiển đồng thời đa phiên bản).
 
 Ý tưởng chung: ghi không đè lên dữ liệu cũ mà tạo **phiên bản mới**; mỗi transaction nhìn thấy phiên bản phù hợp với snapshot của nó. Nhờ đó *đọc không chặn ghi và ghi không chặn đọc*. Cái giá: phiên bản cũ phải được dọn, và nếu có người còn cần chúng thì chưa dọn được. PostgreSQL và InnoDB cùng ý tưởng nhưng đặt phiên bản cũ ở hai chỗ khác nhau.
 
-## 2. PostgreSQL: nhiều phiên bản nằm ngay trong bảng
+## 2. PostgreSQL: multiple versions live in the table itself
 
 Mỗi dòng (**tuple**) mang các trường ẩn: `xmin` (id của transaction tạo ra tuple) và `xmax` (id của transaction xóa/lock nó, 0 nếu chưa). `UPDATE` thực chất là: đánh dấu `xmax` trên tuple cũ và **chèn một tuple mới** (có `ctid`, vị trí vật lý, mới). Tuple cũ vẫn nằm trong heap cho tới khi được dọn.
 
@@ -21,7 +21,7 @@ Tuple cũ (`xmin=805`) bị gán `xmax=806` và trở thành "chết" khi không
 
 Một tuple hiển thị với snapshot S nếu `xmin` đã commit trước S và (`xmax` chưa có, hoặc commit sau S). Snapshot ghi lại "những transaction nào đang chạy" tại thời điểm chụp; `READ COMMITTED` chụp snapshot mới mỗi **câu lệnh**, `REPEATABLE READ` chụp một lần cho cả transaction (chương 3).
 
-### VACUUM và bloat
+### VACUUM and bloat
 
 Dead tuple chiếm chỗ trong bảng và index. **VACUUM** (thủ công hoặc `autovacuum` chạy nền) đánh dấu chỗ đó dùng lại được. Đã chạy: bảng 1000 dòng, tắt autovacuum, `UPDATE` toàn bảng 5 lần:
 
@@ -33,7 +33,7 @@ Dead tuple chiếm chỗ trong bảng và index. **VACUUM** (thủ công hoặc 
 
 Hai bài học: (1) **bloat** (phình bảng) là hệ quả trực tiếp của `UPDATE`; (2) `VACUUM` thường *không trả* chỗ cho hệ điều hành, chỉ cho phép tái sử dụng (chỉ cắt các empty page ở cuối bảng). `VACUUM FULL` viết lại bảng nhưng lấy lock `ACCESS EXCLUSIVE` (chương 5). Autovacuum bật mặc định; chỉ tắt trong lab để thấy hiện tượng.
 
-### Transaction dài chặn cleanup (đã chạy)
+### Long transactions block cleanup (run)
 
 Kịch bản `mvcc_long_txn`: A mở `REPEATABLE READ`, đọc một lần rồi giữ 8 giây. B `UPDATE` toàn bảng (1000 dòng) rồi chạy `VACUUM (VERBOSE)`:
 
@@ -47,7 +47,7 @@ B VACUUM sau khi A commit:
 
 Ngưỡng `removable cutoff` (xmin horizon) bị giữ lại bởi transaction cũ nhất còn cần snapshot cũ. Chỉ **một** transaction dài (kể cả một `SELECT` mở trong transaction treo) là đủ để mọi bảng không cleanup được dead tuple sau mốc đó. Transaction `idle in transaction` là thủ phạm số một. Replication slot không tiêu thụ và prepared transaction bị bỏ quên cũng giữ horizon tương tự (chương 11).
 
-## 3. InnoDB: phiên bản cũ nằm trong undo log
+## 3. InnoDB: old versions live in the undo log
 
 InnoDB **sửa dòng tại chỗ** trong clustered index (theo primary key), và ghi **undo log** chứa nội dung cũ. Mỗi record có trường ẩn `DB_TRX_ID` (transaction sửa gần nhất) và `DB_ROLL_PTR` (pointer tới undo record). Muốn thấy bản cũ, InnoDB lần theo chuỗi undo.
 
@@ -60,7 +60,7 @@ SELECT count FROM information_schema.INNODB_METRICS WHERE name = 'trx_rseg_histo
 -- hoặc dòng "History list length" trong SHOW ENGINE INNODB STATUS\G
 ```
 
-### Thử trên lab (kết quả chưa như kỳ vọng)
+### Trying it in the lab (result not as expected)
 
 Kịch bản `lab/scenarios/my/mvcc_long_txn.sql`: A mở `REPEATABLE READ` và giữ 14 giây; B chạy 5 câu `UPDATE` toàn bảng (1000 dòng), đọc `trx_rseg_history_len` ở các thời điểm. Kết quả trên MySQL 9.7.4:
 
@@ -72,7 +72,7 @@ Kịch bản `lab/scenarios/my/mvcc_long_txn.sql`: A mở `REPEATABLE READ` và 
 
 Chỉ có phần "tăng khi có thêm undo log" được xác nhận. Tôi **chưa tái hiện được** việc con số giảm sau khi transaction dài kết thúc trong khung thời gian ngắn của lab (giá trị rất nhỏ, và con số vẫn nhích lên theo từng câu ghi); chưa xác định được nguyên nhân (nghi ngờ do cách purge xử lý lô nhỏ, hoặc cách metric này được cập nhật). Muốn thấy rõ hiệu ứng thì cần tải lớn hơn và theo dõi lâu hơn; đừng coi bảng trên là bằng chứng cho hành vi purge.
 
-## 4. So sánh và hệ quả của transaction dài
+## 4. Comparison and the consequences of long transactions
 
 | | PostgreSQL | InnoDB |
 |---|---|---|
@@ -93,13 +93,13 @@ Chỉ có phần "tăng khi có thêm undo log" được xác nhận. Tôi **ch�
 
 Luật thực hành: giữ transaction ngắn, đặt `idle_in_transaction_session_timeout` (PG), monitor tuổi transaction dài nhất và history list length / `n_dead_tup`, tách job nền dài thành nhiều transaction nhỏ.
 
-## 5. Trade-off
+## 5. Trade-offs
 
 - MVCC đổi **không gian và công dọn dẹp** lấy **concurrency đọc/ghi**.
 - Mô hình PG (tuple mới trong heap) làm `UPDATE` tốn kém khi bảng rộng và nhiều index (index phải trỏ tới tuple mới, trừ khi dùng HOT update); đổi lại rollback và đọc bản cũ rẻ.
 - Mô hình InnoDB (sửa tại chỗ + undo) giữ bảng gọn hơn, nhưng đọc bản cũ và rollback có giá.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Mở transaction ở đầu request rồi gọi API ngoài: giữ snapshot hàng giây.
 2. Báo cáo dài trên primary trong transaction `REPEATABLE READ`: chặn cleanup của cả hệ thống.
@@ -107,21 +107,21 @@ Luật thực hành: giữ transaction ngắn, đặt `idle_in_transaction_sessi
 4. Kỳ vọng `VACUUM` thu nhỏ file bảng (cần `VACUUM FULL` hoặc công cụ viết lại, có lock).
 5. Bỏ qua history list length cho tới khi đĩa đầy.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - MVCC: ghi tạo phiên bản mới, mỗi transaction thấy phiên bản theo snapshot; đọc và ghi không chặn nhau.
 - PG: nhiều tuple trong heap với `xmin`/`xmax`; `UPDATE` tạo tuple mới; `VACUUM` dọn nhưng không co file. Đã chạy: 5 lần UPDATE làm bảng từ 40 kB lên 208 kB.
 - InnoDB: undo log, read view, purge; chỉ số `history list length`.
 - Transaction dài giữ snapshot nên chặn cleanup (PG: `dead but not yet removable`).
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. `xmin` và `xmax` của một tuple cho biết gì? Chuyện gì xảy ra với chúng khi `UPDATE`?
 2. Vì sao `VACUUM` thường không làm file bảng nhỏ lại?
 3. Vì sao một transaction mở lâu có thể làm database chậm dần dù nó không giữ lock nào?
 4. History list length đo cái gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `xmin`: transaction tạo tuple; `xmax`: transaction xóa/lock nó. UPDATE gán `xmax` cho tuple cũ và tạo tuple mới với `xmin` là transaction hiện tại.
 2. Nó chỉ đánh dấu chỗ trống để dùng lại; chỉ cắt empty page ở cuối bảng.

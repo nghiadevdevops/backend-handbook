@@ -1,10 +1,10 @@
-# Chương 11. Gỡ rối và cứu dữ liệu
+# Chapter 11. Troubleshooting and Data Recovery
 
-## Vấn đề
+## The problem
 
 Rồi sẽ có ngày bạn gõ `git reset --hard` nhầm, merge hỏng, hoặc production vỡ mà không biết commit nào gây ra. Git hiếm khi làm mất dữ liệu đã commit; công cụ cứu hộ có sẵn nếu biết dùng. Mọi output dưới đây là output thật chạy trong container `node:lts` (git 2.47.3), script nằm trong `lab/scripts/`.
 
-## Conflict resolution và `rerere`
+## Conflict resolution and `rerere`
 
 Conflict xảy ra khi hai nhánh sửa cùng vùng. Git đánh dấu:
 
@@ -40,7 +40,7 @@ line3
 
 Lần rebase thứ hai git vẫn báo CONFLICT, nhưng file đã được điền sẵn cách giải trước (`price=13`) và dòng "Resolved ... using previous resolution". Bạn vẫn phải `git add` để xác nhận (status còn `UU` đến lúc đó). Đặt `rerere.autoUpdate true` nếu muốn git tự `add`.
 
-## `reflog`: cứu commit "mất"
+## `reflog`: rescuing "lost" commits
 
 `reflog` là nhật ký local của mọi lần HEAD (và từng branch) di chuyển, kể cả `reset`, `rebase`, `checkout`. Nó không được push, chỉ tồn tại trên máy bạn (mặc định giữ 90 ngày cho entry còn reachable, 30 ngày cho entry unreachable). Lab (e):
 
@@ -74,7 +74,7 @@ Chỉ cứu được thứ **đã commit**; thay đổi chưa commit bị `reset
 
 `git restore` và `git switch` ra từ Git 2.23 để tách hai vai trò của `checkout`; `checkout` vẫn tồn tại và Git 3.0 không dự định bỏ nó.
 
-## `revert`, kể cả revert merge commit
+## `revert`, including reverting merge commits
 
 Với commit đã chia sẻ (ở trên `main`), **không** `reset`; dùng `git revert <hash>`, tạo commit mới đảo ngược. Với merge commit phải chỉ định parent mainline bằng `-m`: `-m 1` nghĩa là giữ lại phía parent đầu tiên (nhánh bạn đã merge vào). Lab (g):
 
@@ -94,7 +94,7 @@ Với commit đã chia sẻ (ở trên `main`), **không** `reset`; dùng `git r
 
 File `bad.txt` biến mất, nhưng **lịch sử vẫn nói rằng nhánh đó đã được merge**. Hệ quả kinh điển: nếu sau đó sửa lỗi trên `feature/bad` và merge lại, git bỏ qua các commit cũ vì coi như đã có. Cách xử lý: trước khi merge lại, "revert của revert" (`git revert 2827178`) để mang các thay đổi cũ trở lại, rồi merge các commit sửa.
 
-## `bisect` và `bisect run`
+## `bisect` and `bisect run`
 
 Tìm commit gây lỗi bằng tìm nhị phân: O(log n) bước. Tự động hóa bằng script trả exit code 0 (tốt), 1-127 trừ 125 (xấu), 125 (bỏ qua commit này). Lab (f), test kiểm tra `calc.txt`, 9 commit:
 
@@ -110,7 +110,7 @@ bisect found first bad commit
 
 Chỉ 3 lần chạy test cho 9 commit. Bisect cần commit atomic và build được (Chương 7). Kết thúc bằng `git bisect reset`.
 
-## `stash` và `worktree`
+## `stash` and `worktree`
 
 ```sh
 git stash push -m "wip search" -- src/search.ts   # chỉ stash vài file
@@ -129,14 +129,14 @@ git worktree remove ../orders-hotfix
 
 Mỗi branch chỉ checkout được ở một worktree tại một thời điểm.
 
-## `cherry-pick` và các lệnh hay quên
+## `cherry-pick` and other easily forgotten commands
 
 - `git cherry-pick -x <hash>`; `git cherry-pick --abort`.
 - `git reflog expire` và `git gc` chỉ chạy khi bạn chủ ý; đừng chạy `--expire=now --prune=now` khi chưa chắc.
 - `git blame -w -C -C`, `git log -S 'text'`, `git log -L :func:file` giúp lần dấu code.
 - `git restore -p` hoặc `git add -p` làm việc theo hunk.
 
-## Cạm bẫy
+## Pitfalls
 
 - `reset --hard` với thay đổi chưa commit: mất thật.
 - Force push để "sửa" `main` khi một `revert` là đủ.
@@ -144,21 +144,21 @@ Mỗi branch chỉ checkout được ở một worktree tại một thời đi�
 - Revert merge xong merge lại cùng nhánh mà không "revert của revert".
 - Chạy `git gc --prune=now` xong mới nhận ra cần reflog.
 
-## Tóm tắt
+## Summary
 
 - `rerere` ghi nhớ cách giải conflict và tự điền lại ở lần sau (vẫn cần `git add`).
 - `reflog` cứu commit sau `reset --hard`; không cứu được thay đổi chưa commit.
 - Trên nhánh đã chia sẻ dùng `revert`; revert merge cần `-m 1`.
 - `bisect run` với script tìm commit lỗi trong O(log n) lần test.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Sau `git reset --hard HEAD~3` nhầm, làm gì để lấy lại?
 2. Vì sao `git revert` merge commit cần `-m`?
 3. Exit code nào trong `bisect run` nghĩa là "bỏ qua commit"?
 4. Khác nhau giữa `reset --soft`, `--mixed` và `--hard`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `git reflog`, tìm entry trước khi reset, rồi `git reset --hard HEAD@{n}` (hoặc hash).
 2. Merge commit có hai parent; git không biết phía nào là mainline để giữ, `-m 1` chọn parent đầu.

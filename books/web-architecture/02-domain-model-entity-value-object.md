@@ -1,12 +1,12 @@
-# Chương 2. Domain Model: Entity, Value Object và Aggregate
+# Chapter 2. Domain Model: Entity, Value Object and Aggregate
 
 > Nguồn khái niệm: Eric Evans, *Domain-Driven Design* (2003) cho Entity, Value Object, Aggregate; Vaughn Vernon, *Implementing Domain-Driven Design* (2013) cho các quy tắc thiết kế Aggregate.
 
-## 2.1 Vấn đề
+## 2.1 The problem
 
 Nếu "đơn hàng" chỉ là một object literal hoặc một row DB, thì luật về đơn hàng rải khắp nơi: controller kiểm một nửa, job kiểm nửa còn lại, và không ai chắc đã có bao nhiêu chỗ cộng tiền. Ta cần **một chỗ duy nhất** nắm giữ dữ liệu cùng luật của nó. Chỗ đó là Domain Model: các class TypeScript mô tả khái niệm nghiệp vụ bằng đúng ngôn ngữ của người làm nghiệp vụ.
 
-## 2.2 Value Object: định nghĩa bằng giá trị
+## 2.2 Value Object: defined by value
 
 Value Object (VO) **không có identity**. Hai VO bằng nhau khi mọi property bằng nhau, và VO **immutable (bất biến)**: muốn "đổi" thì tạo object mới. Hai trăm nghìn đồng này hay hai trăm nghìn đồng kia đều như nhau, ta không cần hỏi "tờ tiền nào".
 
@@ -72,7 +72,7 @@ export class Money {
 
 Chú ý bốn điều: (1) constructor `private`, bắt buộc đi qua `of`, `vnd`, `zero`, nên không tạo ra tiền âm; (2) tiền lưu bằng số nguyên để khỏi sai số số thực (float), và `Number.isSafeInteger` chặn luôn `1.5` hay `NaN`; (3) `add()` trả object mới và từ chối cộng khác tiền tệ, luật sống ngay trong VO; (4) method nội bộ dùng `#assertSameCurrency` (private field của JavaScript, thật sự private lúc chạy) thay vì từ khoá `private` của TypeScript, vì lý do ở mục 2.3.
 
-## 2.3 Structural typing và nominal typing: vì sao TypeScript cần "brand"
+## 2.3 Structural vs. nominal typing: why TypeScript needs "brands"
 
 Đây là điểm khác lớn nhất so với các ngôn ngữ như Java hay C#.
 
@@ -166,7 +166,7 @@ export class OrderLine {
 }
 ```
 
-## 2.4 Entity: định nghĩa bằng identity
+## 2.4 Entity: defined by identity
 
 Entity **có identity xuyên suốt lifecycle**. Property đổi nhưng nó vẫn là chính nó, và so sánh hai Entity là so sánh ID. `Ebook` là Entity vì giá có thể đổi nhưng "cuốn `ddd-101`" vẫn là cuốn đó (`lab/src/domain/catalog/ebook.ts`):
 
@@ -221,7 +221,7 @@ Quy tắc kiểm tra nhanh: **một class không có ID thì không phải Entit
 | Thay đổi | Được (qua method có nghĩa nghiệp vụ) | Không, tạo bản mới |
 | Ví dụ ở đây | `Ebook`, `Order` | `Money`, `EbookId`, `OrderLine` |
 
-## 2.5 Aggregate: consistency boundary
+## 2.5 Aggregate: the consistency boundary
 
 Aggregate (Evans 2003) là một cụm object được đối xử như một đơn vị khi thay đổi dữ liệu. Có một **aggregate root** là cửa duy nhất để bên ngoài tác động; mọi invariant (luật bất biến) của cụm do root bảo vệ. Ở đây `Order` là root, `OrderLine` nằm bên trong.
 
@@ -258,7 +258,7 @@ classDiagram
     OrderLine ..> Ebook : holds EbookId only
 ```
 
-## 2.6 Aggregate root `Order`: luật nằm trong domain
+## 2.6 The `Order` aggregate root: rules live in the domain
 
 Bản đầy đủ của `Order` (cũng là bản duy nhất dùng trong toàn sách, file `lab/src/domain/order/order.ts`):
 
@@ -448,11 +448,11 @@ stateDiagram-v2
     Paid --> [*]
 ```
 
-## 2.7 Domain Model là gì, không là gì
+## 2.7 What a Domain Model is and is not
 
 Domain Model **không** phải DB table và không phải row do ORM trả về. Table model phục vụ persistence; domain model phục vụ biểu đạt luật. Hai thứ có thể giống nhau nhưng được phép khác: ví dụ `orders` và `order_lines` là hai table, còn trong code là một aggregate. Chương 3 cho thấy adapter làm nhiệm vụ dịch qua lại.
 
-## 2.8 Cạm bẫy thường gặp
+## 2.8 Common pitfalls
 
 - **Anemic model**: `Order` chỉ có getter/setter, còn logic nằm ở `OrderService`. Khi đó bất kỳ ai cũng có thể gán `order.status = 'paid'` bỏ qua luật. Hãy đưa hành vi vào Entity.
 - **Entity "không có ID"**: đã nói ở 2.4.
@@ -463,7 +463,7 @@ Domain Model **không** phải DB table và không phải row do ORM trả về.
 - **ID là `string` trần** khắp nơi: structural typing cho phép truyền nhầm mà không báo lỗi (mục 2.3). Dùng brand hoặc class.
 - **Tin vào `as`**: `value as OrderId` bỏ qua mọi kiểm tra. Chỉ cho phép `as` ở đúng một chỗ (`parseIdentifier`).
 
-## 2.9 Tóm tắt
+## 2.9 Summary
 
 1. VO: không ID, so sánh theo giá trị, immutable (`readonly` cộng `Object.freeze`).
 2. Entity: có ID, so sánh theo ID, đổi trạng thái qua method nghiệp vụ.
@@ -472,7 +472,7 @@ Domain Model **không** phải DB table và không phải row do ORM trả về.
 5. Luật (kể cả tính tổng tiền) nằm trong Entity/Aggregate, không ở service.
 6. TypeScript là structural typing: dùng branded type (hoặc class có `#private`) để chặn truyền nhầm ID; brand chỉ có tác dụng lúc compile.
 
-## 2.10 Tự kiểm tra
+## 2.10 Self-check
 
 1. `Address` gồm đường, quận, thành phố, không có ID: Entity hay VO? Vì sao?
 2. Tại sao `Order` giữ `CustomerId` chứ không phải `Customer`?
@@ -482,7 +482,7 @@ Domain Model **không** phải DB table và không phải row do ORM trả về.
 6. `OrderId.of('a') === CustomerId.of('a')` lúc chạy cho kết quả gì, và điều đó nói lên giới hạn nào của brand?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. VO: không có identity, hai địa chỉ giống hệt coi như một, nên immutable và so sánh theo giá trị.
 2. Quy tắc aggregate: tham chiếu aggregate khác bằng identity để giữ aggregate nhỏ và transaction boundary rõ.

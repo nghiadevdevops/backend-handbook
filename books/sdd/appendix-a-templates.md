@@ -1,4 +1,4 @@
-# Phụ lục A. Template BR, UC, Entity, AC
+# Appendix A. BR, UC, Entity, AC templates
 
 Bản dùng ngay. Ví dụ đã điền: `lab/roombook/specs/`. Đặt tên file: `BR-001-ten-ngan.md`, `UC-001-ten-ngan.md` (chữ thường, gạch nối). Mã là quy ước của team.
 
@@ -103,7 +103,7 @@ Bản dùng ngay. Ví dụ đã điền: `lab/roombook/specs/`. Đặt tên file
 
 Mỗi field xuất hiện một lần, đúng một tên, trong toàn bộ spec và code.
 
-## A.4. Acceptance Criteria (dạng bảng, nằm trong UC)
+## A.4. Acceptance Criteria (table form, inside the UC)
 
 Quy tắc viết:
 

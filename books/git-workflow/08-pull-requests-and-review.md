@@ -1,10 +1,10 @@
-# Chương 8. Pull request và code review
+# Chapter 8. Pull Requests and Code Review
 
-## Vấn đề
+## The problem
 
 PR 2.000 dòng thay đổi nằm chờ review 4 ngày, rồi bị approve bằng "LGTM" vì không ai đọc nổi. PR là điểm kiểm soát chất lượng của workflow; thiết kế nó sai thì cả trunk-based lẫn GitHub Flow đều hỏng.
 
-## PR nhỏ
+## Small PRs
 
 - Mục tiêu: dưới ~400 dòng diff có ý nghĩa, một ý định duy nhất. Con số này là heuristic, không phải chuẩn.
 - Tách refactor khỏi thay đổi hành vi: PR refactor chỉ review "hành vi không đổi", PR feature chỉ review logic mới.
@@ -47,7 +47,7 @@ File `CODEOWNERS` (đặt ở `.github/`, repo root hoặc `docs/`) khai báo ng
 
 Khi ruleset/branch protection bật "Require review from Code Owners", PR đụng vào path nào thì cần approve của owner path đó. Owner cần có quyền write. GitLab cũng có CODEOWNERS với cú pháp tương tự (có thêm section).
 
-## Ruleset so với branch protection
+## Rulesets vs. branch protection
 
 GitHub có hai cơ chế bảo vệ nhánh: **branch protection rules** (cũ, mỗi nhánh/pattern một rule) và **rulesets** (mới hơn). Theo docs GitHub, ưu điểm của ruleset: nhiều ruleset áp dụng cùng lúc cho cùng nhánh và khi chồng nhau thì rule khắt khe hơn thắng (branch protection chỉ có một rule hiệu lực); bật/tắt bằng trạng thái enforcement (Active/Disabled) mà không xóa; có bypass list theo role, team hoặc GitHub App; áp dụng được cho tag và nhiều repo ở cấp organization. Docs có hướng dẫn chuyển branch protection sang ruleset. Khuyến nghị cho repo mới: dùng rulesets.
 
@@ -79,11 +79,11 @@ on:
 
 GitLab tương đương là merge train (Chương 4).
 
-## Squash, rebase hay merge ở GitHub
+## Squash, rebase, or merge on GitHub
 
 Settings > General > Pull Requests cho bật/tắt từng method. Với tiêu đề squash, có thể chọn lấy tiêu đề PR làm message mặc định; kết hợp Conventional Commits (Chương 7) để changelog tự sinh.
 
-## Cạm bẫy
+## Pitfalls
 
 - Required check có tên khác với tên job thực tế sau khi đổi workflow: PR chờ mãi.
 - Quên `merge_group` trong workflow khi bật queue.
@@ -91,21 +91,21 @@ Settings > General > Pull Requests cho bật/tắt từng method. Với tiêu đ
 - Cho admin bypass ruleset mặc định rồi quên; sự cố vẫn đẩy thẳng lên `main`.
 - Review chỉ nhìn diff mà không chạy hoặc không hiểu ngữ cảnh.
 
-## Tóm tắt
+## Summary
 
 - PR nhỏ, một ý định; stacked PR cho feature lớn (tool `gh stack`, trạng thái GA chưa xác minh).
 - CODEOWNERS ánh xạ path sang owner; dòng khớp sau cùng thắng.
 - Rulesets linh hoạt hơn branch protection (chồng lớp, bypass list, bật/tắt, cấp organization).
 - Merge queue test kết quả gộp; workflow cần `merge_group`.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Vì sao PR nhỏ giúp workflow trunk-based chạy được?
 2. Khác biệt chính giữa ruleset và branch protection rule?
 3. Cần thêm gì vào workflow GitHub Actions khi bật merge queue?
 4. Trong CODEOWNERS, nếu hai dòng cùng khớp một file thì dòng nào có hiệu lực?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Review nhanh nên nhánh sống ngắn, ít conflict, dễ revert.
 2. Ruleset có thể chồng nhiều lớp (rule khắt khe thắng), bật/tắt bằng enforcement status, có bypass list, áp dụng cho tag và cấp organization; branch protection chỉ một rule hiệu lực cho nhánh.

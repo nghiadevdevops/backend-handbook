@@ -1,10 +1,10 @@
-# Chương 1. Mô hình dữ liệu của git ở mức đủ dùng
+# Chapter 1. The Git Data Model, at a Practical Level
 
-## Vấn đề
+## The problem
 
 Bạn đã `commit`, `push`, `pull` hằng ngày, nhưng khi team có 10 người và 30 branch, những câu hỏi sau xuất hiện: "branch này tách từ đâu ra?", "vì sao `pull` tạo ra một merge commit lạ?", "force push có làm mất commit của đồng nghiệp không?". Tất cả đều dễ trả lời nếu bạn nhớ một điều: **git là một đồ thị các commit bất biến, còn branch chỉ là cái nhãn trỏ vào một commit**.
 
-## Bốn loại object
+## The four object types
 
 Git lưu mọi thứ trong `.git/objects` dưới dạng object có tên là hash của nội dung (SHA-1 mặc định ở Git 2.56, xem phần cuối chương):
 
@@ -27,7 +27,7 @@ flowchart LR
   T4 --> B2[blob index.ts]
 ```
 
-## Ref: branch, tag, HEAD, remote-tracking
+## Refs: branch, tag, HEAD, remote-tracking
 
 Ref là một file nhỏ (hoặc entry trong packed-refs / reftable) chứa hash của commit.
 
@@ -52,7 +52,7 @@ gitGraph
 
 Trong sơ đồ trên, `main` và `feature/login` chỉ là hai nhãn. Xóa branch `feature/login` sau khi merge không làm mất C3, C4, vì chúng vẫn đi tới được từ `main` qua M6.
 
-## Thực hành quan sát
+## Hands-on observation
 
 ```sh
 git log --graph --oneline --all --decorate   # nhìn đồ thị cùng các nhãn
@@ -64,38 +64,38 @@ cat .git/HEAD                                # ref: refs/heads/main
 
 `pull` = `fetch` + (`merge` hoặc `rebase`). `push` = gửi các object còn thiếu rồi yêu cầu remote dời ref của nó. Remote chỉ chấp nhận nếu dời tới được commit mới là con cháu của commit cũ (fast-forward), trừ khi bạn force.
 
-## Reachability và garbage collection
+## Reachability and garbage collection
 
 Một commit "còn sống" khi có ref nào đó (branch, tag, remote-tracking, stash) đi tới được nó. Commit không còn ref nào trỏ tới sẽ bị `git gc` dọn, nhưng chỉ sau khi hết hạn (mặc định reflog giữ 90 ngày cho entry reachable và 30 ngày cho entry unreachable). Đây là lý do `reflog` cứu được dữ liệu (Chương 11).
 
-## Hash: SHA-1 và SHA-256
+## Hashes: SHA-1 and SHA-256
 
 Tính đến 11/2026, mới nhất là **Git 2.56.0** (28/09/2026); **Git 3.0 chưa phát hành** và chưa có ngày chính thức. Theo tài liệu `BreakingChanges` của git, Git 3.0 dự kiến: `git init` mặc định dùng `main`, object format mặc định `sha256`, ref storage mặc định `reftable`, Rust bắt buộc khi build, `safe.bareRepository` mặc định `explicit`, và bỏ một số lệnh cũ (`git whatchanged`, `git pack-redundant`, grafts...). `git checkout` không bị bỏ. Hiện tại bạn có thể thử bằng `git init --object-format=sha256`, nhưng GitHub chưa hỗ trợ repo SHA-256 theo các nguồn tôi tra được (chưa xác minh trên docs GitHub), nên team chưa nên chuyển.
 
 Hiện nay để chủ động dùng `main`: `git config --global init.defaultBranch main`.
 
-## Trade-off và cạm bẫy
+## Trade-offs and pitfalls
 
 - Hiểu "branch = pointer" giúp bạn không sợ tạo branch: nó rẻ (41 byte file). Branch dài hạn đắt vì chi phí merge, không phải chi phí lưu trữ.
 - Cạm bẫy: tưởng `origin/main` luôn mới. Nó chỉ mới sau `git fetch`.
 - Cạm bẫy: commit khi đang detached HEAD rồi checkout đi chỗ khác; commit trở thành unreachable. Cứu bằng `git switch -c rescue <hash>` hoặc reflog.
 - Cạm bẫy: tag lightweight không có metadata; dùng annotated tag cho release (Chương 9).
 
-## Tóm tắt
+## Summary
 
 - Git lưu blob, tree, commit, tag; commit bất biến và trỏ về parent.
 - Branch, tag, HEAD, remote-tracking là các ref (con trỏ); chỉ branch tự dời khi commit.
 - `fetch` cập nhật remote-tracking branch; `pull` là fetch cộng integrate.
 - Git mới nhất 2.56.0; Git 3.0 chưa phát hành, dự kiến đổi default branch `main`, SHA-256, reftable.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Branch `feature/x` bị xóa sau khi merge. Các commit trên nó có mất không?
 2. Khác biệt giữa `origin/main` và `main`?
 3. Vì sao `git commit --amend` không thực sự sửa commit?
 4. Detached HEAD là gì, và làm sao giữ lại commit tạo ra ở trạng thái đó?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không, nếu chúng còn reachable từ ref khác (ví dụ `main` qua merge commit). Chỉ cái nhãn bị xóa.
 2. `main` là branch local, bạn commit lên nó. `origin/main` là remote-tracking branch, ghi vị trí `main` trên remote ở lần fetch cuối.

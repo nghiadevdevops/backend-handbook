@@ -1,10 +1,10 @@
-# Chương 7. Session và JWT
+# Chapter 7. Sessions and JWT
 
-## 1. Vấn đề
+## 1. The problem
 
 HTTP không có trạng thái; sau khi login, mỗi request tiếp theo phải chứng minh "tôi là người đã login". Hai họ giải pháp: **session phía server** (cookie chứa ID ngẫu nhiên, trạng thái ở server) và **token tự chứa** như JWT (trạng thái nằm trong chính token, server chỉ verify chữ ký). Chọn sai hoặc dùng sai JWT là nguồn lỗi rất phổ biến.
 
-## 2. Session phía server
+## 2. Server-side sessions
 
 ```mermaid
 sequenceDiagram
@@ -37,7 +37,7 @@ Session lifecycle an toàn:
 
 Khi dùng đúng: truyền danh tính giữa service, token ngắn hạn cho API, OIDC `id_token`. Thực hành tốt nhất cho JWT hiện đại: RFC 8725 (JWT Best Current Practices) và RFC 9068 (JWT profile cho access token).
 
-### 3.1 Cạm bẫy của JWT
+### 3.1 JWT pitfalls
 
 | Cạm bẫy | Mô tả | Cách chống |
 |---|---|---|
@@ -85,7 +85,7 @@ wrong aud rejected: JWTClaimValidationFailed
 
 (`alg=none`: cắt chữ ký và đổi header; `forged`: ký bằng key khác với claim `role: admin`; `wrong aud`: token ký đúng nhưng cho API khác.) Với access token do bên khác phát hành (OIDC, chương 8), dùng `createRemoteJWKSet(new URL(jwksUri))` thay cho secret chung và vẫn ghim `algorithms`, `issuer`, `audience`. `jwt.decode` kiểu "chỉ đọc không verify" tương ứng với `decodeJwt` của `jose`: chỉ dùng cho việc không liên quan tới quyết định bảo mật.
 
-### 3.2 Revoke token
+### 3.2 Revoking tokens
 
 Điểm yếu cốt lõi: token tự chứa nên server không phải tra store, và cũng vì vậy **không revoke được**. Cách giảm:
 
@@ -94,7 +94,7 @@ wrong aud rejected: JWTClaimValidationFailed
 3. **Token versioning**: cột `token_version` ở user, nhúng vào claim, tăng khi đổi password/logout mọi nơi.
 4. Với hệ thống một ứng dụng web đơn giản: **dùng session**, đừng dùng JWT chỉ vì "hiện đại".
 
-### 3.3 Lưu token ở đâu (browser)
+### 3.3 Where to store tokens (browser)
 
 | Nơi lưu | XSS đọc được? | CSRF? | Ghi chú |
 |---|---|---|---|
@@ -104,7 +104,7 @@ wrong aud rejected: JWTClaimValidationFailed
 
 Khuyến nghị: web first-party dùng **cookie session HttpOnly** (hoặc JWT đặt trong cookie HttpOnly). Mobile/native lưu trong Keychain/Keystore. SPA cùng domain dùng cookie session; token Bearer ngắn hạn cho client third-party/mobile.
 
-## 4. Refresh token và rotation
+## 4. Refresh tokens and rotation
 
 Access token ngắn hạn kèm **refresh token** dài hạn lưu an toàn hơn, chỉ gửi tới endpoint cấp token.
 
@@ -123,7 +123,7 @@ sequenceDiagram
 
 Thực hành: lưu **hash** refresh token trong DB; gắn với thiết bị/IP-ASN; có absolute lifetime (ví dụ 30 ngày) và idle timeout; ràng buộc người gửi nếu có thể (DPoP, mTLS) cho client công khai.
 
-## 5. Session hay JWT: chọn thế nào
+## 5. Session or JWT: how to choose
 
 | Tiêu chí | Session server | JWT |
 |---|---|---|
@@ -135,7 +135,7 @@ Thực hành: lưu **hash** refresh token trong DB; gắn với thiết bị/IP-
 
 Quy tắc ngón tay cái: web monolith/SPA cùng domain dùng session; API cho service khác/mobile dùng token ngắn hạn chuẩn (OAuth, chương 8) với revoke được.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - Chọn JWT "để stateless" rồi tự xây denylist, mất lợi thế, thêm lỗi.
 - Không đổi session ID sau login; session timeout vô hạn.
@@ -144,21 +144,21 @@ Quy tắc ngón tay cái: web monolith/SPA cùng domain dùng session; API cho s
 - Refresh token không rotation, hoặc lưu thô.
 - Cho phép algorithm từ header token.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Session: ID ngẫu nhiên, cookie an toàn, regenerate sau login, hủy phía server khi logout, revoke dễ.
 - JWT: chỉ ký, không encrypt; cố định algorithm, verify `exp/iss/aud`; khó revoke nên cho sống ngắn.
 - Lưu token ưu tiên cookie HttpOnly thay vì localStorage.
 - Refresh token cần rotation và phát hiện reuse.
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Vì sao `alg: none` và nhầm lẫn RS256/HS256 xảy ra, và chống thế nào?
 2. Revoke JWT bằng những cách nào? Cách nào làm mất tính stateless?
 3. Session fixation là gì và cách chữa với express-session?
 4. Refresh token rotation phát hiện đánh cắp bằng cách nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Server tin trường `alg` trong header do attacker kiểm soát; chống bằng cách server cố định algorithm và key cho từng loại token, từ chối `none`.
 2. Token ngắn hạn, denylist theo `jti`/mốc thời gian, `token_version`. Denylist và version cần tra store mỗi request nên mất tính stateless.

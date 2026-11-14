@@ -1,10 +1,10 @@
-# Chương 4. XSS, CSP và Trusted Types
+# Chapter 4. XSS, CSP and Trusted Types
 
-## 1. Vấn đề
+## 1. The problem
 
 **Cross-Site Scripting (XSS)** là khi attacker khiến browser của nạn nhân chạy JavaScript của hắn *trong origin của bạn*. Hậu quả: đọc dữ liệu trên trang, thực hiện hành động thay người dùng (gọi API với cookie của họ), đánh cắp token lưu trong `localStorage`, hiện login form giả. Với browser, script đó "là" ứng dụng của bạn.
 
-## 2. Ba loại XSS
+## 2. Three types of XSS
 
 | Loại | Payload nằm ở | Ví dụ |
 |---|---|---|
@@ -14,7 +14,7 @@
 
 Stored nguy hiểm nhất vì không cần dụ nạn nhân bấm link.
 
-## 3. Cách chữa chính: output encoding theo context
+## 3. The main fix: context-aware output encoding
 
 Nguyên tắc: **encode khi xuất ra, theo context nơi dữ liệu được chèn**, không phải "làm sạch khi nhập" (cùng một chuỗi có thể cần encode khác nhau ở HTML, thuộc tính, JS, URL).
 
@@ -46,11 +46,11 @@ DOM XSS: dùng `textContent` thay `innerHTML`; tránh `document.write`, `eval`, 
 
 CSP là response header báo browser **nguồn script nào được chạy**. Nó là layer giảm thiệt hại (defense in depth): nếu vẫn có chỗ chèn được HTML, CSP có thể chặn script chèn vào chạy.
 
-### 4.1 Allowlist CSP đã lỗi thời
+### 4.1 Allowlist CSP is obsolete
 
 `script-src 'self' cdn.example.com` dễ bị bypass vì các host cho phép thường chứa endpoint JSONP/gadget. Khuyến nghị hiện nay (tài liệu của Google, OWASP) là **strict CSP** dựa trên nonce hoặc hash.
 
-### 4.2 Strict CSP với nonce
+### 4.2 Strict CSP with nonces
 
 ```
 Content-Security-Policy:
@@ -100,13 +100,13 @@ Header thật nhận được (đã chạy, xem `lab/KET-QUA.md` mục 2): `Cont
 
 Nếu trang được **cache toàn phần** (CDN), nonce theo request không dùng được; dùng **hash** (`'sha256-...'`) cho script tĩnh.
 
-### 4.3 Deployment an toàn
+### 4.3 Safe deployment
 
 1. Bắt đầu bằng `Content-Security-Policy-Report-Only` và endpoint `report-to`/`report-uri` để thu vi phạm mà chưa chặn.
 2. Sửa dần inline script/event handler (`onclick="..."` bị chặn bởi CSP strict; chuyển sang `addEventListener`).
 3. Chuyển sang chế độ enforce.
 
-### 4.4 Giới hạn của CSP
+### 4.4 Limits of CSP
 
 CSP không ngăn: chèn HTML/CSS gây phishing (nếu không chặn `form-action`), đánh cắp dữ liệu bằng ảnh (trừ khi giới hạn `img-src`/`connect-src`), lỗi logic. Nó là lưới an toàn, không thay output encoding. Lab của cuốn sách này chạy thật một CSP để xem script chèn vào bị chặn ra sao (xem `lab/KET-QUA.md`, mục 2).
 
@@ -126,18 +126,18 @@ el.innerHTML = policy.createHTML(userInput);
 
 Hỗ trợ browser: Chromium có từ lâu; các engine khác triển khai chậm hơn tại thời điểm tôi biết (**kiểm tra bảng tương thích MDN hiện tại**, chưa xác minh trong lần viết này). Vì vậy đặt nó như layer tăng cường, không phải layer duy nhất. Giá trị lớn nhất: biến "mọi nơi dùng `innerHTML` trong codebase" thành "vài policy cần review".
 
-## 6. Cookie và XSS
+## 6. Cookies and XSS
 
 Flag `HttpOnly` ngăn JS đọc session cookie, nên XSS không lấy trực tiếp được cookie đó, nhưng XSS vẫn thực hiện request **với tư cách người dùng** từ trong trang. Vì vậy HttpOnly giảm thiệt hại, không thay thế việc chống XSS (xem chương 5).
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Encode-on-output: luôn làm. Không có lý do bỏ.
 - Sanitize HTML (rich text): chỉ khi nghiệp vụ cần; mỗi lần nâng cấp library sanitize là một lần theo dõi CVE.
 - Strict CSP: giá trị cao nhưng tốn công refactor inline script; ứng dụng cũ nhiều inline nên deploy theo Report-Only trước.
 - Trusted Types: tốt cho SPA lớn; thừa cho trang server-render nhỏ ít JS.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Ghép HTML bằng template literal, hoặc `<%- %>` (EJS), `{{{ }}}` (Handlebars), `v-html`/`dangerouslySetInnerHTML` với dữ liệu người dùng.
 - Escape bằng cách "xóa tag `<script>`": có hàng trăm cách khác chạy JS (`onerror`, `svg`, `javascript:`).
@@ -146,21 +146,21 @@ Flag `HttpOnly` ngăn JS đọc session cookie, nên XSS không lấy trực ti�
 - Lưu JWT trong `localStorage` rồi tin rằng CSP là đủ (chương 7).
 - JSON API trả `Content-Type: text/html` hoặc thiếu `nosniff`, khiến response bị diễn giải như HTML.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - XSS cho phép chạy JS trong origin của bạn: reflected, stored, DOM.
 - Chữa chính: encode theo context khi xuất; template literal ghép HTML thô thì không an toàn, template engine mặc định escape (và các lối thoát như `<%- %>`, `v-html`) cần review.
 - CSP strict (nonce + `strict-dynamic`, `object-src 'none'`, `base-uri 'none'`) là layer giảm thiệt hại; deploy bằng Report-Only trước.
 - Trusted Types kiểm soát sink DOM XSS.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Vì sao nên encode khi xuất thay vì lọc khi nhập?
 2. Nonce phải thỏa điều kiện gì? Điều gì xảy ra nếu trang bị cache với nonce cũ?
 3. `'strict-dynamic'` làm gì?
 4. HttpOnly có chặn được XSS không?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Cách encode phụ thuộc context chèn (HTML, attribute, JS, URL); lúc nhập chưa biết dữ liệu sẽ xuất ở đâu.
 2. Ngẫu nhiên, khó đoán (>=128 bit), mới cho mỗi response. Nếu cache nonce cũ, attacker có thể đọc và dùng lại nonce, hoặc script hợp lệ bị chặn do lệch nonce; dùng hash cho trang cache.

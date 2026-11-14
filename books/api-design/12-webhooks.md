@@ -1,6 +1,6 @@
-# Chương 12. Webhooks: signature, retry, idempotency, Standard Webhooks
+# Chapter 12. Webhooks: signature, retry, idempotency, Standard Webhooks
 
-## 1. Vấn đề
+## 1. The problem
 
 Khách thanh toán xong, hệ thống bạn muốn báo cho đối tác. Gọi HTTP tới URL của họ nghe đơn giản, nhưng: làm sao họ biết request là của bạn (kẻ xấu cũng POST được)? Họ down 10 phút thì sao? Retry sinh ra duplicate event thì sao? Kẻ tấn công ghi lại một request hợp lệ rồi replay thì sao?
 
@@ -20,7 +20,7 @@ Khách thanh toán xong, hệ thống bạn muốn báo cho đối tác. Gọi H
 - Cho đăng ký endpoint, chọn event type, rotate secret, xem lịch sử gửi và resend thủ công.
 - OpenAPI mô tả webhook ở key `webhooks` (chương 10).
 
-## 3. HMAC signature
+## 3. HMAC signatures
 
 Mục tiêu: **source authentication** và **integrity**. Người gửi và người nhận chia sẻ secret; người gửi tính `HMAC-SHA256(secret, nội dung)`, gửi kèm; người nhận tính lại và so sánh.
 
@@ -95,7 +95,7 @@ sequenceDiagram
   R-->>P: 200 (skipped, evt1 already seen)
 ```
 
-## 6. Phía nhận: idempotent và nhanh
+## 6. Receiving side: idempotent and fast
 
 - **Phản hồi 2xx nhanh**, đẩy xử lý nặng vào queue. Timeout phía gửi sẽ gây retry thừa.
 - **Deduplication** theo `webhook-id`: bảng `processed_events(id unique)`; chèn trước, nếu trùng thì bỏ qua. Đây chính là Idempotency (chương 6) áp dụng ngược chiều.
@@ -103,20 +103,20 @@ sequenceDiagram
 - Endpoint chỉ nhận POST, verify signature **trước** khi parse.
 - Node.js/Fastify: route riêng nhận raw body, hook `preHandler` kiểm signature, job queue (BullMQ, hay queue của hạ tầng bạn dùng) để xử lý; `crypto.timingSafeEqual` có sẵn trong `node:crypto`.
 
-## 7. Security phía gửi
+## 7. Sender-side security
 
 - **SSRF**: người dùng cung cấp URL; chặn IP nội bộ/loopback/metadata cloud (`169.254.169.254`), resolve DNS rồi kiểm tra lại lúc kết nối, không theo redirect.
 - Yêu cầu HTTPS.
 - Giới hạn kích thước payload và rate gửi tới mỗi endpoint.
 - Gửi từ dải IP cố định nếu đối tác cần whitelist, và công bố dải đó.
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - Webhook giảm polling nhưng chuyển gánh nặng vận hành (endpoint công khai, retry, ký) cho cả hai bên.
 - Khi cần đảm bảo "không bỏ sót", kết hợp thêm API list event (`GET /events?since=`) để reconciliation.
 - Ed25519 tiện không phải chia sẻ secret, HMAC đơn giản và nhanh hơn.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Ký JSON đã re-serialize.
 - So sánh signature bằng `==`.
@@ -127,21 +127,21 @@ sequenceDiagram
 - Gửi tới URL do người dùng nhập mà không chống SSRF.
 - Log nguyên secret hoặc header signature.
 
-## 10. Tóm tắt
+## 10. Summary
 
 - Ký HMAC trên raw body cùng `id.timestamp`, constant-time comparison, kiểm time window.
 - Standard Webhooks cho bộ header `webhook-id/-timestamp/-signature`, v1 (HMAC) và v1a (ed25519).
 - Exponential retry nhiều ngày; người nhận deduplicate theo `webhook-id` và trả 2xx nhanh.
 - Chống SSRF phía gửi.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao phải sign trên raw body?
 2. `webhook-id` dùng để làm gì ở phía nhận?
 3. Chống replay bằng cách nào?
 4. SSRF xảy ra thế nào với webhook?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Parse/serialize lại có thể đổi byte, làm signature sai.
 2. Deduplication key (idempotency) vì giữ nguyên qua retry.

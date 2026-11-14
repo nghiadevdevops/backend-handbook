@@ -1,10 +1,10 @@
-# Chương 11. Mutation testing (StrykerJS) và property-based testing (fast-check)
+# Chapter 11. Mutation testing (StrykerJS) and property-based testing (fast-check)
 
-## 1. Tình huống
+## 1. Scenario
 
 Bộ test có coverage 100% cho `Order`, mọi test xanh. Bạn xóa dòng `this.#assertStatus('draft', ...)` khỏi `place()`. Test vẫn xanh. Coverage nói dòng đó "được chạy", nhưng không test nào kiểm tra hậu quả khi nó biến mất. Mutation testing trả lời câu hỏi thật sự: **nếu code sai, test có phát hiện không?**
 
-## 2. Mutation testing hoạt động thế nào
+## 2. How mutation testing works
 
 ```
  code gốc --(sinh biến thể nhỏ có lỗi: đổi >= thành >, xóa lời gọi, ...)--> mutant
@@ -18,7 +18,7 @@ StrykerJS (`@stryker-mutator/core` 10.1.1) tạo mutant bằng các mutator (đ�
 
 Về trạng thái "Timeout" của Stryker: mutant làm test treo (ví dụ vòng lặp vô hạn) cũng được tính là đã phát hiện, giống killed. Về "CompileError": mutant mà TypeScript từ chối biên dịch (ví dụ rỗng hóa thân hàm có kiểu trả về) không được chạy và **không** tính vào MSI. Đây là điểm đặc thù TypeScript: type system "kill" một phần mutant trước khi test chạy.
 
-## 3. Chạy trong lab
+## 3. Running it in the lab
 
 Cấu hình `lab/stryker.config.json`:
 
@@ -44,7 +44,7 @@ $ ./run.sh mutation      # = npx stryker run, trong container node:26
 
 **Lưu ý phiên bản TypeScript.** TypeScript 7.0.2 (bản Go native) đã ra, và `tsc --noEmit` của nó chạy sạch trên lab (đã thử). Nhưng `@stryker-mutator/core` 10.1.1 gọi API JavaScript của compiler (`ts.parseConfigFileTextToJson`) mà gói `typescript` 7 không còn cung cấp, nên Stryker dừng ngay với `TypeError: ts.parseConfigFileTextToJson is not a function`. Lab vì vậy ghim `typescript` ở 6.0.3 (bản 6 cuối cùng còn API cũ). Nếu bạn dùng TypeScript 7, chạy `tsc` bằng bản 7 nhưng cần theo dõi khi nào Stryker hỗ trợ.
 
-### Vòng 1: bộ test ban đầu và fake giữ reference
+### Round 1: the initial suite and the reference-holding fake
 
 ```
 140 mutants: 41 CompileError, 99 tested
@@ -73,7 +73,7 @@ Phân tích và cách xử lý:
 
 **Chuyện "quên `save()`" ở bản TypeScript.** Ở bản PHP, Infection sinh mutant bỏ lời gọi `$this->orders->save($order)` và cho thấy nó survived vì fake lưu reference. Ở bản này Stryker **không sinh** mutant tương tự: mutator `CallExpression` bỏ `order.markPaid();` (mutant này bị kill, vì đơn không thành `paid`) nhưng không đụng tới câu lệnh `await this.#orders.save(order);`, tức là các lời gọi nằm sau `await` không bị xóa. (Đây là quan sát từ báo cáo JSON của lần chạy: `pay-order.ts` có mutant ở dòng 14, 17, 17, 17, 17, 18, 21; không có mutant nào ở dòng 22 là dòng `save`.) Tương tự, Stryker không sinh mutant bỏ lời gọi `this.#assertStatus(...)` (gọi qua private method `#`): ở `order.ts:40, 48, 57` chỉ có mutant của chuỗi thông báo, không có mutant "bỏ lời gọi" như `assertStatus` bản PHP. Vì vậy lỗ hổng "đặt đơn hai lần" mà Infection từng báo ở bản PHP, Stryker không báo ở bản này. Nghĩa là lỗi "fake giữ reference" sẽ **không** được mutation testing tự động tìm ra cho đoạn code async. Ta tái hiện bằng tay (chương 5): comment dòng `save`, chạy test với fake giữ reference thì 12 test xanh; đổi fake sang lưu bản copy thì 3 test đỏ. Bài học tổng quát: mutation testing không thay thế việc review test double.
 
-### Vòng 2: sau khi thêm/sửa test và sửa fake
+### Round 2: after adding/fixing tests and fixing the fake
 
 ```
 140 mutants: 41 CompileError, 99 tested
@@ -85,14 +85,14 @@ Mutation score 100.00
 
 Thời gian chạy: vòng 1 mất 6 phút 6 giây (concurrency 2); lần chạy cuối của vòng 2 mất 12 phút 43 giây (`concurrency: 4`, Stryker chia thành 2 checker process và 2 test runner process), trên máy đang chạy song song nhiều việc khác nên số này không phản ánh hiệu năng thật. Phần lớn thời gian là TypeScript checker, không phải test (trung bình 1,74 test chạy cho mỗi mutant).
 
-## 4. Đọc kết quả đúng cách
+## 4. Reading the results correctly
 
 - **Mutant survived không phải lúc nào cũng cần kill.** Có "equivalent mutant" (đổi mà hành vi không đổi) và mutant vô hại (thông báo log). Đánh giá từng cái, đừng tôn sùng 100%. Lab chọn pin thông báo lỗi vì chúng là hành vi hiển thị; nếu thông báo chỉ để debug, dùng chú thích `// Stryker disable next-line StringLiteral` thay vì viết test vô nghĩa.
 - **MSI thấp ở domain = ưu tiên viết test.** MSI ở code keo/adapter ít ý nghĩa.
 - Chạy mutation trên **phần thay đổi** trong CI (Stryker có `--incremental`, lưu kết quả trước đó vào file và chỉ chạy lại mutant bị ảnh hưởng) để nhanh; chạy toàn bộ theo lịch (nightly).
 - Nếu có TypeScript, bật `typescript-checker`: không có nó, mutant không compile vẫn chạy và có thể bị tính là survived oan (vì Vitest/esbuild bỏ qua kiểu), kéo MSI xuống giả tạo.
 
-## 5. Property-based testing với fast-check
+## 5. Property-based testing with fast-check
 
 Test theo ví dụ kiểm tra vài điểm bạn nghĩ ra. **Property-based testing** kiểm tra một *property luôn đúng* (tính chất bất biến theo mọi đầu vào) với hàng trăm input sinh ngẫu nhiên, và **shrink** (thu nhỏ) ca thất bại về ca đơn giản hơn. Thư viện: **fast-check** 4.10.2 (tích hợp được với mọi test runner; lab dùng với Vitest).
 
@@ -150,7 +150,7 @@ Thông báo cho đủ để tái hiện: cùng `seed` và `path` cho đúng ca �
 
 Property hay dùng cho domain: commutative/associative, idempotent (áp hai lần như một lần), round trip (`JSON.stringify` rồi `JSON.parse` ra bản gốc), invariant (tổng tiền không âm), "reference model" (so với implementation chậm nhưng hiển nhiên đúng). fast-check còn có `fc.record`, `fc.array`, `fc.constantFrom` để sinh cả `Order` hợp lệ, và model-based testing (`fc.commands`) cho chuỗi lệnh trên một object có state.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 | | Mutation testing | Property-based |
 |---|---|---|
@@ -160,7 +160,7 @@ Property hay dùng cho domain: commutative/associative, idempotent (áp hai lầ
 
 KHÔNG nên: chạy mutation cho cả repo mỗi commit; đặt MSI bắt buộc 100% (dẫn tới test vô nghĩa chỉ để kill equivalent mutant); property test cho code đầy I/O.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - Chạy Stryker với test chậm (integration) → hàng giờ. Giới hạn `mutate` ở domain/application và dùng config Vitest riêng chỉ có test nhanh.
 - Seed ngẫu nhiên không cố định → test đỏ không tái hiện được. Luôn in/ghi seed (fast-check in sẵn khi fail).
@@ -168,7 +168,7 @@ KHÔNG nên: chạy mutation cho cả repo mỗi commit; đặt MSI bắt buộc
 - Hiểu nhầm MSI là chỉ số chất lượng duy nhất; và quên rằng mutator có điểm mù (như lời gọi sau `await` ở trên).
 - Dùng `timeout` mặc định của công cụ quá ngắn trong CI: lab phải nâng timeout của lệnh `docker run` lên 25 phút cho Stryker.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Mutation testing đo khả năng *phát hiện lỗi* của test, thứ coverage không đo.
 - Lab: vòng 1 có 17/99 mutant còn lại (14 survived + 3 no coverage, MSI 82,83%), vòng 2 kill hết (MSI 100%, 99/99 mutant bị kill) sau khi thêm test, pin thông báo lỗi và sửa fake.
@@ -176,7 +176,7 @@ KHÔNG nên: chạy mutation cho cả repo mỗi commit; đặt MSI bắt buộc
 - Property-based test (fast-check) kiểm tra property trên nhiều input sinh ngẫu nhiên; luôn cố định seed và nhớ rằng runner có thể yêu cầu phải có `expect`.
 - StrykerJS 10.1.1 chưa chạy được với TypeScript 7 (API compiler cũ): lab ghim TypeScript 6.0.3.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao coverage 100% vẫn có mutant survived?
 2. Vì sao Stryker không tìm ra lỗi "fake giữ reference" trong lab, và ta làm gì thay thế?
@@ -184,7 +184,7 @@ KHÔNG nên: chạy mutation cho cả repo mỗi commit; đặt MSI bắt buộc
 4. Nêu hai property cho `Money.add`.
 5. `CompileError` khác `Survived` ở điểm nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Coverage chỉ cho biết dòng được chạy, không biết kết quả có được kiểm tra; mutant thay đổi hành vi mà test không assert thì survived.
 2. Stryker không sinh mutant xóa lời gọi nằm sau `await` (`await this.#orders.save(order)`). Ta tái hiện bằng tay: bỏ dòng `save`, chạy với fake giữ reference (xanh) và với fake lưu bản copy (đỏ).

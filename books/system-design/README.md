@@ -1,30 +1,30 @@
-# System Design: bản học viết lại (tiếng Việt)
+# System Design
 
-**Ngày cập nhật: 2026-11-07.** Bản tự học dựa trên dàn ý của ebook "System Design" (tác giả Huy), được viết lại bằng lời mới, sửa các sai sót đã biết và cập nhật theo tình hình hiện tại (SLA, sản phẩm, chuẩn giao thức).
+**Last updated: 2026-11-07.** A self-study edition based on the outline of the ebook "System Design" (author: Huy), rewritten in new wording, with known errors corrected and updated to current conditions (SLAs, products, protocol standards). The lecture text of the chapters is written in Vietnamese.
 
-## Mục lục
+## Contents
 
-1. [Phỏng vấn System Design: bản chất và khung trả lời](01-system-design-interview.md)
-2. [Khái niệm nền tảng và các con số cần thuộc](02-fundamentals-and-numbers.md) (bảng số 9, MTBF/MTTR, SLA vs design availability, bảng latency, estimation)
-3. [Các thành phần phổ biến trong hệ thống](03-common-components.md)
-4. [Consistency và availability: replication, quorum, CAP, PACELC](04-consistency-and-availability.md)
-5. [Database: chọn loại, sharding, index, transaction, locking](05-databases.md)
-6. [Load Balancer và Caching](06-load-balancing-and-caching.md)
-7. [Message Queue, delivery semantics và idempotency](07-message-queues-delivery-semantics.md) (outbox, idempotent consumer)
-8. [Giao thức và thiết kế API](08-protocols-and-api-design.md) (TCP/UDP/QUIC, REST, status code, idempotent method)
-9. [Fault tolerance và recovery](09-fault-tolerance-and-recovery.md) (retry + backoff + jitter, circuit breaker, rate limiting, HA)
-10. [Security và authorization](10-security-and-authorization.md)
-11. [Monitoring và Observability (OpenTelemetry)](11-monitoring-and-observability.md)
-12. [Ba bài thiết kế mẫu](12-design-case-studies.md) (URL shortener, news feed, chat)
+1. [The System Design Interview: Purpose and Answer Framework](01-system-design-interview.md)
+2. [Foundational Concepts and Numbers to Know](02-fundamentals-and-numbers.md) (the "nines" table, MTBF/MTTR, SLA vs. design availability, latency table, estimation)
+3. [Common System Components](03-common-components.md)
+4. [Consistency and Availability: Replication, Quorum, CAP, PACELC](04-consistency-and-availability.md)
+5. [Databases: Choosing a Type, Sharding, Indexes, Transactions, Locking](05-databases.md)
+6. [Scaling and Performance: Load Balancer and Caching](06-load-balancing-and-caching.md)
+7. [Message Queues, Delivery Semantics and Idempotency](07-message-queues-delivery-semantics.md) (outbox, idempotent consumer)
+8. [Communication and API Design: HTTP, TCP, UDP, QUIC, RPC, REST](08-protocols-and-api-design.md) (TCP/UDP/QUIC, REST, status codes, idempotent methods)
+9. [Fault Tolerance and Recovery: Retry, Circuit Breaker, Rate Limiting, HA](09-fault-tolerance-and-recovery.md) (retry + backoff + jitter, circuit breaker, rate limiting, HA)
+10. [Security and Authorization](10-security-and-authorization.md)
+11. [Monitoring and Observability (with OpenTelemetry)](11-monitoring-and-observability.md)
+12. [Three Worked Designs, End to End](12-design-case-studies.md) (URL shortener, news feed, chat)
 
-## Cách đọc
+## How to read
 
-- **Lần đầu**: đọc 1 → 2 → 3, rồi 4 → 5 (nặng lý thuyết nhất), sau đó 6 → 11 tùy nhu cầu, cuối cùng làm chương 12.
-- **Ôn gấp trước phỏng vấn**: chương 1 (khung), mục "Khi phỏng vấn nên nói gì" và "Tóm tắt" của từng chương, bảng số ở chương 2, rồi tự làm lại một bài ở chương 12 trên giấy.
-- Mỗi chương theo cùng cấu trúc: giải thích → ví dụ thiết kế → trade-off → nên nói gì khi phỏng vấn → cạm bẫy → tóm tắt → câu hỏi tự kiểm tra (đáp án trong thẻ `<details>` cuối file; hãy tự trả lời trước khi mở).
-- Sơ đồ dùng Mermaid; xem được trong GitHub, VS Code (có extension), Obsidian.
-- Các con số trong bài tập thiết kế là **giả định**; phép tính được ghi rõ để bạn kiểm lại.
+- **First pass**: read 1 → 2 → 3, then 4 → 5 (the most theory-heavy), then 6 → 11 as needed, and finish with chapter 12.
+- **Last-minute interview review**: chapter 1 (the framework), the "What to say in an interview" and "Summary" sections of each chapter, the number tables in chapter 2, then redo one design from chapter 12 on paper.
+- Each chapter follows the same structure: explanation → design example → trade-offs → what to say in an interview → pitfalls → summary → self-check questions (answers in a `<details>` block at the end of the file; try answering before opening it).
+- Diagrams use Mermaid; they render in GitHub, VS Code (with an extension), and Obsidian.
+- The numbers in the design exercises are **assumptions**; the calculations are shown so you can check them.
 
-## Lưu ý về độ tươi của thông tin
+## A note on how fresh the information is
 
-SLA, phiên bản và giấy phép sản phẩm thay đổi nhanh. Các con số và trạng thái trong sách được tra ngày 2026-11-07 (nguồn ghi cuối mỗi chương). Trước khi trích dẫn trong tình huống quan trọng, hãy tra lại trang chính thức.
+SLAs, product versions, and licenses change quickly. The figures and statuses in this book were checked on 2026-11-07 (sources are listed at the end of each chapter). Before quoting them in anything important, check the official pages again.

@@ -1,6 +1,6 @@
-# Chương 7. Hot key, big key, eviction và `maxmemory`
+# Chapter 7. Hot key, big key, eviction, and `maxmemory`
 
-## 1. Vấn đề
+## 1. The problem
 
 Redis/Valkey lưu mọi thứ trong RAM, và xử lý lệnh chủ yếu trên **một thread**. Hai kiểu failure thường gặp:
 
@@ -8,7 +8,7 @@ Redis/Valkey lưu mọi thứ trong RAM, và xử lý lệnh chủ yếu trên *
 - Một key nhận phần lớn traffic (**hot key**), dồn tải lên một node (nhất là trong cluster, nơi key thuộc đúng một slot).
 - RAM đầy: nếu không cấu hình giới hạn, hệ điều hành giết process (OOM killer); nếu có giới hạn nhưng chọn sai policy, ghi bị từ chối hoặc xóa nhầm dữ liệu quan trọng.
 
-## 2. `maxmemory` và eviction policy
+## 2. `maxmemory` and eviction policy
 
 ```
 CONFIG SET maxmemory 2gb
@@ -33,7 +33,7 @@ Khi bộ nhớ dùng vượt `maxmemory`, server áp dụng `maxmemory-policy`:
 - Với cache thuần túy, thường chọn `allkeys-lru` hoặc `allkeys-lfu`. Nếu cùng instance còn chứa dữ liệu không được mất (queue, lock, session), tách instance, hoặc dùng `volatile-*` và chỉ đặt TTL cho dữ liệu cache.
 - Chừa chỗ cho overhead: replication buffer, client output buffer, fragmentation. Đặt `maxmemory` khoảng 60 đến 75% RAM máy/container khi có fork (RDB/AOF rewrite dùng copy-on-write).
 
-### Kết quả lab
+### Lab results
 
 Kịch bản (`lab/eviction/run.sh`): `maxmemory 10mb`, giá trị 1 KB, nạp 15.000 key (nhiều hơn sức chứa) và đọc lại một tập "key nóng" xen kẽ; sau đó đếm key còn sống theo nhóm. Chi tiết và bảng số liệu ngay dưới.
 
@@ -102,7 +102,7 @@ Giảm tải:
 - Đọc từ replica (chấp nhận độ cũ nhỏ).
 - Phục vụ qua CDN/reverse proxy nếu là nội dung công khai.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Để mặc định `noeviction` rồi dùng như cache: đầy RAM thì mọi lệnh ghi lỗi.
 - `volatile-lru` nhưng quên đặt TTL.
@@ -110,14 +110,14 @@ Giảm tải:
 - `maxmemory` bằng đúng RAM container: lúc fork hoặc client buffer lớn sẽ bị OOM-kill.
 - Dùng `FLUSHALL` để "dọn cache" trên instance dùng chung.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Luôn đặt `maxmemory` và policy phù hợp: cache thuần dùng `allkeys-lru/lfu`.
 - LRU/LFU là xấp xỉ qua sampling; `volatile-*` cần key có TTL.
 - Big key chặn server; hot key dồn tải một node. Phát hiện bằng `--bigkeys`, `MEMORY USAGE`, LFU `--hotkeys`.
 - Xử lý bằng chia nhỏ, `UNLINK`, L1 cache, sao chép key.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Policy mặc định là gì và hệ quả khi RAM đầy?
 2. Vì sao `volatile-lru` có thể khiến lệnh ghi lỗi?
@@ -125,7 +125,7 @@ Giảm tải:
 4. Vì sao dùng `UNLINK` thay `DEL` cho key lớn?
 5. Nêu hai cách giảm tải hot key.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `noeviction`; lệnh ghi bị từ chối với lỗi OOM, đọc vẫn chạy.
 2. Nếu không còn key nào có TTL thì không có gì để xóa, nên hành xử như `noeviction`.

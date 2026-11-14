@@ -1,6 +1,6 @@
-# Chương 8. Write skew và phantom: lịch trực, đặt phòng
+# Chapter 8. Write Skew and Phantoms: On-Call Schedules and Room Booking
 
-## 1. Tình huống
+## 1. Scenario
 
 Hai bài toán, cùng một dạng:
 
@@ -11,7 +11,7 @@ Hai bài toán, cùng một dạng:
 
 Kết quả đã chạy (chương 3): write skew xảy ra ở PostgreSQL `READ COMMITTED` và `REPEATABLE READ`, và ở MySQL `READ UNCOMMITTED`, `READ COMMITTED`, `REPEATABLE READ`; chỉ `SERIALIZABLE` chặn (PG: `40001` SSI, MySQL: deadlock `1213`). Chương này đi qua bốn lời giải.
 
-## 2. Lời giải 1: SERIALIZABLE (+ retry)
+## 2. Solution 1: SERIALIZABLE (+ retry)
 
 Đặt `SERIALIZABLE` cho cả hai transaction và để DB chặn. Đã chạy (`write_skew`, `booking`):
 
@@ -24,7 +24,7 @@ Cả hai trường hợp: transaction thua phải **được retry toàn bộ**.
 
 Ưu điểm: không cần suy nghĩ lock nào, bảo vệ cả những invariant bạn chưa nghĩ tới. Nhược điểm: bắt buộc có retry; tỷ lệ abort; trên InnoDB tốn concurrency.
 
-## 3. Lời giải 2: lock các dòng bạn vừa đọc (`FOR UPDATE`)
+## 3. Solution 2: lock the rows you just read (`FOR UPDATE`)
 
 Với lịch trực, tập dữ liệu đã đọc chính là các dòng `on_call = true`. Lock chúng ngay khi đọc:
 
@@ -48,7 +48,7 @@ Kết quả đã chạy (`ws_forupdate`):
 
 PG ở `READ COMMITTED` làm đúng vì sau khi chờ xong, PG kiểm tra lại điều kiện `on_call` trên phiên bản mới của dòng (EvalPlanQual) và thấy dòng của bên kia không còn thỏa. Hạn chế: **chỉ lock được những dòng đang tồn tại**. Với đặt phòng, "không có lịch chồng" nghĩa là không có dòng nào để lock (đó là phantom), `FOR UPDATE` không ngăn được chèn.
 
-## 4. Lời giải 3: materializing conflict
+## 4. Solution 3: materializing the conflict
 
 Ý tưởng: biến xung đột thành một dòng. Khi không có dòng để lock, **tạo ra** một dòng đại diện và lock nó. Lịch trực: bảng `shifts(id)` có dòng cho ca đang xét; mọi transaction thay đổi lịch của ca đó phải `SELECT ... FROM shifts WHERE id = :ca FOR UPDATE` trước. Đặt phòng: lock dòng của phòng trong bảng `rooms`, hoặc tạo trước các ô giờ (bảng `slot(room, hour)`).
 
@@ -64,7 +64,7 @@ PG `REPEATABLE READ` vẫn sai vì snapshot của transaction được lấy nga
 
 Phiên bản "ô giờ" cho đặt phòng (kịch bản `booking_slots` của MySQL): bảng `slot(room, hr, PRIMARY KEY(room, hr))`, mỗi lịch chèn một dòng cho từng giờ. Hai lịch chồng nhau đụng cùng primary key. Đã chạy ở `REPEATABLE READ` trên MySQL: một bên bị `ERROR 1062 Duplicate entry '1-10' for key 'slot.PRIMARY'`; cuối cùng chỉ có 2 ô (một lịch hợp lệ). Ràng buộc do DB thực thi, không cần level cao.
 
-## 5. Lời giải 4: constraint (exclusion constraint của PostgreSQL)
+## 5. Solution 4: constraints (PostgreSQL exclusion constraints)
 
 Cách tốt nhất khi có thể: để **DB thực thi quy tắc**, không phải code. PostgreSQL có **exclusion constraint** cho bài toán chồng khoảng:
 
@@ -82,7 +82,7 @@ MySQL không có exclusion constraint. Thay thế: ô giờ với primary key/UN
 
 Với bài lịch trực, "luôn có ≥ 1 người" khó biểu diễn bằng constraint chuẩn; thường dùng lock dòng hoặc SERIALIZABLE.
 
-## 6. So sánh
+## 6. Comparison
 
 | Cách | Chặn bằng | Chi phí | Dùng khi |
 |---|---|---|---|
@@ -91,7 +91,7 @@ Với bài lịch trực, "luôn có ≥ 1 người" khó biểu diễn bằng c
 | Materialize (lock dòng đại diện) | chờ | thêm bảng/dòng; chú ý snapshot PG RR | phantom, không có dòng để lock |
 | Constraint (UNIQUE, exclusion) | lỗi tại DB | gần như không | khi quy tắc biểu diễn được. **Ưu tiên số 1** |
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 1. Kiểm tra bằng `SELECT` rồi `INSERT` ở level mặc định và tin rằng đã an toàn (đã chạy: sai ở cả hai DB).
 2. `FOR UPDATE` trên query "không có dòng nào": không lock được gì (PG), hoặc chỉ lock khoảng nhờ gap lock ở InnoDB, đổi lại gây deadlock (chương 5, 6).
@@ -99,21 +99,21 @@ Với bài lịch trực, "luôn có ≥ 1 người" khó biểu diễn bằng c
 4. Bật `SERIALIZABLE` không kèm retry.
 5. Quên rằng exclusion constraint cần extension `btree_gist` khi kết hợp `=` trên kiểu thường với `&&` trên range.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Write skew: đọc chung, ghi riêng, invariant liên dòng vỡ; phantom là biến thể "dòng chưa tồn tại".
 - Đã chạy: chỉ SERIALIZABLE chặn tự động; cả hai DB chặn bằng lỗi nên cần retry.
 - `FOR UPDATE` tập đã đọc đúng ở PG RC và MySQL; materialize cần để ý snapshot PG RR.
 - Constraint (UNIQUE, `EXCLUDE USING gist`) là lời giải gọn nhất khi biểu diễn được.
 
-## 9. Tự kiểm tra
+## 9. Self-check
 
 1. Vì sao `FOR UPDATE` không cứu được bài đặt phòng?
 2. Materialize conflict là gì? Cho một ví dụ.
 3. Vì sao materialize bằng lock dòng chung vẫn sai trên PG `REPEATABLE READ`?
 4. Exclusion constraint chặn ở level nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. "Không có lịch chồng" nghĩa là tập rỗng; không có dòng để lock nên chèn đồng thời vẫn lọt.
 2. Tạo dòng đại diện để lock, ví dụ lock dòng `shifts` hoặc `rooms`, hoặc bảng ô giờ có primary key.

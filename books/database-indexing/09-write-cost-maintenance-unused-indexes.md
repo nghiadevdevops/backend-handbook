@@ -1,6 +1,6 @@
-# Chương 9. Chi phí ghi, bảo trì index và dọn index thừa
+# Chapter 9. Write Cost, Index Maintenance and Dropping Unused Indexes
 
-## 9.1 Index tốn bao nhiêu
+## 9.1 What an index costs
 
 Trong bảng thử nghiệm `orders` (500.000 dòng) của PostgreSQL, sau khi ta thử nhiều index khác nhau:
 
@@ -12,7 +12,7 @@ SELECT pg_size_pretty(pg_relation_size('orders'))  AS heap,
 ```
 Mỗi `INSERT` phải ghi vào mọi index đó. Đó là lý do cần dọn index không dùng.
 
-## 9.2 UPDATE và index: PostgreSQL và InnoDB khác nhau
+## 9.2 UPDATE and indexes: PostgreSQL and InnoDB differ
 
 ### PostgreSQL: HOT update
 
@@ -43,7 +43,7 @@ Cập nhật cột không index: 448/1000 là HOT (số còn lại hết chỗ t
 
 Sửa cột **không nằm trong index** nào: chỉ đổi dòng trong B-tree của primary key (có ghi undo log); **secondary index không bị đụng**. Sửa cột nằm trong một secondary index: entry cũ bị đánh dấu xóa và entry mới được chèn trong index đó. Sửa chính cột primary key là việc đắt nhất (di chuyển dòng, và cập nhật mọi secondary index vì chúng chứa giá trị PK).
 
-## 9.3 Tìm index đang không được dùng
+## 9.3 Finding unused indexes
 
 ### PostgreSQL: `pg_stat_all_indexes`
 
@@ -81,7 +81,7 @@ HAVING count(*) > 1;
 --  users | {users_email_idx, users_email_like_idx}     <- tôi tạo trùng ở chương 3 trong lúc thử
 ```
 
-### MySQL: `performance_schema` và `sys`
+### MySQL: `performance_schema` and `sys`
 
 ```sql
 -- MySQL
@@ -91,7 +91,7 @@ WHERE object_schema = 't' AND object_name = 'users';
 ```
 **Số liệu của `performance_schema` là in-memory và bị mất khi server restart** (khác PostgreSQL). Đã kiểm: counter của `users_created_idx` là 300.001 trước khi restart container và không còn dòng nào sau đó. `sys.schema_unused_indexes` chỉ phản ánh khoảng từ lần khởi động gần nhất, nên nếu server vừa restart thì mọi index trông như "không dùng". Với MySQL, lấy mẫu định kỳ vào bảng riêng nếu cần quan sát dài.
 
-### Cách xóa index an toàn
+### How to drop an index safely
 
 ```sql
 -- MySQL: đặt INVISIBLE trước, quan sát, rồi mới DROP
@@ -100,12 +100,12 @@ ALTER TABLE users ALTER INDEX users_status_idx INVISIBLE;   -- optimizer bỏ qu
 ```
 PostgreSQL không có invisible index built-in. Cách thử: trong transaction, `BEGIN; DROP INDEX x; EXPLAIN ...; ROLLBACK;` (đã chạy thử: sau khi bỏ `users_status_idx` trong transaction, `status = 'banned'` chuyển sang `users_banned_idx`; lưu ý lệnh này giữ lock mạnh trên bảng cho đến khi kết thúc transaction, nên không làm trên bảng nóng đang production). Sau khi chắc, `DROP INDEX CONCURRENTLY x;`.
 
-## 9.4 Bảo trì: bloat và tạo/đổi index không chặn ghi
+## 9.4 Maintenance: bloat and creating/rebuilding indexes without blocking writes
 
 - **PostgreSQL**: `CREATE INDEX CONCURRENTLY` và `REINDEX INDEX CONCURRENTLY` xây index mà không chặn ghi (chậm hơn, không dùng trong transaction block). Đã chạy thử cả hai. Index phình do bloat sau nhiều UPDATE/DELETE được dọn bằng `REINDEX ... CONCURRENTLY`; dữ liệu phình dọn bằng `VACUUM` (lệnh `VACUUM FULL` và `CLUSTER` lock bảng hoàn toàn).
 - **MySQL InnoDB**: hầu hết `CREATE INDEX`/`DROP INDEX` là online (in-place, cho phép đọc ghi đồng thời). Phình dọn bằng `OPTIMIZE TABLE` hoặc `ALTER TABLE ... ENGINE=InnoDB` (xây lại bảng; cân nhắc công cụ online schema change với bảng rất lớn).
 
-## 9.5 Cạm bẫy thường gặp
+## 9.5 Common pitfalls
 
 - Query `pg_stat_all_indexes` với cột `tablename` (không tồn tại, đúng là `relname`).
 - Xóa index PK/UNIQUE chỉ vì `idx_scan = 0`.
@@ -113,7 +113,7 @@ PostgreSQL không có invisible index built-in. Cách thử: trong transaction, 
 - Index cột hay bị sửa, làm mất khả năng HOT update.
 - Quên rằng duplicate index vẫn bị cập nhật mỗi lần ghi.
 
-## 9.6 Tóm tắt
+## 9.6 Summary
 
 - Index có thể to gấp nhiều lần dữ liệu và làm chậm mọi lần ghi.
 - PostgreSQL HOT update cần: không đổi cột có index và còn chỗ trong page; InnoDB không đụng secondary index khi cột không nằm trong index.
@@ -121,7 +121,7 @@ PostgreSQL không có invisible index built-in. Cách thử: trong transaction, 
 - `performance_schema` của MySQL mất khi restart; dùng `INVISIBLE` để thử trước khi xóa.
 - Dùng `CONCURRENTLY` (PG) hoặc DDL online (MySQL) để bảo trì không chặn ghi.
 
-## 9.7 Tự kiểm tra
+## 9.7 Self-check
 
 1. Hai điều kiện để một UPDATE trên PostgreSQL là HOT?
 2. Vì sao query tìm index thừa phải loại `indisunique` và `indisprimary`?
@@ -129,7 +129,7 @@ PostgreSQL không có invisible index built-in. Cách thử: trong transaction, 
 4. Cách thử xóa index an toàn hơn trên MySQL?
 5. Tên cột đúng của bảng trong `pg_stat_all_indexes` là gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không cột nào nằm trong index bị đổi và page còn chỗ trống cho row version mới.
 2. Chúng bảo vệ uniqueness/integrity dù có thể không bao giờ được dùng để quét.

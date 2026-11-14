@@ -1,6 +1,6 @@
-# Chương 10. Event sourcing và CQRS: khi nào dùng, khi nào KHÔNG
+# Chapter 10. Event sourcing and CQRS: when to use them, when NOT to
 
-## 1. Tình huống
+## 1. Scenario
 
 Một hệ thống tài chính cần biết số dư tại **bất kỳ thời điểm nào trong quá khứ** và vì sao nó thay đổi. Bảng `accounts.balance` chỉ giữ state hiện tại; mọi lịch sử là cột `updated_at` và log rời rạc. Event sourcing đảo ngược: lịch sử là source of truth, state hiện tại là thứ **suy ra**.
 
@@ -56,7 +56,7 @@ flowchart LR
 
 Lợi ích: read model tối ưu cho từng màn hình, scale đọc độc lập. Cái giá: hai mô hình, latency cập nhật (người dùng ghi xong, trang danh sách chưa thấy: "read-your-writes" cần xử lý), nhiều component.
 
-## 4. Khi nào dùng, khi nào KHÔNG
+## 4. When to use them, when NOT to
 
 Nên cân nhắc ES khi:
 - Lịch sử/audit là yêu cầu nghiệp vụ cốt lõi (tài chính, kế toán, tuân thủ), không chỉ "ghi log".
@@ -75,25 +75,25 @@ Nên cân nhắc CQRS (không ES) khi:
 
 Lối đi tăng dần: CRUD + outbox → thêm read model riêng cho vài màn hình nặng (CQRS nhẹ) → ES chỉ cho aggregate cần lịch sử.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 - Dùng event store như message broker (và ngược lại: dùng Kafka làm event store chính; được nhưng cần retention vô hạn, compaction không phù hợp, kiểm soát concurrency khó). Kafka phù hợp để *phân phối* event; event store cần conditional write theo version (PostgreSQL hoặc EventStoreDB/KurrentDB...).
 - Event mang tên CRUD (`CustomerUpdated`) làm mất giá trị lịch sử có nghĩa.
 - Replay chậm vì không có snapshot; replay gây side effect (gửi email lại) vì projection không tách khỏi hành động.
 - Bắt đầu với ES "cho đẹp".
 
-## Tóm tắt
+## Summary
 1. ES lưu event làm source of truth, state là kết quả replay; CQRS tách write model/read model.
 2. Hai cái độc lập: dùng CQRS không bắt buộc ES; ES thực tế cần read model.
 3. Cái giá: event vĩnh viễn, eventual consistency, khó xóa/sửa, tăng độ phức tạp.
 4. Mặc định dùng CRUD + outbox; ES/CQRS chỉ cho phần domain thật sự cần.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Event-driven và event sourcing khác nhau thế nào?
 2. Primary key `(stream_id, version)` giải quyết điều gì?
 3. Nêu ba tình huống không nên dùng ES.
 4. Vì sao projection phải idempotent và replay được?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Event-driven: dùng event để giao tiếp. Event sourcing: lưu event làm source of truth.
 2. Optimistic concurrency: ghi đồng thời cùng version thì một bên thất bại.

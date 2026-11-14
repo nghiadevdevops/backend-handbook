@@ -1,118 +1,118 @@
-# Kiến trúc ứng dụng web: bản học lại (TypeScript 7, Node.js 26 và NestJS 12)
+# Web Application Architecture
 
-Đây là bản tự học viết lại bằng lời mới cho chủ đề của ebook "Kiến trúc ứng dụng web": tách core code khỏi infrastructure code, Domain Model, Repository, Read Model, Application Service, Layered Architecture, Ports & Adapters. Nội dung đã được cập nhật theo thực tế tháng 11/2026 và mọi ví dụ TypeScript đều bám vào **một** hệ thống code duy nhất trong thư mục `lab/`.
+This is a self-study edition rewritten in new wording for the topic of the ebook "Web Application Architecture": separating core code from infrastructure code, Domain Model, Repository, Read Model, Application Service, Layered Architecture, Ports & Adapters. The content has been updated to the state of things in November 2026 (TypeScript 7, Node.js 26, and NestJS 12), and every TypeScript example follows **one** single codebase in the `lab/` folder. The lecture text of the chapters is written in Vietnamese.
 
-## Phiên bản đã dùng
+## Versions used
 
-| Thành phần | Phiên bản | Ghi chú |
+| Component | Version | Notes |
 |---|---|---|
-| Node.js | **26 (LTS)** (image `node:26`, thực tế v26.13.0) | `crypto.randomUUID()`, `fetch`, `node:test`, top-level `await` (ESM) |
-| TypeScript | **7.0.2** (trình biên dịch native) | `strict`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `NodeNext`; kiểm tra bằng `tsc --noEmit` |
-| NestJS | **12.4.0** (`@nestjs/core`, `common`, `platform-express`, `testing`), `@nestjs/event-emitter` 12.0.2 | Package ESM, cần Node.js 20.19 hoặc 22.12 trở lên; DTO bằng `class-validator` 0.15.1 và `class-transformer` 0.5.1 |
-| PostgreSQL | **18.6** (image `postgres:18`) và driver `pg` 8.23.1 | Adapter persistence viết bằng `pg` thuần, lý do ở chương 3 |
-| Fastify | 5.12.8 | Chỉ dùng cho mục so sánh ghép thủ công ở chương 7 |
-| Test | `node:test` + `node:assert/strict` | Không thêm thư viện test; `@nestjs/testing` chỉ để dựng module |
-| Docker | Mọi lệnh Node.js và PostgreSQL đều chạy trong container, không cài gì lên máy | |
+| Node.js | **26 (LTS)** (image `node:26`, actually v26.13.0) | `crypto.randomUUID()`, `fetch`, `node:test`, top-level `await` (ESM) |
+| TypeScript | **7.0.2** (native compiler) | `strict`, `noUncheckedIndexedAccess`, `verbatimModuleSyntax`, `NodeNext`; checked with `tsc --noEmit` |
+| NestJS | **12.4.0** (`@nestjs/core`, `common`, `platform-express`, `testing`), `@nestjs/event-emitter` 12.0.2 | ESM packages, require Node.js 20.19 or 22.12 and above; DTOs with `class-validator` 0.15.1 and `class-transformer` 0.5.1 |
+| PostgreSQL | **18.6** (image `postgres:18`) and the `pg` 8.23.1 driver | The persistence adapter is written with plain `pg`, reason in chapter 3 |
+| Fastify | 5.12.8 | Used only in the manual-wiring comparison in chapter 7 |
+| Test | `node:test` + `node:assert/strict` | No extra test library; `@nestjs/testing` is used only to build modules |
+| Docker | Every Node.js and PostgreSQL command runs in a container, nothing is installed on the machine | |
 
-Core (`src/domain`, `src/application`) không phụ thuộc package nào: chỉ import lẫn nhau, không import `@nestjs`, `pg` hay infrastructure. Kiểm chứng: `grep -rE "@nestjs|from .pg.|infrastructure" src/domain src/application` không in ra dòng nào.
+The core (`src/domain`, `src/application`) depends on no package: the two only import each other, never `@nestjs`, `pg`, or infrastructure. Verification: `grep -rE "@nestjs|from .pg.|infrastructure" src/domain src/application` prints nothing.
 
-## Ví dụ xuyên suốt: đặt mua e-book
+## Running example: ordering an e-book
 
-Khách (`CustomerId`) đặt một **đơn hàng** (`Order`, aggregate root) gồm các `OrderLine` (value object, chụp tên và giá lúc đặt, tham chiếu sách bằng `EbookId`). Có hai use case ghi (`PlaceOrder`, `PayOrder`) và một truy vấn đọc (`OrderSummaryReader.forCustomer`). Luật: đơn không rỗng, không trùng sách, không cộng khác tiền tệ, đơn đã trả không huỷ, không mua lại sách đã trả tiền.
+A customer (`CustomerId`) places an **order** (`Order`, the aggregate root) made up of `OrderLine`s (value objects that snapshot the name and price at order time and reference the book by `EbookId`). There are two write use cases (`PlaceOrder`, `PayOrder`) and one read query (`OrderSummaryReader.forCustomer`). Rules: an order is non-empty, has no duplicate books, never adds different currencies together, a paid order cannot be cancelled, and a book that has already been paid for cannot be bought again.
 
-Tên class và method signature là cố định trong mọi chương:
+Class names and method signatures are fixed across all chapters:
 
-| Layer | Class chính |
+| Layer | Main classes |
 |---|---|
 | Domain | `Order`, `OrderLine`, `OrderStatus`, `OrderId`, `CustomerId`, `EbookId` (branded type), `Money`, `Ebook`, `OrderRepository`, `EbookCatalog`, `EbookPurchasePolicy`, `OrderPlaced`, `OrderPaid` |
 | Application | `PlaceOrderCommand`, `PlaceOrderHandler`, `PayOrderCommand`, `PayOrderHandler`, `PlaceOrderUseCase`, `PayOrderUseCase`, `Clock`, `EventPublisher`, `OrderNotifier`, `OrderSummary`, `OrderSummaryReader`, `SendOrderConfirmationWhenOrderPlaced` |
-| Infrastructure | `InMemory*`, `SystemClock`, `FixedClock`, `SynchronousEventPublisher`, `RecordingOrderNotifier`; phía PostgreSQL: `PgOrderRepository`, `PgEbookCatalog`, `PgOrderSummaryReader`; phía NestJS: `BookshopModule`, `OrderController`, `PlaceOrderDto`, `NestEventPublisher`, `OrderConfirmationSubscriber`, `LogOrderNotifier` |
+| Infrastructure | `InMemory*`, `SystemClock`, `FixedClock`, `SynchronousEventPublisher`, `RecordingOrderNotifier`; PostgreSQL side: `PgOrderRepository`, `PgEbookCatalog`, `PgOrderSummaryReader`; NestJS side: `BookshopModule`, `OrderController`, `PlaceOrderDto`, `NestEventPublisher`, `OrderConfirmationSubscriber`, `LogOrderNotifier` |
 
-## Mục lục
+## Contents
 
-1. [Tách core code khỏi infrastructure code](01-separating-core-and-infrastructure.md)
-2. [Domain Model: Entity, Value Object, Aggregate](02-domain-model-entity-value-object.md)
+1. [Separating Core Code from Infrastructure Code](01-separating-core-and-infrastructure.md)
+2. [Domain Model: Entity, Value Object and Aggregate](02-domain-model-entity-value-object.md)
 3. [Repository](03-repository.md)
-4. [Application Service, Command, Domain Service, Read Model](04-application-service-command-read-model.md)
+4. [Application Service, Command, Domain Service and Read Model](04-application-service-command-read-model.md)
 5. [Layered Architecture](05-layered-architecture.md)
-6. [Ports & Adapters](06-ports-and-adapters.md)
-7. [Ghép core vào NestJS 12 (và so sánh với Fastify thủ công)](07-integrating-core-with-nestjs.md)
-8. [Domain Event và testing theo từng layer](08-domain-events-and-testing.md)
+6. [Ports & Adapters (Hexagonal Architecture)](06-ports-and-adapters.md)
+7. [Integrating the Core with NestJS 12 (and comparing with manual Fastify wiring)](07-integrating-core-with-nestjs.md)
+8. [Domain Events and Testing per Layer](08-domain-events-and-testing.md)
 
-## Cách đọc
+## How to read
 
-- Mỗi chương theo khuôn: vấn đề, giải pháp, code, cạm bẫy, tóm tắt 3-5 ý, câu hỏi tự kiểm tra (đáp án nằm trong thẻ `<details>` ở cuối).
-- Code trong các chương được **chèn trực tiếp từ file trong `lab/`**, nên giống hệt code đã chạy thử. Đoạn nào là "minh hoạ xấu" đều được ghi rõ và không nằm trong `lab/`. Đoạn trích một phần file ghi rõ file nguồn và số dòng.
-- Thứ tự gợi ý: 1 đến 8. Muốn nhanh: đọc 1, 2, 6, rồi chạy `npm run demo`.
-- Nơi nào một class "tiến hoá" qua các chương (ví dụ `OrderRepository` ban đầu 3 method, thêm `customerHasPaidFor` ở chương 4), sách ghi rõ và trình bày bản cuối cho khớp với `lab/`.
-- Tên file của chương 7 vẫn là `07-integrating-core-with-nestjs.md` (giữ nguyên để không vỡ link); nội dung đã viết lại cho NestJS.
+- Each chapter follows the same mold: the problem, the solution, code, pitfalls, a 3-5 point summary, and self-check questions (answers are in a `<details>` block at the end).
+- The code in the chapters is **inserted directly from files in `lab/`**, so it is identical to the code that was run. Any "bad illustration" is clearly marked and is not in `lab/`. Excerpts of part of a file state the source file and line numbers.
+- Suggested order: 1 to 8. For a quick path: read 1, 2, 6, then run `npm run demo`.
+- Where a class "evolves" across chapters (for example `OrderRepository` starts with 3 methods and gains `customerHasPaidFor` in chapter 4), the book says so explicitly and presents the final version so that it matches `lab/`.
+- The file name of chapter 7 is still `07-integrating-core-with-nestjs.md` (kept as is so links don't break); the content has been rewritten for NestJS.
 
-## Chạy lại code
+## Re-running the code
 
-Lệnh chạy từ thư mục `web-architecture/`. `node_modules` đặt trong một Docker volume để không làm bẩn thư mục `lab/`:
+Commands are run from the `web-architecture/` folder. `node_modules` lives in a Docker volume so the `lab/` folder stays clean:
 
 ```bash
-# Cài dependency một lần (volume bookshop-nm giữ node_modules)
+# Install dependencies once (the bookshop-nm volume holds node_modules)
 docker volume create bookshop-nm
 docker run --rm -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm ci
 
-# Kiểm tra kiểu (strict) mà không sinh file
+# Type-check (strict) without emitting files
 docker run --rm -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm run typecheck
 
-# Biên dịch ra lab/dist
+# Compile to lab/dist
 docker run --rm -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm run build
 
-# Chạy use case đặt mua e-book bằng adapter InMemory (không NestJS, không database)
+# Run the e-book ordering use case with InMemory adapters (no NestJS, no database)
 docker run --rm -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm run demo
 
-# Chạy bộ test (42 test; các test PostgreSQL tự bỏ qua khi không có DATABASE_URL)
+# Run the test suite (42 tests; the PostgreSQL tests skip themselves when DATABASE_URL is absent)
 docker run --rm -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm test
 ```
 
-Chạy thêm các test PostgreSQL (adapter, contract test, module NestJS thật), tổng cộng 51 test:
+To also run the PostgreSQL tests (adapter, contract tests, the real NestJS module), 51 tests in total:
 
 ```bash
 docker network create bookshop-net
 docker run -d --name bookshop-pg --network bookshop-net -e POSTGRES_PASSWORD=pw -e POSTGRES_DB=bookshop postgres:18
 
-# đợi vài giây cho PostgreSQL khởi động xong, rồi:
+# wait a few seconds for PostgreSQL to finish starting, then:
 docker run --rm --network bookshop-net -e DATABASE_URL=postgres://postgres:pw@bookshop-pg:5432/bookshop \
   -v "$PWD/lab:/app" -v bookshop-nm:/app/node_modules -w /app node:26 npm test
 
-# dọn dẹp
+# clean up
 docker rm -f bookshop-pg
 docker network rm bookshop-net
 docker volume rm bookshop-nm
 ```
 
-Chạy server NestJS (cần PostgreSQL đã có schema `lab/db/schema.sql` và dữ liệu e-book), map cổng 3000 ra máy: thêm `-p 3000:3000 -e DATABASE_URL=...` và dùng `npm start` sau `npm run build`. Ví dụ gọi: `curl -X POST localhost:3000/orders -H 'content-type: application/json' -H 'x-customer-id: cus-1' -d '{"ebookIds":["ddd-101"]}'`.
+To run the NestJS server (needs a PostgreSQL that already has the `lab/db/schema.sql` schema and e-book data), map port 3000 out to the machine: add `-p 3000:3000 -e DATABASE_URL=...` and use `npm start` after `npm run build`. Example call: `curl -X POST localhost:3000/orders -H 'content-type: application/json' -H 'x-customer-id: cus-1' -d '{"ebookIds":["ddd-101"]}'`.
 
-Trên Git Bash của Windows, thêm `MSYS_NO_PATHCONV=1` trước `docker` và dùng đường dẫn tuyệt đối dạng `C:/...` cho `-v`.
+On Git Bash for Windows, add `MSYS_NO_PATHCONV=1` before `docker` and use absolute paths of the form `C:/...` for `-v`.
 
-## Cấu trúc `lab/`
+## Structure of `lab/`
 
 ```text
 lab/
   package.json, tsconfig.json, package-lock.json
-  db/schema.sql                  # schema PostgreSQL
-  src/domain/...                 # core, không phụ thuộc package nào
-  src/application/...            # core, chỉ phụ thuộc Domain và port
-  src/infrastructure/in-memory/  # adapter thuần TypeScript (InMemory, event đồng bộ)
+  db/schema.sql                  # PostgreSQL schema
+  src/domain/...                 # core, depends on no package
+  src/application/...            # core, depends only on Domain and ports
+  src/infrastructure/in-memory/  # plain TypeScript adapters (InMemory, synchronous events)
   src/infrastructure/time/       # SystemClock, FixedClock
-  src/infrastructure/postgres/   # adapter PostgreSQL (driver pg)
+  src/infrastructure/postgres/   # PostgreSQL adapter (pg driver)
   src/nest/                      # NestJS: module, controller, DTO, token, event adapter
-  src/fastify/                   # ghép thủ công bằng Fastify (mục so sánh chương 7)
-  script/demo.ts                 # adapter kiểu CLI
+  src/fastify/                   # manual wiring with Fastify (chapter 7 comparison)
+  script/demo.ts                 # CLI-style adapter
   test/                          # node:test: domain, application, typing, contract, nest, fastify, postgres
 ```
 
-## Nguồn khái niệm
+## Sources of the concepts
 
 - Eric Evans, *Domain-Driven Design* (2003): Entity, Value Object, Aggregate, Repository, Domain Service.
-- Vaughn Vernon, *Implementing Domain-Driven Design* (2013): quy tắc thiết kế Aggregate, repository collection-oriented và persistence-oriented, Domain Event.
-- Martin Fowler, *Patterns of Enterprise Application Architecture* (2002): định nghĩa Repository.
+- Vaughn Vernon, *Implementing Domain-Driven Design* (2013): Aggregate design rules, collection-oriented and persistence-oriented repositories, Domain Event.
+- Martin Fowler, *Patterns of Enterprise Application Architecture* (2002): the definition of Repository.
 - Alistair Cockburn, *Hexagonal Architecture* (2005).
 - Jeffrey Palermo, *Onion Architecture* (2008).
-- Robert C. Martin, *The Clean Architecture* (2012) và sách *Clean Architecture* (2017).
-- Bertrand Meyer, CQS (*Object-Oriented Software Construction*); GoF, *Design Patterns* (1994) cho Command pattern.
-- Tài liệu NestJS 12: docs.nestjs.com (migration guide, providers, pipes/validation, testing, event emitter); tài liệu Node.js, TypeScript, node-postgres, Fastify.
+- Robert C. Martin, *The Clean Architecture* (2012) and the book *Clean Architecture* (2017).
+- Bertrand Meyer, CQS (*Object-Oriented Software Construction*); GoF, *Design Patterns* (1994) for the Command pattern.
+- NestJS 12 documentation: docs.nestjs.com (migration guide, providers, pipes/validation, testing, event emitter); documentation for Node.js, TypeScript, node-postgres, Fastify.

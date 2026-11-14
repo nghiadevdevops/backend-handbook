@@ -1,8 +1,8 @@
-# Chương 5. Database: chọn loại, sharding, index, transaction, locking
+# Chapter 5. Databases: Choosing a Type, Sharding, Indexes, Transactions, Locking
 
 > Cập nhật: 2026-11-07.
 
-## 5.1 SQL hay NoSQL?
+## 5.1 SQL or NoSQL?
 
 Câu hỏi đúng không phải "SQL nhanh hay NoSQL nhanh" mà là: *dữ liệu có dạng gì, truy cập thế nào, cần bảo đảm gì?*
 
@@ -20,7 +20,7 @@ Câu hỏi đúng không phải "SQL nhanh hay NoSQL nhanh" mà là: *dữ liệ
 
 **Cách chọn thực dụng**: bắt đầu bằng relational database vì constraint và transaction giúp tránh lỗi dữ liệu; chuyển hoặc bổ sung NoSQL khi có lý do định lượng (ghi hàng chục nghìn QPS, dữ liệu theo key đơn giản, cần trải toàn cầu, schema biến động mạnh).
 
-## 5.2 ACID và isolation level
+## 5.2 ACID and isolation levels
 
 **ACID**: Atomicity (hoặc tất cả, hoặc không), Consistency (thỏa constraint), Isolation (transaction đồng thời không giẫm nhau), Durability (đã commit thì không mất).
 
@@ -42,7 +42,7 @@ Thực tế khác bảng chuẩn tùy sản phẩm: PostgreSQL mặc định Rea
 
 **MVCC** (multi-version concurrency control): mỗi transaction đọc một *snapshot* consistent, nên **reader không chặn writer và writer không chặn reader**. Hệ quả: câu `SELECT` thông thường không bị chặn bởi các transaction ghi. `SELECT ... FOR UPDATE` trên DB dùng MVCC **chỉ lock các row được chọn để chặn writer hoặc các lệnh locking read khác**, không chặn các `SELECT` thường (đọc snapshot).
 
-## 5.3 Locking trong hệ thống đồng thời
+## 5.3 Locking in concurrent systems
 
 ### Pessimistic locking
 
@@ -75,7 +75,7 @@ Nếu `0 rows affected`, ứng dụng đọc lại và retry hoặc báo conflic
 
 **Lựa chọn nhanh**: atomic update một câu lệnh > optimistic (conflict hiếm, transaction dài) > pessimistic (conflict nhiều, transaction ngắn) > distributed lock (khi dữ liệu không nằm trong một DB; cẩn thận với lease hết hạn và cần fencing token).
 
-## 5.4 Index
+## 5.4 Indexes
 
 Index là cấu trúc phụ giúp tìm row nhanh, đổi lại tốn memory/disk và làm **chậm ghi** (mỗi insert/update phải cập nhật mọi index liên quan).
 
@@ -89,7 +89,7 @@ Index là cấu trúc phụ giúp tìm row nhanh, đổi lại tốn memory/disk
 
 Dùng `EXPLAIN` để xem execution plan, đừng đoán.
 
-### Foreign key và index
+### Foreign keys and indexes
 
 - **MySQL InnoDB** yêu cầu có index trên cột foreign key và **tự tạo** nếu bạn chưa có.
 - **PostgreSQL, SQL Server, Oracle** **không tự tạo** index trên cột foreign key (phía tham chiếu). Tài liệu PostgreSQL giải thích: `DELETE` ở bảng cha hoặc `UPDATE` parent key buộc scan bảng con, nên thường nên tự index cột FK ở bảng con.
@@ -124,7 +124,7 @@ flowchart LR
   R --> S3[(Shard 3<br/>+ replica)]
 ```
 
-## 5.6 Một số lựa chọn lưu trữ khác
+## 5.6 Other storage options
 
 - **Cache/in-memory store** cho dữ liệu nóng và session.
 - **Search engine** (Elasticsearch/OpenSearch) cho full-text search; là bản sao có index của dữ liệu gốc, không phải source of truth.
@@ -134,7 +134,7 @@ flowchart LR
 
 Mô hình phổ biến: một **source of truth** (thường là DB quan hệ) và các **derived view** (cache, search index, warehouse) được cập nhật qua event (CDC/queue); derived view chấp nhận eventual consistency.
 
-## 5.7 Ví dụ thiết kế: số dư ví điện tử
+## 5.7 Design example: e-wallet balance
 
 Yêu cầu: không âm tiền, không mất cập nhật. Cách làm: một transaction DB:
 ```sql
@@ -142,7 +142,7 @@ UPDATE wallet SET balance = balance - 100 WHERE id = ? AND balance >= 100;
 ```
 Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `ledger` (immutable ledger) trong cùng transaction. Atomic update tránh lost update mà không cần lock dài. Nếu chia shard theo `wallet_id`, chuyển tiền giữa hai ví khác shard cần saga (trừ → cộng → compensate khi lỗi) kèm idempotency key (chương 7–8).
 
-## 5.8 Khi phỏng vấn nên nói gì
+## 5.8 What to say in an interview
 
 - "Em chọn PostgreSQL trước vì cần transaction và join; nếu ghi vượt khoảng X QPS em mới cân nhắc shard theo `user_id`."
 - "Chống lost update bằng optimistic locking với cột version; nếu tỉ lệ retry cao em chuyển sang atomic update."
@@ -150,7 +150,7 @@ Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `l
 - "Em sẽ index cột foreign key ở bảng con vì PostgreSQL không tự tạo."
 - "NoSQL ngày nay vẫn có transaction (MongoDB 4.0+, DynamoDB), nên em chọn theo access pattern chứ không theo ACID."
 
-## 5.9 Cạm bẫy
+## 5.9 Pitfalls
 
 - Nói NoSQL "không có ACID" hay "SQL không scale".
 - Nhầm optimistic locking với isolation level, hoặc nói nó làm dữ liệu kém chính xác.
@@ -161,7 +161,7 @@ Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `l
 - Chọn shard key theo timestamp gây hotspot.
 - Nhầm giữa `hash mod N` và consistent hashing.
 
-## 5.10 Tóm tắt
+## 5.10 Summary
 
 1. Chọn DB theo access pattern và nhu cầu consistency; ranh giới SQL/NoSQL đã mờ.
 2. Isolation level quyết định anomaly nào có thể xảy ra; lost update và write skew cần cơ chế riêng.
@@ -169,7 +169,7 @@ Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `l
 4. Index tăng tốc đọc, giảm tốc ghi; hash index chỉ cho `=`; index FK ở PostgreSQL/SQL Server/Oracle thường cần tự tạo.
 5. Sharding là biện pháp cuối: chọn shard key kỹ, dùng consistent hashing, chấp nhận cái giá về query xuyên shard.
 
-## 5.11 Câu hỏi tự kiểm tra
+## 5.11 Self-check questions
 
 1. Hai transaction cùng đọc `stock=10` rồi đều ghi `stock=9`. Đây là anomaly nào, chặn bằng cách nào?
 2. Vì sao hash index không giúp query `WHERE status != 'done'`?
@@ -178,7 +178,7 @@ Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `l
 5. Vì sao shard theo `created_at` theo range thường gây vấn đề?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Lost update. Chặn bằng atomic update (`stock = stock - 1`), optimistic locking (`WHERE version = ?`), hoặc `SELECT ... FOR UPDATE` trong transaction ngắn, hoặc isolation đủ mạnh.
 2. Hash index chỉ trả lời "key này nằm ở đâu" cho phép so sánh bằng; `!=` là tập "mọi thứ trừ một giá trị", không có cách tra trực tiếp, và phần lớn row đều khớp nên cũng thường full table scan.
@@ -188,7 +188,7 @@ Nếu 1 row bị ảnh hưởng thì đồng thời ghi một row vào bảng `l
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - MongoDB transactions: https://www.mongodb.com/docs/manual/core/transactions/
 - DynamoDB transactions (giới hạn 100 item, 4 MB, 2x capacity, serializable, ConsistentRead): https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/transaction-apis.html

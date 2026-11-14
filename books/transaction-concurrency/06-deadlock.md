@@ -1,10 +1,10 @@
-# Chương 6. Deadlock, timeout và retry
+# Chapter 6. Deadlocks, Timeouts and Retries
 
-## 1. Tình huống
+## 1. Scenario
 
 Hai request chuyển tiền ngược chiều: A chuyển ví 1 sang ví 2, B chuyển ví 2 sang ví 1. Mỗi bên lock dòng của mình, rồi chờ dòng của bên kia. Không ai nhường, ai cũng chờ mãi. Đó là **deadlock** (khóa chết). DB không để treo vô hạn: nó phát hiện wait cycle và hủy một transaction. Việc của bạn là (1) giảm xác suất xảy ra và (2) retry khi nó vẫn xảy ra.
 
-## 2. Cơ chế
+## 2. Mechanism
 
 ```mermaid
 sequenceDiagram
@@ -20,7 +20,7 @@ sequenceDiagram
 
 Điều kiện: ít nhất hai transaction, ít nhất hai tài nguyên, lấy theo thứ tự ngược nhau.
 
-### Tái hiện (kịch bản `deadlock`)
+### Reproducing it (the `deadlock` scenario)
 
 A: `UPDATE ví 1`, ngủ 3s, `UPDATE ví 2`. B bắt đầu sau 1s: `UPDATE ví 2`, ngủ, `UPDATE ví 1`.
 
@@ -42,7 +42,7 @@ ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting trans
 
 Trong cả hai lần, transaction còn lại hoàn tất và tổng tiền cuối cùng là 200 (không mất tiền): bên bị hủy được rollback.
 
-### Cách DB phát hiện
+### How the DB detects it
 
 | | PostgreSQL | InnoDB |
 |---|---|---|
@@ -54,7 +54,7 @@ Trong cả hai lần, transaction còn lại hoàn tất và tổng tiền cuố
 
 Lưu ý: `deadlock_timeout` còn là ngưỡng để `log_lock_waits` ghi log "process X still waiting". Đừng đặt quá nhỏ ở production vì mỗi lần kiểm tra tốn CPU.
 
-## 3. Giảm deadlock: thứ tự lấy lock
+## 3. Reducing deadlocks: lock ordering
 
 Quy tắc vàng: **mọi transaction lấy lock theo cùng một thứ tự toàn cục**. Với chuyển tiền: luôn lock ví có `id` nhỏ trước.
 
@@ -78,7 +78,7 @@ Các thói quen khác:
 
 Deadlock không bao giờ về 0 trên hệ có tải. Hãy coi nó như lỗi tạm thời (transient) cần retry.
 
-## 4. Timeout
+## 4. Timeouts
 
 | Tham số | DB | Mặc định | Ý nghĩa |
 |---|---|---|---|
@@ -96,7 +96,7 @@ Khác biệt cần nhớ: với `innodb_lock_wait_timeout` mặc định, InnoDB
 
 Khuyến nghị: đặt `lock_timeout` ngắn (ví dụ vài giây) cho request web và để retry quyết định. `lock_timeout = 0` mặc định nghĩa là một transaction treo có thể kéo theo cả queue chờ nó.
 
-## 5. Retry đúng cách
+## 5. Retrying correctly
 
 Lỗi cần retry cả transaction (không chỉ câu lệnh):
 
@@ -115,11 +115,11 @@ Nguyên tắc:
 
 `RunTx` trong `lab/go/retry.go` làm đúng điều này cho `40001` và `40P01` (chi tiết chương 10).
 
-## 6. Trade-off
+## 6. Trade-offs
 
 Lock theo thứ tự và giữ transaction ngắn giảm deadlock nhưng không loại bỏ. Timeout ngắn giảm thời gian treo nhưng tăng số lỗi cần xử lý. SERIALIZABLE giảm số chỗ phải suy nghĩ về lock nhưng tăng số retry.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 1. Bắt `QueryException` rồi bỏ qua: tiền đã không chuyển mà người dùng không biết.
 2. Retry trong cùng transaction đã bị hủy (PG: transaction đã aborted).
@@ -127,7 +127,7 @@ Lock theo thứ tự và giữ transaction ngắn giảm deadlock nhưng không 
 4. Lock theo thứ tự tùy tiện, ví dụ `WHERE id IN (...)` không có `ORDER BY`. Thứ tự lấy lock là thứ tự dòng mà plan trả về, không được đảm bảo.
 5. Tin rằng tăng `innodb_lock_wait_timeout` lên cao là "an toàn hơn".
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Deadlock là wait cycle của lock; DB hủy một transaction (PG `40P01`, MySQL `1213`).
 - PG dò sau `deadlock_timeout`, InnoDB dò ngay.
@@ -135,14 +135,14 @@ Lock theo thứ tự và giữ transaction ngắn giảm deadlock nhưng không 
 - Đặt timeout (`lock_timeout`, `innodb_lock_wait_timeout`) và retry cả transaction với backoff.
 - Retry yêu cầu transaction không có side effect bên ngoài DB.
 
-## 9. Tự kiểm tra
+## 9. Self-check
 
 1. Vì sao lock theo `ORDER BY id` ngăn được deadlock chuyển tiền?
 2. Khác biệt giữa deadlock và lock wait timeout?
 3. Sau lỗi `40P01` trong PostgreSQL, bạn làm gì với transaction?
 4. Vì sao không nên gửi email bên trong transaction có retry?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Mọi transaction lấy lock cùng thứ tự nên không thể tạo wait cycle.
 2. Deadlock là wait cycle, không bao giờ tự giải; timeout là chờ lâu quá ngưỡng, có thể chỉ vì một transaction chậm.

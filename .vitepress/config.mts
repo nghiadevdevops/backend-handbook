@@ -10,12 +10,12 @@ const BOOKS_DIR = path.join(ROOT, 'books')
 
 // ---------------------------------------------------------------- sidebar
 
-/** Lấy nhãn từ H1 của file; đổi tiền tố "Chương N. " thành "N. ". */
+/** Sidebar label from the file's H1; "Chapter N. " (or legacy "Chương N. ") becomes "N. ". */
 function labelFromH1(file: string, fallback: string): string {
   const text = fs.readFileSync(file, 'utf8')
   const m = text.match(/^#\s+(.+?)\s*$/m)
   if (!m) return fallback
-  return m[1].replace(/^Chương\s+(\d+)\.\s*/i, '$1. ')
+  return m[1].replace(/^(Chapter|Chương)\s+(\d+)\.\s*/i, '$2. ')
 }
 
 function bookSidebar(book: string): DefaultTheme.SidebarItem[] {
@@ -27,9 +27,9 @@ function bookSidebar(book: string): DefaultTheme.SidebarItem[] {
     .sort()
   return [
     {
-      text: 'Nội dung',
+      text: 'Contents',
       items: [
-        { text: 'Giới thiệu', link: `/books/${book}/` },
+        { text: 'Introduction', link: `/books/${book}/` },
         ...files.map((f) => ({
           text: labelFromH1(path.join(dir, f), f),
           link: `/books/${book}/${f.replace(/\.md$/, '')}`
@@ -125,7 +125,7 @@ export default defineConfig({
   lang: 'vi-VN',
   title: 'Backend Handbook',
   description:
-    'Thư viện 14 cuốn học backend bằng tiếng Việt: từ system design, database, kiến trúc code đến bảo mật, triển khai và AI engineering.',
+    'A library of 14 backend study books (content in Vietnamese): system design, databases, code architecture, security, deployment and AI engineering.',
   base: '/backend-handbook/',
   cleanUrls: true,
   lastUpdated: true,
@@ -150,66 +150,37 @@ export default defineConfig({
     logo: '/favicon.svg',
     siteTitle: 'Backend Handbook',
     nav: [
-      { text: 'Trang chủ', link: '/' },
-      { text: 'Lộ trình', link: '/roadmap' },
+      { text: 'Home', link: '/' },
+      { text: 'Roadmap', link: '/roadmap' },
       {
-        text: 'Sách',
+        text: 'Books',
         items: allBooks.map((b) => ({ text: b.title, link: `/books/${b.id}/` }))
       },
-      { text: 'Nguồn & ghi công', link: '/credits' }
+      { text: 'Credits', link: '/credits' }
     ],
     socialLinks: [{ icon: 'github', link: GITHUB }],
     sidebar,
-    outline: { level: [2, 3], label: 'Trên trang này' },
-    docFooter: { prev: 'Trang trước', next: 'Trang sau' },
+    outline: { level: [2, 3], label: 'On this page' },
+    docFooter: { prev: 'Previous page', next: 'Next page' },
     editLink: {
       pattern: `${GITHUB}/edit/main/:path`,
-      text: 'Sửa trang này trên GitHub'
+      text: 'Edit this page on GitHub'
     },
     lastUpdated: {
-      text: 'Cập nhật lần cuối',
+      text: 'Last updated',
       formatOptions: { dateStyle: 'medium' }
     },
-    darkModeSwitchLabel: 'Giao diện',
-    lightModeSwitchTitle: 'Chuyển sang giao diện sáng',
-    darkModeSwitchTitle: 'Chuyển sang giao diện tối',
-    sidebarMenuLabel: 'Menu',
-    returnToTopLabel: 'Lên đầu trang',
-    skipToContentLabel: 'Chuyển tới nội dung',
-    langMenuLabel: 'Đổi ngôn ngữ',
-    search: {
-      provider: 'local',
-      options: {
-        translations: {
-          button: { buttonText: 'Tìm kiếm', buttonAriaLabel: 'Tìm kiếm' },
-          modal: {
-            displayDetails: 'Hiện chi tiết',
-            resetButtonTitle: 'Xóa từ khóa',
-            backButtonTitle: 'Đóng tìm kiếm',
-            noResultsText: 'Không có kết quả cho',
-            footer: {
-              selectText: 'chọn',
-              selectKeyAriaLabel: 'enter',
-              navigateText: 'di chuyển',
-              navigateUpKeyAriaLabel: 'mũi tên lên',
-              navigateDownKeyAriaLabel: 'mũi tên xuống',
-              closeText: 'đóng',
-              closeKeyAriaLabel: 'esc'
-            }
-          }
-        }
-      }
-    },
+    search: { provider: 'local' },
     notFound: {
-      title: 'KHÔNG TÌM THẤY TRANG',
-      quote: 'Trang bạn tìm không tồn tại, hoặc đã được đổi địa chỉ.',
-      linkLabel: 'về trang chủ',
-      linkText: 'Quay về trang chủ',
+      title: 'PAGE NOT FOUND',
+      quote: 'The page you are looking for does not exist or has moved.',
+      linkLabel: 'go to home',
+      linkText: 'Back to home',
       code: '404'
     },
     footer: {
       message:
-        'Nội dung tự học, thông tin chốt vào 11/2026. Bốn cuốn được viết lại từ dàn ý ebook của tác giả Huy: xem <a href="/backend-handbook/credits">Nguồn &amp; ghi công</a>.',
+        'Self-study notes, facts checked as of 11/2026. Four books are rewritten from the outlines of ebooks by Huy: see <a href="/backend-handbook/credits">Credits</a>.',
       copyright: 'Backend Handbook'
     }
   }

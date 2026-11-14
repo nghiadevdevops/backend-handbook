@@ -1,10 +1,10 @@
-# Chương 9. Distributed lock
+# Chapter 9. Distributed lock
 
-## 1. Vấn đề
+## 1. The problem
 
 Hai worker cùng nhận một job "gửi email hóa đơn đơn hàng 1001". Nếu cả hai chạy, khách nhận hai email. Cần một **lock** mà mọi worker trên nhiều máy cùng thấy. Redis/Valkey là chỗ dễ nhất để đặt lock đó. Nhưng distributed lock khó hơn lock trong một process: máy có thể chết, mạng có thể trễ, process có thể bị treo giữa chừng (GC pause), và đồng hồ có thể lệch.
 
-## 2. Lock đơn giản: `SET NX PX`
+## 2. A simple lock: `SET NX PX`
 
 ```
 SET lock:invoice:1001 <token-ngẫu-nhiên> NX PX 30000
@@ -34,7 +34,7 @@ Ghi chú: cả Valkey 9.1.3 và Redis 8.10.3 đều có tùy chọn `SET key val
 
 Kết quả lab (cả hai image): `SET lk tokA NX PX 30000` trả `OK`; `SET lk tokB NX PX 30000` trả `nil` (từ chối); `SET lk tokC IFEQ tokA PX 30000` trả `OK` và `GET lk` ra `tokC`; script Lua release với token sai trả `0`, với token đúng trả `1`.
 
-### Vấn đề của lock đơn giản
+### Problems with the simple lock
 
 ```mermaid
 sequenceDiagram
@@ -52,7 +52,7 @@ sequenceDiagram
 
 TTL giải quyết "người giữ chết", nhưng tạo ra "người giữ chưa chết mà lock đã hết hạn". Lock chỉ an toàn nếu công việc luôn kết thúc **trước** khi TTL hết, điều không thể đảm bảo tuyệt đối.
 
-## 3. Redlock và cuộc tranh luận
+## 3. Redlock and the debate
 
 **Redlock** (antirez, tài liệu trên redis.io "Distributed Locks with Redis") nhằm chịu được lỗi một node: dùng **N=5 primary độc lập** (không replication giữa chúng). Client:
 1. lấy thời gian hiện tại;
@@ -74,7 +74,7 @@ TTL giải quyết "người giữ chết", nhưng tạo ra "người giữ chư
 
 Cả hai bài đều có thật và nên đọc nguyên văn (mục Đọc thêm). Thực tế ngành: lập luận của Kleppmann được nhiều người coi là thuyết phục cho trường hợp "correctness"; Redlock được chấp nhận ở trường hợp "tối ưu". Chúng tôi không có khả năng phân xử thay bạn; điều quan trọng là bạn **biết mình cần loại lock nào**.
 
-## 4. Fencing token trong thực tế
+## 4. Fencing tokens in practice
 
 Cấp token bằng `INCR fence:invoice:1001` ngay khi lấy lock (lưu ý: `INCR` này không nhận được bảo đảm nếu failover mất ghi). Đích kiểm tra:
 
@@ -85,7 +85,7 @@ UPDATE invoices SET status='sent', fence=$token
 
 Nếu đích là PostgreSQL, thường **không cần Redis lock**: dùng `UPDATE ... WHERE status='pending'` (compare-and-set), `SELECT ... FOR UPDATE SKIP LOCKED` cho queue, hoặc `pg_advisory_lock`/`pg_try_advisory_xact_lock`. Lock nằm đúng chỗ dữ liệu thì không có vấn đề lease.
 
-## 5. Khi nào KHÔNG dùng Redis làm lock
+## 5. When NOT to use Redis as a lock
 
 - Khi hai bên cùng ghi một tài nguyên **không tự kiểm tra được** token và sai lệch gây mất tiền, mất dữ liệu: dùng constraint/transaction của chính DB đích.
 - Khi cần lock chắc chắn qua failover: asynchronous replication có thể làm mất lock vừa cấp; hai client cùng giữ lock sau failover.
@@ -94,7 +94,7 @@ Nếu đích là PostgreSQL, thường **không cần Redis lock**: dùng `UPDAT
 
 Dùng Redis lock tốt cho: chống chạy trùng job định kỳ, chống stampede (chương 6), rate limiting nhẹ, các tác vụ **idempotent** (chạy hai lần cũng không sao).
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - Không có TTL, hoặc TTL quá ngắn so với công việc.
 - Release bằng `DEL` mù; thiếu token.
@@ -102,14 +102,14 @@ Dùng Redis lock tốt cho: chống chạy trùng job định kỳ, chống stam
 - Dùng lock trên replica hoặc qua proxy không đảm bảo ghi vào primary.
 - Tin rằng Redlock hay bất kỳ lease nào "tuyệt đối an toàn".
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Lock cơ bản: `SET key token NX PX ttl` và release bằng Lua so token.
 - Lease có thể hết hạn khi chủ còn sống; đó là gốc của tranh luận Redlock.
 - Cần correctness tuyệt đối: fencing token hoặc để chính DB kiểm tra; không dựa vào Redis lock.
 - Redis lock hợp cho tối ưu, job idempotent, chống stampede.
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Vì sao phải dùng `NX` và `PX` trong cùng một lệnh `SET`?
 2. Viết script Lua release lock an toàn.
@@ -117,7 +117,7 @@ Dùng Redis lock tốt cho: chống chạy trùng job định kỳ, chống stam
 4. Fencing token hoạt động ra sao?
 5. Nêu hai trường hợp không nên dùng Redis làm lock.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Để lấy lock và đặt hết hạn trong một thao tác atomic; hai lệnh rời có thể kẹt lock nếu chết giữa chừng.
 2. `if redis.call('GET',KEYS[1])==ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end`.

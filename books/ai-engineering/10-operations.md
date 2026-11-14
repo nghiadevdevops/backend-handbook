@@ -1,12 +1,12 @@
-# Chương 10. Vận hành: chi phí, cache, rate limit, fallback, streaming, observability
+# Chapter 10. Operations: Cost, Caching, Rate Limits, Fallback, Streaming, Observability
 
-## 1. Tình huống
+## 1. Scenario
 
 ShopAssist chạy ổn trong tuần đầu. Rồi: giờ cao điểm có 429, vài lần nhà cung cấp trả 5xx và trang CSKH treo 60 giây, hóa đơn tháng gấp ba dự kiến vì một khách hàng dán cả file log 200 nghìn token vào ô hỏi, và không ai biết vì sao một câu trả lời hôm qua sai vì không có log. Chương này là phần "đưa vào production".
 
-## 2. Chi phí
+## 2. Cost
 
-### 2.1 Nắm được tiền đi đâu
+### 2.1 Knowing where the money goes
 
 Ghi **mỗi lượt gọi** vào bảng `llm_calls`: model, phiên bản prompt, input/output token, token đọc/ghi cache, latency, mã trạng thái, `user_id`, `tenant_id`, `feature`. Không có bảng này bạn không điều tối ưu được thứ gì.
 
@@ -28,7 +28,7 @@ CREATE TABLE llm_calls (
 
 Dữ liệu `usage` lấy từ response (Anthropic: `usage.input_tokens`, `usage.cache_read_input_tokens`, `usage.cache_creation_input_tokens`, tra 07/11/2026). Docs Anthropic cho biết mỗi response có header `request-id` và trường `request_id` trong body lỗi: hãy lưu để đưa cho support (SDK TypeScript đưa giá trị này ra qua thuộc tính `_request_id` của response).
 
-### 2.2 Các lever giảm chi phí (theo thứ tự thường hiệu quả)
+### 2.2 Levers for reducing cost (in the order they are usually effective)
 
 1. **Chọn đúng model theo tác vụ** (router nhỏ, chương 2).
 2. **Prompt caching** cho phần prefix ổn định (chương 3): cache đọc rẻ hơn nhiều (bội số 0,05× đến 0,1× giá input tùy model theo docs Anthropic 07/11/2026).
@@ -87,7 +87,7 @@ export async function cachedAnswer(
 }
 ```
 
-## 3. Rate limit và transient error
+## 3. Rate limits and transient errors
 
 Nhà cung cấp áp rate limit (số request và số token theo phút) và có lúc quá tải. Theo trang Errors của Anthropic (07/11/2026): 429 `rate_limit_error` là chạm giới hạn; 500 `api_error` là lỗi nội bộ nên retry với exponential backoff; 504 `timeout_error`; 529 `overloaded_error` là API quá tải tạm thời; có trường hợp 429 do tăng lưu lượng đột ngột ("acceleration limits") nên nên tăng tải từ từ; một 429 do chạm trần chi tiêu của gói **không có** header `retry-after` và sẽ lỗi liên tục cho tới khi hết chặn, nên không retry mù quáng. Khi có `retry-after`, hãy tôn trọng. SDK chính thức của Anthropic tự retry lỗi tạm thời hai lần mặc định với backoff và tôn trọng `retry-after`, theo docs (đổi bằng tùy chọn `maxRetries` ở constructor của client TypeScript).
 
@@ -161,7 +161,7 @@ Hệ quả thực tế: dùng thư viện instrumentation chính thức cập nh
 
 Privacy: nội dung prompt chứa dữ liệu khách; có chính sách lưu, che, và quyền xem (chương 9).
 
-## 7. Trade-off
+## 7. Trade-offs
 
 | Quyết định | Được | Mất |
 |---|---|---|
@@ -171,7 +171,7 @@ Privacy: nội dung prompt chứa dữ liệu khách; có chính sách lưu, che
 | Batch | rẻ | latency cao, không tương tác |
 | Log nội dung đầy đủ | debug tốt | rủi ro dữ liệu, compliance |
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Retry vô hạn hoặc không jitter làm bão retry khi nhà cung cấp quá tải.
 - Không có trần token mỗi request nên một input khổng lồ đốt tiền.
@@ -181,7 +181,7 @@ Privacy: nội dung prompt chứa dữ liệu khách; có chính sách lưu, che
 - Dựa vào tên thuộc tính OTel GenAI cố định khi spec vẫn ở trạng thái Development.
 - Tự xây dashboard chi phí mà dùng giá cũ hard-code.
 
-## 9. Tóm tắt
+## 9. Summary
 
 1. Ghi mọi lượt gọi (model, token, cache, latency, request-id) vào một bảng; đó là nền của kiểm soát chi phí.
 2. Giảm chi phí theo thứ tự: chọn model, prompt caching, cắt context, giới hạn output, batch, application cache, budget cap.
@@ -189,14 +189,14 @@ Privacy: nội dung prompt chứa dữ liệu khách; có chính sách lưu, che
 4. Streaming cải thiện cảm giác chờ nhưng phải xử lý lỗi giữa stream và buffering của proxy.
 5. OTel GenAI semantic conventions đang ở trạng thái Development (07/11/2026): dùng nhưng đừng đóng đinh tên thuộc tính; mặc định không ghi nội dung.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Vì sao cache key ở application layer phải gồm `tenant_id` và phiên bản dữ liệu?
 2. Phân biệt khi nào nên retry và không nên retry theo mã trạng thái.
 3. Hóa đơn tăng đột biến. Bạn tra bảng `llm_calls` theo những chiều nào đầu tiên?
 4. Streaming trả HTTP 200 rồi giữa chừng lỗi. Cần xử lý gì khác với request thường?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Câu trả lời phụ thuộc dữ liệu riêng của tenant và nội dung kho; thiếu tenant gây cross-tenant leakage, thiếu phiên bản dữ liệu gây trả thông tin cũ.
 2. Retry: 429 có `retry-after`, 5xx, timeout, mất kết nối (backoff + jitter, số lần hữu hạn). Không retry: 400/401/403, và 429 do chạm trần chi tiêu không có `retry-after`.

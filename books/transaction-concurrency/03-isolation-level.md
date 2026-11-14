@@ -1,10 +1,10 @@
-# Chương 3. Isolation level: chuẩn SQL và thực tế
+# Chapter 3. Isolation Levels: the SQL Standard and Reality
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn đọc docs: "`REPEATABLE READ` chặn non-repeatable read, cho phép phantom". Rồi bạn chạy thử trên MySQL, thấy phantom bị chặn với `SELECT` nhưng `UPDATE` vẫn dính. Chạy trên PostgreSQL, thấy `REPEATABLE READ` chặn cả phantom nhưng lại ném lỗi `40001`. Chuẩn SQL nói một đằng, mỗi DB làm một nẻo. Chương này cho bạn bảng sự thật, lấy từ kết quả chạy thật, và cách đọc nó.
 
-## 2. Chuẩn SQL nói gì
+## 2. What the SQL standard says
 
 SQL-92 định nghĩa bốn level bằng ba "phenomenon" (hiện tượng) mà mỗi level được phép hay không:
 
@@ -15,7 +15,7 @@ SQL-92 định nghĩa bốn level bằng ba "phenomenon" (hiện tượng) mà m
 | REPEATABLE READ | không | không | được phép |
 | SERIALIZABLE | không | không | không |
 
-### Phê bình của Berenson và cộng sự (1995)
+### The critique by Berenson et al. (1995)
 
 Bài "A Critique of ANSI SQL Isolation Levels" (Berenson, Bernstein, Gray, Melton, O'Neil, O'Neil, SIGMOD 1995) chỉ ra các vấn đề chính:
 
@@ -27,7 +27,7 @@ Bài "A Critique of ANSI SQL Isolation Levels" (Berenson, Bernstein, Gray, Melto
 
 Bài học: đừng đoán hành vi từ tên level. Hãy xem DB cụ thể làm gì, và tốt nhất là tự chạy thử.
 
-## 3. Hai DB, hai cách làm
+## 3. Two databases, two approaches
 
 | | PostgreSQL 18.6 | MySQL 9.7.4 (InnoDB) |
 |---|---|---|
@@ -53,7 +53,7 @@ START TRANSACTION;
 -- SET SESSION TRANSACTION ISOLATION LEVEL ... để đổi mặc định cho cả session
 ```
 
-## 4. Bảng anomaly × level: kết quả ĐÃ CHẠY
+## 4. Anomaly × level table: results actually run
 
 Mỗi ô là một lần chạy thật của `lab/matrix.sh` (hai session đồng thời, xem README). Ký hiệu: **CÓ** = anomaly xảy ra; **không** = không xảy ra (chặn bằng snapshot hoặc bằng chờ lock); **40001/1213** = DB chặn bằng cách hủy một transaction, app phải retry.
 
@@ -87,7 +87,7 @@ Mỗi ô là một lần chạy thật của `lab/matrix.sh` (hai session đồn
 | Write skew, lịch trực | **CÓ** | **CÓ** | **CÓ** | 1213 |
 | Write skew do phantom, đặt phòng | **CÓ** | **CÓ** | **CÓ** | 1213 |
 
-### Đọc bảng
+### Reading the table
 
 - **Mặc định của MySQL (`REPEATABLE READ`) vẫn mất dữ liệu** với lost update dạng read-modify-write ở app, và dính phantom khi có câu ghi. Mặc định của PG (`READ COMMITTED`) cũng dính. Cả hai đều đòi bạn chủ động thiết kế (chương 7 và 8).
 - **`REPEATABLE READ` của hai DB là hai thứ khác nhau**: PG chặn lost update bằng lỗi `40001`, InnoDB để lost update xảy ra (không có phát hiện write conflict dựa trên snapshot, `UPDATE` ghi đè lên bản mới nhất).
@@ -97,7 +97,7 @@ Mỗi ô là một lần chạy thật của `lab/matrix.sh` (hai session đồn
 
 Kết quả chỉ đúng với phiên bản và kịch bản đã ghi. Các kịch bản này kiểm tra *một* hình dạng của mỗi anomaly. Repo Hermitage của Martin Kleppmann (`github.com/ept/hermitage`, còn tồn tại, không bị archive, có kết quả cho PostgreSQL, MySQL, Oracle, SQL Server và nhiều DB khác) có bộ kịch bản đầy đủ hơn nhiều và là tài liệu tham khảo nên đọc. Hermitage không nêu rõ phiên bản DB được thử trên trang chính, vì vậy hãy tự chạy lại nếu cần số liệu cho phiên bản của bạn.
 
-## 5. Chọn level thế nào
+## 5. How to choose a level
 
 ```mermaid
 flowchart TD
@@ -114,7 +114,7 @@ flowchart TD
 - **SERIALIZABLE + retry** (đặc biệt PG): khi logic phức tạp, nhiều dòng, khó lock hết. Cần bộ retry và chấp nhận tỷ lệ abort. Chi phí: bộ nhớ cho predicate lock, false positive.
 - **SERIALIZABLE trên InnoDB**: coi chừng giảm concurrency nặng và deadlock; thường explicit lock dễ kiểm soát hơn.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Gọi `REPEATABLE READ` là "an toàn" mà không biết đang ở DB nào.
 2. Chuyển ứng dụng từ MySQL sang PostgreSQL (hoặc ngược lại) mà không xem lại các chỗ dựa vào hành vi mặc định.
@@ -122,7 +122,7 @@ flowchart TD
 4. Đặt level sau khi đã chạy câu đầu tiên: PG báo lỗi `SET TRANSACTION ISOLATION LEVEL must be called before any query`; MySQL báo lỗi khi đang trong transaction.
 5. Dùng `READ UNCOMMITTED` của MySQL để "tăng tốc": nó đọc cả dữ liệu sẽ bị rollback.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Tên level theo chuẩn SQL không đủ để suy ra hành vi; bài phê bình 1995 chỉ ra lỗ hổng và đưa ra snapshot isolation.
 - PG: RC mặc định; RR là snapshot isolation (lỗi 40001 khi xung đột ghi); SERIALIZABLE là SSI.
@@ -130,14 +130,14 @@ flowchart TD
 - Bảng kết quả đã chạy: chỉ SERIALIZABLE chặn write skew; mặc định của cả hai đều để lost update xảy ra ở dạng read-modify-write ở app (PG RC, MySQL RR).
 - Chặn bằng lỗi thì phải có retry.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. Vì sao snapshot isolation không tương đương serializable?
 2. `REPEATABLE READ` của PG và InnoDB khác nhau thế nào khi hai transaction cùng read-modify-write một dòng?
 3. Cơ chế SERIALIZABLE của PG và InnoDB khác nhau thế nào, hệ quả với code ứng dụng?
 4. Mặc định của PG và MySQL có chặn lost update không?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Snapshot isolation cho phép write skew (hai bên đọc cùng tập, ghi dòng khác nhau); đã chạy được trên PG `REPEATABLE READ`.
 2. PG: bên ghi sau nhận `40001`; InnoDB: ghi đè, lost update xảy ra.

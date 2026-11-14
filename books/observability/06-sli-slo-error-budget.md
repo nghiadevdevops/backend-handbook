@@ -1,17 +1,17 @@
-# Chương 6. SLI, SLO và error budget
+# Chapter 6. SLIs, SLOs and Error Budgets
 
-## 1. Tình huống
+## 1. Scenario
 
 Đội sản phẩm muốn ra tính năng mới mỗi tuần; đội vận hành muốn ít thay đổi để hệ thống ổn định. Mỗi lần có incident hai bên lại tranh cãi cảm tính: "hệ thống đủ tin cậy chưa?". SLO biến câu hỏi đó thành con số, và **error budget** biến sự đánh đổi giữa tốc độ ra tính năng và reliability thành một quy tắc đã thỏa thuận trước.
 
-## 2. Khái niệm
+## 2. Concepts
 
 - **SLI (Service Level Indicator)**: số đo chất lượng dịch vụ **từ góc nhìn người dùng**, thường dạng tỉ lệ `event tốt / event hợp lệ`.
 - **SLO (Service Level Objective)**: mục tiêu cho SLI trong một window thời gian. Ví dụ "99,5% request `GET /order` thành công trong 30 ngày".
 - **SLA (Service Level Agreement)**: cam kết có hệ quả hợp đồng (hoàn tiền) với khách hàng. SLO nội bộ nên **chặt hơn** SLA để có đệm.
 - **Error budget** = `1 − SLO`: phần không-hoàn-hảo được phép. SLO 99,5% nghĩa là 0,5% request được phép lỗi. Budget là tiền tệ để "tiêu" cho rủi ro: deploy, thử nghiệm, bảo trì.
 
-### Chọn SLI
+### Choosing SLIs
 
 Dạng chuẩn: `SLI = good events / valid events × 100%`.
 
@@ -32,7 +32,7 @@ sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SP
 / sum(rate(traces_span_metrics_calls_total{service_name="orders-api",span_kind="SPAN_KIND_SERVER"}[5m]))
 ```
 
-### Cách tính error budget
+### How to compute the error budget
 
 Hai cách quy đổi, nên biết cả hai:
 
@@ -51,14 +51,14 @@ Hai cách quy đổi, nên biết cả hai:
 
 Ví dụ lab: SLO 99,5% → budget 0,005. Khi inventory cấu hình lỗi 5%, error rate đo được ≈ 0,037 đến 0,054, tức burn rate ≈ 7 đến 11, hết budget cả tháng sau khoảng 3 ngày nếu duy trì. Đó là lý do alert `OrdersErrorBudgetBurnSlow` và `...Ticket` bật trong lab (chương 12).
 
-### Chọn SLO
+### Choosing SLOs
 
 - Đừng đặt 100%: không khả thi, và mọi thay đổi đều bị coi là rủi ro. Dependency của bạn (cloud, mạng, thiết bị người dùng) không tin cậy hơn thế.
 - Bắt đầu từ dữ liệu thực tế (reliability hiện tại, mức khách hàng bắt đầu phàn nàn) rồi đặt mục tiêu hơi chặt hơn. SLO có thể chỉnh sau khi học thêm.
 - Window: rolling 28 hoặc 30 ngày là phổ biến; calendar window (tháng) dễ báo cáo nhưng budget "reset" đột ngột.
 - Mỗi hành trình quan trọng một SLO (đặt hàng, tìm kiếm), không gộp tất cả.
 
-### Policy khi hết error budget
+### Policy when the error budget runs out
 
 Error budget policy phải được **thỏa thuận trước** giữa sản phẩm, dev, vận hành và được lãnh đạo ủng hộ; nếu không nó chỉ là tờ giấy. Nội dung điển hình (tham khảo ví dụ trong SRE Workbook):
 
@@ -72,7 +72,7 @@ Error budget policy phải được **thỏa thuận trước** giữa sản ph�
 
 Giá trị lớn nhất của budget: nếu **còn dư** budget mà không dùng thì cũng là signal: có thể đội quá thận trọng, có thể làm thử nghiệm mạnh tay hơn hoặc chặt SLO hơn.
 
-## 3. Ví dụ thực hành
+## 3. Hands-on example
 
 Viết SLO dưới dạng bản mô tả ngắn gọn để cả đội đọc:
 
@@ -84,14 +84,14 @@ Alert: multi-window multi-burn-rate (chương 7); runbook: /runbooks/orders-erro
 Policy: xem bảng trên; chủ sở hữu: đội Orders; xem lại mỗi quý
 ```
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - SLO chặt: người dùng hài lòng hơn nhưng chi phí hạ tầng và tốc độ ra tính năng chịu thiệt; mỗi "9" thêm thường tốn gấp nhiều lần.
 - Đo ở server: dễ, nhưng bỏ sót lỗi trước khi tới server. Đo ở client/LB: sát người dùng hơn, khó lấy hơn.
 - SLO theo event công bằng với tải; theo thời gian dễ giải thích với người ngoài kỹ thuật.
 - **Không dùng** SLO cho hệ thống thử nghiệm hoặc chưa có người dùng thật; cần tuần lễ dữ liệu trước khi chọn mục tiêu.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - SLI đo thứ máy chủ thấy được (CPU) thay vì trải nghiệm người dùng.
 - Đặt SLO theo "cảm giác" hoặc 99,99% khi chưa đo hiện trạng.
@@ -100,14 +100,14 @@ Policy: xem bảng trên; chủ sở hữu: đội Orders; xem lại mỗi quý
 - Dùng trung bình cho SLI latency (che đuôi chậm); dùng tỉ lệ request dưới threshold hoặc percentile.
 - Với tải rất thấp, một lỗi đơn lẻ đã đốt hết budget window ngắn: cần threshold traffic tối thiểu hoặc window dài hơn.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - SLI là tỉ lệ event tốt, đo gần người dùng; SLO là mục tiêu theo window; SLA là cam kết hợp đồng, nên lỏng hơn SLO.
 - Error budget = 1 − SLO; quy đổi theo thời gian (99,9% ≈ 43,2 phút/30 ngày) hoặc theo số request.
 - Burn rate = error rate / budget, là nền tảng của alert (chương 7).
 - Policy khi hết budget phải thỏa thuận trước và thực thi thật.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. SLO 99,9% trong 30 ngày cho phép bao nhiêu phút ngừng hoạt động tương đương?
 2. Dịch vụ 90 triệu request/tháng, SLO 99,5%: cho phép bao nhiêu request lỗi?
@@ -115,7 +115,7 @@ Policy: xem bảng trên; chủ sở hữu: đội Orders; xem lại mỗi quý
 4. Vì sao SLO nội bộ nên chặt hơn SLA?
 5. Nêu hai hành động trong policy khi hết budget.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. 0,1% × 43.200 = 43,2 phút.
 2. 0,5% × 90.000.000 = 450.000.

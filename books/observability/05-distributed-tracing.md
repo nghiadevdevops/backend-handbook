@@ -1,12 +1,12 @@
-# Chương 5. Distributed tracing
+# Chapter 5. Distributed Tracing
 
-## 1. Tình huống
+## 1. Scenario
 
 `GET /order` mất 900 ms. `orders-api` gọi `inventory-svc`, `inventory-svc` query DB. Metric nói "p95 chậm" nhưng không nói chậm **ở chặng nào**. Log từng service chỉ cho thấy từng mảnh. Cần một bản ghi nối cả hành trình của *một* request qua mọi service: đó là **distributed trace**.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### Trace, span
+### Traces and spans
 
 - **Trace**: toàn bộ hành trình của một yêu cầu, có một `trace_id` (16 byte, 32 ký tự hex).
 - **Span**: một đoạn công việc có tên, thời điểm bắt đầu/kết thúc, `span_id` (8 byte, 16 hex), `parent_span_id`, loại (kind), attribute, event, trạng thái (`UNSET`, `OK`, `ERROR`).
@@ -21,7 +21,7 @@ orders-api    GET /order                 (SERVER)
          └─ inventory-svc  SELECT stock  (CLIENT, db.system.name=postgresql)
 ```
 
-### Context propagation và W3C Trace Context
+### Context propagation and W3C Trace Context
 
 Để `inventory-svc` biết nó thuộc trace nào, `orders-api` phải truyền ngữ cảnh qua header HTTP. Chuẩn là **W3C Trace Context** (khuyến nghị chính thức của W3C từ 2021; OTel dùng làm propagator mặc định):
 
@@ -65,7 +65,7 @@ Chú ý quan hệ với metric: nếu sinh metric RED từ span (như lab) thì 
 
 Chọn backend: Jaeger đủ cho học tập và hệ thống vừa nếu cấu hình storage phù hợp; Tempo hợp khi đã dùng hệ Grafana và cần traffic lớn rẻ trên object storage.
 
-## 3. Ví dụ từ lab
+## 3. Example from the lab
 
 Query Jaeger API v3 từ container `curl` (đã chạy thật):
 
@@ -81,14 +81,14 @@ curl -s -G http://jaeger:16686/api/v3/traces \
 
 Lưu ý: `query.start_time_min/max` bắt buộc; `query.attributes` là JSON với **giá trị chuỗi** (`"502"`; truyền số 502 không khớp). Tìm theo attribute này ra 3 trace lỗi, đúng với yêu cầu "tìm trace lỗi của orders-api" ở chương 1.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - **Trace đầy đủ** giúp chẩn đoán nhưng tốn: số span = số chặng × số request. Hãy bắt đầu với head sampling thấp và tail sampling giữ lỗi/chậm.
 - **Nhiều span quá nhỏ** (mỗi hàm một span) làm trace khó đọc và tốn tiền; span nên ở ranh giới quan trọng: gọi ra ngoài, query DB, đoạn xử lý đáng kể.
 - **Attribute**: nhiều attribute nghiệp vụ (`order.id`, `customer.tier`) làm trace có giá trị; nhưng không đưa dữ liệu nhạy cảm vào.
 - **Go và Node.js**: export span ở nền theo batch (`BatchSpanProcessor`), gần như không tăng latency request; chi phí là bộ nhớ đệm và nguy cơ mất span cuối nếu quên `Shutdown` khi tắt service (chương 2).
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Quên truyền context qua queue, job bất đồng bộ, hoặc dùng HTTP client không được instrument: trace đứt.
 - Tail sampling ở nhiều Collector mà không routing theo trace ID: trace bị cắt nhỏ, quyết định sai.
@@ -97,14 +97,14 @@ Lưu ý: `query.start_time_min/max` bắt buộc; `query.attributes` là JSON v�
 - Nhầm Jaeger v1 và v2: API và cấu hình khác nhau (v2 dùng cấu hình kiểu Collector).
 - Dùng URL đầy đủ làm tên span (`GET /orders/8731`) gây cardinality cao cho metric sinh từ span; dùng route (`GET /orders/{id}`).
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Trace = cây span nối các service qua `trace_id`; span kind giúp backend hiểu quan hệ.
 - W3C Trace Context (`traceparent`) là chuẩn truyền context; phải truyền ở mọi chặng, kể cả queue.
 - Head sampling rẻ nhưng mù trước kết quả; tail sampling giữ trace đáng giá nhưng tốn tài nguyên và cần routing theo trace ID.
 - Jaeger 2.23.0 (API `/api/v3`) chạy được trong lab; Tempo 3.0 là lựa chọn quy mô lớn (chưa chạy thử).
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Giải thích các phần của `traceparent`.
 2. Vì sao một chặng quên truyền header làm trace bị đứt?
@@ -112,7 +112,7 @@ Lưu ý: `query.start_time_min/max` bắt buộc; `query.attributes` là JSON v�
 4. Vì sao connector sinh metric RED nên đặt trước bước tail sampling?
 5. Trong Jaeger v2.23, bạn gọi API nào để liệt kê service?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `version-traceid-parentid-flags`: phiên bản, 32 hex trace ID, 16 hex span ID của bên gọi, cờ (bit 01 = sampled).
 2. Service sau không có trace ID/parent để dùng nên tạo trace mới; hai nửa không nối với nhau.

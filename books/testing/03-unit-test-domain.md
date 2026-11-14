@@ -1,10 +1,10 @@
-# Chương 3. Unit test cho domain: output, state, communication
+# Chapter 3. Unit tests for the domain: output, state, communication
 
-## 1. Tình huống
+## 1. Scenario
 
 `Order.total()` có quy tắc giảm 10% từ 1.000.000 đ. Một dev sửa `>=` thành `>` "cho hợp lý", và đơn đúng 1.000.000 đ bị tính sai suốt hai tuần. Không test nào kiểm tra đúng biên. Domain là nơi chứa logic quý nhất, rẻ nhất để test (không I/O), nên đáng đầu tư nhất.
 
-## 2. Ba kiểu kiểm tra
+## 2. Three kinds of verification
 
 Khorikov chia theo thứ ta kiểm tra:
 
@@ -16,7 +16,7 @@ Khorikov chia theo thứ ta kiểm tra:
 
 Domain tốt nên nghiêng về output và state. Communication để dành cho system boundary (chương 4).
 
-## 3. Output: pure function
+## 3. Output: pure functions
 
 Lấy từ `lab/tests/unit/order.test.ts`. Kiểm tra ngay hai bên của biên:
 
@@ -53,7 +53,7 @@ it.each([
 
 Tên ca (`%s` lấy từ phần tử đầu của mỗi hàng) hiện trong báo cáo, nên khi một ca đỏ bạn biết ngay ca nào. `node:test` cũng làm được việc tương tự bằng vòng lặp quanh `it(...)`; lab chọn Vitest vì cần thêm snapshot, mock và runner của StrykerJS (chương 11).
 
-## 4. State: command thay đổi state
+## 4. State: commands that change state
 
 ```ts
 it('placing a draft order records status and time', () => {
@@ -80,7 +80,7 @@ it('paid order cannot be cancelled', () => {
 });
 ```
 
-## 5. Aggregate: test qua root
+## 5. Aggregates: test through the root
 
 `Order` là aggregate root; `OrderLine` chỉ được tạo/đổi qua `Order.addLine`. Vì vậy chỉ cần test qua `Order`, không test `OrderLine` riêng lẻ trừ khi nó có logic độc lập. Ví dụ invariant (bất biến) "tối đa 5 dòng":
 
@@ -97,19 +97,19 @@ it('allows at most five lines', () => {
 
 Test invariant của aggregate là loại test giá trị nhất ở domain: nếu ai đó phá bất biến, test đỏ ngay. Với `toThrow(new DomainError('...'))`, Vitest so khớp theo `message`; nếu cần chắc cả class, thêm một assertion `toThrow(DomainError)` như ví dụ ở mục 4.
 
-## 6. Tên test và cấu trúc
+## 6. Test names and structure
 
 - Đặt tên theo **hành vi**, không theo tên method: `cannot place an order twice`, không phải `test place 2`.
 - Cấu trúc Arrange-Act-Assert (hoặc Given-When-Then), mỗi test một hành vi. Một test có thể có nhiều assertion nếu chúng cùng mô tả một hành vi.
 - Dùng builder để chỉ nêu dữ liệu liên quan (chương 12).
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Unit test domain nhanh, không brittle, nên *nên* viết rộng rãi.
 - KHÔNG cần test getter/setter tầm thường hoặc code không có logic. Chúng sẽ được chạy gián tiếp qua test hành vi.
 - Không nên mở public API chỉ để test. Nếu muốn test cái gì đó private, thường nó là một khái niệm domain chưa được đặt tên: tách thành value object.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Dùng `as any`, `@ts-ignore` hay `(obj as unknown as {...})` để đọc/ghi field private: test dính chặt implementation, và TypeScript strict đang cố ngăn bạn làm điều đó.
 - Dùng `new Date()`/`Math.random()` bên trong domain làm test non-deterministic. Truyền vào qua parameter hoặc port `Clock`.
@@ -117,21 +117,21 @@ Test invariant của aggregate là loại test giá trị nhất ở domain: n�
 - Chỉ test happy path, bỏ biên và ca vi phạm quy tắc.
 - `Money` lưu số nguyên trong `number`: an toàn đến `Number.MAX_SAFE_INTEGER` (khoảng 9 triệu tỷ). Lab kiểm tra bằng `Number.isSafeInteger` ở constructor; với tiền có phần thập phân hoặc số rất lớn hãy dùng `bigint`.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Ưu tiên kiểm tra output và state; communication chỉ ở biên.
 - Test hai phía của mọi biên (999.999 và 1.000.000).
 - Test aggregate qua root; test invariant là loại test giá trị nhất.
 - Đưa thời gian và ngẫu nhiên vào từ ngoài để test deterministic.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Vì sao `place(now: Date)` dễ test hơn việc gọi `new Date()` trong thân hàm?
 2. Khi nào kiểm tra communication ở domain là dấu hiệu xấu?
 3. Tại sao test cả `999_999` và `1_000_000`?
 4. Muốn test một hàm private phức tạp, nên làm gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Thời gian trở thành parameter nên test điều khiển được và kết quả deterministic; không cần fake timer.
 2. Khi domain mock lẫn nhau (entity gọi entity): test gắn với cấu trúc nội bộ và brittle khi refactor; domain nên kiểm tra output/state.

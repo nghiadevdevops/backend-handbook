@@ -1,6 +1,6 @@
-# Chương 7. Kỹ thuật index nâng cao: expression, partial index, low-cardinality column, điều kiện "ma", giới hạn kích thước, unique và NULL
+# Chapter 7. Advanced Index Techniques: Expression, Partial Index, Low-Cardinality Columns, "Ghost" Conditions, Size Limits, Unique and NULL
 
-## 7.1 Expression index (functional index): mỗi DB một kiểu
+## 7.1 Expression index (functional index): each database does it differently
 
 Khi không thể viết lại query để tránh bọc cột trong function (chương 3), ta index chính **kết quả của function**. Đây không phải "giải pháp chung cho mọi DB"; mỗi hệ có cú pháp và giới hạn riêng:
 
@@ -41,7 +41,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM orders WHERE created_at::date = '2024-06-01';
 
 Khi có thể, range trên cột gốc luôn tốt hơn (không tốn thêm index).
 
-### Generated column: bản MySQL có phép màu nhỏ
+### Generated column: the MySQL version has a little magic
 
 ```sql
 -- MySQL
@@ -66,7 +66,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM orders WHERE created_day = '2024-06-01' AND st
 ```
 Hai dạng này (generated column + multicolumn index) còn có lợi thế: gộp được với `status` thành một index.
 
-## 7.2 Partial index (chỉ PostgreSQL; MySQL làm cách khác)
+## 7.2 Partial index (PostgreSQL only; MySQL does it differently)
 
 Index chỉ chứa các dòng thỏa một điều kiện. Rất hợp với "việc đang mở", "chưa xóa", "hiếm gặp".
 
@@ -84,7 +84,7 @@ SELECT pg_size_pretty(pg_relation_size('users_status_idx')) AS full_idx,
 
 MySQL **không có partial index**. Thay thế: generated column trả về NULL với dòng không cần index + index trên cột đó (NULL vẫn nằm trong index nhưng gọn), hoặc tách bảng.
 
-## 7.3 Low-cardinality column (boolean, status)
+## 7.3 Low-cardinality columns (boolean, status)
 
 Index riêng trên cột chỉ có 2 đến 5 giá trị thường vô ích (chương 5): phần lớn dòng khớp thì sequential scan rẻ hơn. Nhưng "vô ích" không phải tuyệt đối: nó hữu ích khi **query tìm giá trị hiếm**.
 
@@ -99,11 +99,11 @@ Chiến lược:
 - Đặt cột low-cardinality **vào multicolumn index** cùng cột tìm kiếm chính (`(status, created_at)`), hoặc làm partial index (PG) cho giá trị hiếm, thay vì index riêng.
 - Với PostgreSQL 18 và MySQL (skip scan), một cột low-cardinality ở đầu index không còn "giết" index như trước (chương 2).
 
-## 7.4 Biến range thành equality
+## 7.4 Turning a range into equality
 
 Multicolumn secondary indexc vụ tốt nhất khi đa số cột dùng `=`. Nếu query thường lọc theo "khoảng thời gian" nhưng cũng chỉ cần độ phân giải theo ngày, ta thêm một cột **bucket** (ngày, tháng, nhóm giá) rồi dùng `=`/`IN` trên bucket. Ví dụ ở 7.1: cột `created_day`. Thay vì range qua `created_at`, query "ngày 2024-06-01, trạng thái paid" thành hai điều kiện `=`. Đánh đổi: thêm cột và thêm chi phí ghi; chỉ làm khi query đó rất nóng.
 
-## 7.5 Điều kiện "ma": giúp database mà không đổi kết quả
+## 7.5 "Ghost" conditions: helping the database without changing results
 
 Đôi khi bạn biết một **business constraint** mà database không biết; thêm điều kiện thừa (về mặt logic) cho nó một điểm bắt đầu.
 
@@ -125,7 +125,7 @@ WHERE shipped_at >= '2024-06-01' AND shipped_at < '2024-06-02'
 ```
 Kết quả đếm giống nhau, miễn business constraint thực sự đúng. Nếu constraint sai trong dữ liệu thật, bạn đã **âm thầm làm mất dòng**; nên có `CHECK` constraint hoặc kiểm tra định kỳ.
 
-## 7.6 Tìm theo vị trí: hai điều kiện range đụng nhau
+## 7.6 Searching by position: two conflicting range conditions
 
 `WHERE lat BETWEEN a AND b AND lng BETWEEN c AND d`: multicolumn B-tree `(lat, lng)` chỉ dùng được range đầu (nguyên tắc 4). Hai index đơn có thể kết hợp (PostgreSQL: `BitmapAnd`). Giải pháp đúng cho dữ liệu hai chiều là spatial index:
 
@@ -148,7 +148,7 @@ WHERE MBRContains(ST_GeomFromText('POLYGON((10 105,10 105.2,10.2 105.2,10.2 105,
 ```
 Lưu ý thứ tự trục: với SRID 4326 (hệ địa lý), `ST_GeomFromText` đọc WKT theo thứ tự (vĩ độ, kinh độ), còn `POINT(x, y)` trong `ST_SRID(POINT(...), 4326)` theo (kinh độ, vĩ độ) trong thử nghiệm ở 9.7.4. Sai thứ tự sẽ báo lỗi "latitude out of range" hoặc cho kết quả sai.
 
-## 7.7 Giới hạn kích thước một index entry
+## 7.7 Size limit of an index entry
 
 **PostgreSQL**: một entry B-tree (btree version 4) không được vượt khoảng 1/3 page, tức **2704 byte**. Giá trị lớn hơn (sau khi nén, nếu nén được) bị từ chối khi tạo index hoặc khi chèn:
 
@@ -178,7 +178,7 @@ CREATE INDEX big3_idx ON big3 (t(100));   -- prefix index: chỉ 100 ký tự đ
 ```
 Thay thế tốt hơn prefix: generated hash column và index trên đó, ví dụ `body_hash BINARY(32) GENERATED ALWAYS AS (UNHEX(SHA2(body, 256))) STORED, KEY (body_hash)`, query kèm `body = ...` để loại collision (đã kiểm: `key: body_hash`). Lưu ý riêng MySQL: từ **9.6**, các function `MD5()`, `SHA()`, `SHA1()` **không còn built-in** (gỡ bỏ sau khi bị đánh dấu deprecated từ 9.4); chạy thử trên 9.7.4 báo `FUNCTION ... does not exist`. Dùng `SHA2()`, hoặc cài component `component_classic_hashing` (function do component cung cấp không dùng được trong generated column, theo tài liệu MySQL). Ví dụ code cũ viết `SHA1(...)` hay `MD5(...)` trong schema MySQL sẽ vỡ khi nâng cấp.
 
-## 7.8 Unique constraint và NULL
+## 7.8 Unique constraints and NULL
 
 Theo chuẩn SQL, NULL không bằng NULL, nên `UNIQUE` cho phép **nhiều dòng NULL** (cả hai DB đã kiểm):
 
@@ -224,7 +224,7 @@ CREATE TABLE acct (
 ```
 (`IF()` là function MySQL-only; PostgreSQL dùng `CASE`.) MySQL cũng có functional unique index: `CREATE UNIQUE INDEX u3_i ON u3 ((LOWER(e)))` chặn `'A'` và `'a'` (đã kiểm).
 
-## 7.9 Cạm bẫy thường gặp
+## 7.9 Common pitfalls
 
 - PostgreSQL: expression không immutable, hoặc query viết khác expression trong index.
 - MySQL: quên ngoặc đôi trong functional index.
@@ -232,7 +232,7 @@ CREATE TABLE acct (
 - Thêm "điều kiện ma" dựa trên giả định sai về dữ liệu.
 - Mong `UNIQUE` chặn nhiều NULL (không chặn) hoặc phụ thuộc vào `MD5`/`SHA1` trong MySQL 9.6 trở lên.
 
-## 7.10 Tóm tắt
+## 7.10 Summary
 
 - Functional index có cú pháp riêng ở mỗi DB: PG (function immutable, khớp đúng expression), MySQL 8.0.13+ (ngoặc đôi), hệ khác dùng computed/generated column.
 - Partial index là công cụ mạnh của PostgreSQL; MySQL dùng generated column.
@@ -240,7 +240,7 @@ CREATE TABLE acct (
 - PostgreSQL: entry B-tree tối đa 2704 byte; MySQL InnoDB: key tối đa 3072 byte; cả hai cần hash hoặc prefix cho chuỗi dài.
 - `UNIQUE` cho nhiều NULL; PG 15+ có `NULLS NOT DISTINCT`, MySQL dùng generated column.
 
-## 7.11 Tự kiểm tra
+## 7.11 Self-check
 
 1. Vì sao `CREATE INDEX ON orders ((created_at::date))` lỗi trên PostgreSQL khi `created_at` là `timestamptz`?
 2. Cú pháp functional index của MySQL khác PostgreSQL ở điểm nào dễ sai nhất?
@@ -248,7 +248,7 @@ CREATE TABLE acct (
 4. Giới hạn kích thước entry B-tree của PostgreSQL là bao nhiêu và cách vượt?
 5. Làm sao đảm bảo `email` duy nhất chỉ trong số tài khoản chưa xóa ở PostgreSQL và ở MySQL?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Phép cast `timestamptz` sang `date` phụ thuộc time zone của session nên không IMMUTABLE; dùng `AT TIME ZONE 'UTC'` trước khi cast.
 2. MySQL cần ngoặc đôi `((LOWER(email)))`.

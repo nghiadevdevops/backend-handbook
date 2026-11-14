@@ -1,10 +1,10 @@
-# Chương 4. Log
+# Chapter 4. Logs
 
-## 1. Tình huống
+## 1. Scenario
 
 Khách báo "đơn #8731 đặt không được". Bạn `grep` log của `orders-api` ra 40.000 dòng text tự do, mỗi dòng một kiểu, không biết dòng nào thuộc request đó, và `inventory-svc` có log riêng ở máy khác. Đồng thời hóa đơn lưu trữ log tăng gấp ba sau khi ai đó bật level DEBUG ở production. Chương này giải quyết ba vấn đề: **dễ query**, **nối được với trace**, **kiểm soát chi phí và dữ liệu nhạy cảm**.
 
-## 2. Khái niệm
+## 2. Concepts
 
 ### Structured logging
 
@@ -21,7 +21,7 @@ Ghi mỗi event thành một bản ghi có trường (thường JSON, một dòn
 
 Quy tắc: message (`msg`) là hằng số ngắn, mọi biến số đi vào trường riêng. Tên trường nhất quán (`service`, `level`, `trace_id`); nên bám semantic conventions của OTel khi có thể.
 
-### Correlation với trace ID
+### Correlation with trace IDs
 
 Mỗi bản ghi log trong phạm vi một request mang `trace_id` và `span_id` của span đang hoạt động. Từ trace thấy span lỗi, bạn lọc log theo `trace_id` ra toàn bộ log của *đúng request đó*, ở mọi service. Mô hình log của OpenTelemetry có sẵn hai trường này; với thư viện log có sẵn, thường chỉ cần một processor/formatter chèn chúng vào. Code của lab:
 
@@ -55,7 +55,7 @@ Kết quả kiểm chứng trong lab: log `"msg":"inventory failed (500)"` ở `
 
 Ngoại lệ hữu ích: bật DEBUG **theo từng request** (ví dụ header `X-Debug` do nhân viên đăng nhập gửi) thay vì cho toàn hệ thống.
 
-### Chi phí và sampling
+### Cost and sampling
 
 Chi phí log ≈ số event × kích thước × thời gian lưu. Cách kiểm soát:
 
@@ -65,7 +65,7 @@ Chi phí log ≈ số event × kích thước × thời gian lưu. Cách kiểm 
 4. **Phân tầng lưu trữ**: 7 ngày tìm kiếm nhanh, sau đó nén/lưu rẻ.
 5. **Đặt hạn mức** theo service để một service ồn ào không nhấn chìm cả hệ thống.
 
-### Không ghi dữ liệu nhạy cảm
+### Do not log sensitive data
 
 Log thường được nhiều người đọc và lưu lâu: không ghi mật khẩu, token, số thẻ, CMND/CCCD, nội dung request thô. Biện pháp:
 
@@ -74,7 +74,7 @@ Log thường được nhiều người đọc và lưu lâu: không ghi mật k
 - Chú ý các nơi lọt: URL có query chứa token, message exception chứa câu SQL với giá trị, header `Authorization`.
 - Dữ liệu cá nhân còn chịu quy định (ví dụ Nghị định 13/2023/NĐ-CP của Việt Nam về bảo vệ dữ liệu cá nhân): coi log là nơi lưu dữ liệu cá nhân nếu có chứa.
 
-## 3. Ví dụ thực hành
+## 3. Hands-on example
 
 Query theo trace trong lab (log ở stdout của container, đọc bằng `docker logs`):
 
@@ -86,14 +86,14 @@ docker logs bookcheck-obsgo-inventory 2>&1 | grep d2e0b9dec2892c36e766df3a58a7c3
 
 Tìm hiểu số lượng: trong lab chỉ riêng "stock reserved" ở INFO đã sinh một dòng cho mỗi request thành công (gần 300 dòng cho 300 request). Đây là ví dụ của log "có thể bỏ" vì metric `calls_total` và trace đã chứa thông tin tương đương.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - **Log vs trace**: log giàu và rẻ để phát, trace cho cấu trúc nhân quả. Dùng log cho event nghiệp vụ và lỗi; dùng trace cho đường đi và latency.
 - **JSON vs text**: JSON máy đọc tốt hơn nhưng khó đọc bằng mắt khi dev local: dùng formatter text ở local, JSON ở production.
 - **Sampling log**: tiết kiệm nhưng có thể mất đúng dòng cần; luôn giữ lỗi và log trong trace bị giữ.
 - **Gửi log qua OTel (OTLP) hay thu thập từ stdout** (agent như Fluent Bit): stdout là cách đơn giản nhất trên container; OTLP logs (Stable với Java; Go có API/SDK stable từ v1.47.0 nhưng bridge `slog` còn v0; JavaScript và Python còn Development) cho ngữ cảnh trace tự động nhưng cần SDK log. Lab dùng stdout.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Message có biến số trong chuỗi (`"order $id failed"`) làm không nhóm được lỗi cùng loại.
 - Ghi log trong vòng lặp nóng; ghi cả stack trace cho lỗi dự kiến, lặp lại hàng nghìn lần.
@@ -102,14 +102,14 @@ Tìm hiểu số lượng: trong lab chỉ riêng "stock reserved" ở INFO đã
 - Đồng hồ lệch giữa máy làm sai thứ tự event; luôn ghi UTC, ISO 8601.
 - Lộ dữ liệu nhạy cảm qua message exception.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Log có cấu trúc, message cố định, biến số vào trường.
 - `trace_id` và `span_id` trong mỗi bản ghi là cầu nối giữa log và trace.
 - Kiểm soát chi phí bằng cách ghi ít hơn, sampling INFO, giữ ERROR, phân tầng lưu trữ.
 - Không ghi dữ liệu nhạy cảm; che ở nguồn và lọc thêm ở Collector.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Vì sao message log nên là hằng số và đưa biến vào trường riêng?
 2. Làm sao từ một span lỗi tìm được toàn bộ log của request đó ở mọi service?
@@ -117,7 +117,7 @@ Tìm hiểu số lượng: trong lab chỉ riêng "stock reserved" ở INFO đã
 4. Kể 3 nơi dữ liệu nhạy cảm hay lọt vào log mà dev ít để ý.
 5. Khi nào nên bật DEBUG theo từng request thay vì toàn service?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Để nhóm, đếm, alert theo loại lỗi; message có biến thì mỗi dòng một chuỗi khác nhau, không gom được.
 2. Lọc log theo `trace_id` của span đó; mọi service nhận traceparent đều ghi cùng ID.

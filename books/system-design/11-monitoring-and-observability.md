@@ -1,15 +1,15 @@
-# Chương 11. Monitoring và Observability (kèm OpenTelemetry)
+# Chapter 11. Monitoring and Observability (with OpenTelemetry)
 
 > Cập nhật: 2026-11-07.
 
-## 11.1 Monitoring và observability khác nhau thế nào?
+## 11.1 How do monitoring and observability differ?
 
 - **Monitoring**: theo dõi các metric và threshold *đã biết trước* để biết "có gì hỏng không" (CPU > 90%, tỉ lệ lỗi > 1%). Trả lời câu hỏi bạn đã nghĩ ra từ trước.
 - **Observability**: khả năng suy ra internal state của hệ thống từ dữ liệu telemetry nó phát ra, để trả lời cả những câu hỏi *chưa nghĩ tới* ("vì sao riêng khách hàng ở region X dùng Android 14 bị chậm?"). Cần dữ liệu giàu ngữ cảnh (high-dimensional, high cardinality), có thể trace xuyên service.
 
 Monitoring là một phần của observability; hệ phân tán nhiều service cần cả hai.
 
-## 11.2 Ba loại signal
+## 11.2 The three signal types
 
 ```mermaid
 flowchart LR
@@ -29,7 +29,7 @@ Quy tắc thực hành:
 - Không ghi dữ liệu nhạy cảm (mật khẩu, token, số thẻ) vào log.
 - Với metric, tránh label có *cardinality* cực cao (user ID làm label) vì phình chi phí; dữ liệu theo từng user thuộc về log/trace.
 
-## 11.3 Metric nên đo
+## 11.3 Which metrics to measure
 
 - **Bốn Golden Signals (sách SRE của Google)**: *latency*, *traffic*, *errors*, *saturation*.
 - **RED** (cho service): Rate, Errors, Duration.
@@ -46,13 +46,13 @@ Quy tắc thực hành:
 - Mỗi alert phải *có hành động và runbook*; tránh alert fatigue. Phân biệt page (on-call) và ticket (xử lý giờ hành chính).
 - Đo từ góc nhìn người dùng: **synthetic monitoring** và RUM (real user monitoring) bổ sung cho metric phía server. *Dashboard* cho từng dịch vụ: golden signals ở trên cùng.
 
-## 11.5 Distributed tracing và context propagation
+## 11.5 Distributed tracing and context propagation
 
 Một request đi qua gateway → service A → service B → DB. Mỗi bước tạo một **span**; chúng chia sẻ **trace ID**; thông tin này đi kèm các request (ví dụ qua header W3C `traceparent`). Nhờ vậy dựng lại được call tree và biết 300 ms mất ở đâu.
 
 **Sampling**: không thể lưu 100% trace ở quy mô lớn. *Head-based* (quyết định ở đầu, rẻ, có thể bỏ mất trace lỗi hiếm) và *tail-based* (quyết định sau khi trace hoàn tất, giữ lại trace lỗi/chậm, cần buffer ở Collector).
 
-## 11.6 OpenTelemetry (OTel): chuẩn hiện nay
+## 11.6 OpenTelemetry (OTel): the current standard
 
 **OpenTelemetry** là dự án open source của CNCF, cung cấp API/SDK, data format và protocol chung (**OTLP**) cho traces, metrics, logs, **vendor-neutral**. Ý tưởng: gắn instrumentation *một lần* bằng OTel, rồi gửi tới backend nào cũng được (Jaeger, Tempo, Prometheus-tương thích, Datadog, Grafana Cloud…) mà không phải đổi code.
 
@@ -79,15 +79,15 @@ flowchart LR
 
 Hệ sinh thái: **Jaeger v2** (phát hành 2024-11) được xây trên nền OpenTelemetry Collector; sách và tài liệu cũ nhắc Jaeger v1 và các client riêng của Jaeger đã lỗi thời (nguồn thứ cấp nói v1 end of life cuối 2025; hãy kiểm tra trang Jaeger). **Grafana Tempo** (backend trace), **Prometheus** (metrics), **Loki** (logs) là các lựa chọn open source thường kết hợp với OTel.
 
-### Về Lightstep và các công cụ cũ
+### On Lightstep and older tools
 
 Tài liệu cũ hay nhắc **Lightstep**. Tình trạng hiện tại: Lightstep được ServiceNow mua năm 2021, đổi tên **ServiceNow Cloud Observability** (2023), và **đã công bố end of life**: thông báo ngày 2025-08-25, hỗ trợ kết thúc **2026-03-01** hoặc hết hợp đồng, tùy mốc nào muộn hơn; ServiceNow nói sẽ không có sản phẩm thay thế tương đương và không có đường chuyển đổi trực tiếp. Bài học: **đừng bị lock-in vào API riêng của một nhà cung cấp**; dùng instrumentation chuẩn OTel để dễ đổi backend. Tương tự, OpenTracing và OpenCensus đã được hợp nhất vào OpenTelemetry.
 
-## 11.7 Quy trình debug mẫu
+## 11.7 A sample debugging workflow
 
 Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc theo version/region → mở một trace lỗi mẫu để thấy span thanh toán timeout → nhảy tới log cùng `trace_id` ở dịch vụ thanh toán → thấy cạn connection pool → rollback/khắc phục → viết blameless postmortem và thêm alert/SLO.
 
-## 11.8 Đánh đổi
+## 11.8 Trade-offs
 
 | Quyết định | Được | Mất |
 |---|---|---|
@@ -97,14 +97,14 @@ Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc t
 | Self-host backend | Kiểm soát, rẻ ở quy mô lớn | Công sức vận hành |
 | Dùng SaaS | Nhanh, ít vận hành | Chi phí theo lượng dữ liệu, rủi ro nhà cung cấp (xem Lightstep) |
 
-## 11.9 Khi phỏng vấn nên nói gì
+## 11.9 What to say in an interview
 
 - "Em đo bốn golden signals cho mỗi service, alert theo SLO bằng burn-rate, không theo CPU."
 - "Em instrument bằng OpenTelemetry và gửi OTLP tới Collector; nhờ vậy backend (trace/metric/log) thay đổi được mà không sửa code."
 - "Log JSON có trace_id để nối với trace; trace lấy mẫu, giữ lại 100% trace lỗi bằng tail sampling."
 - "Em đặt SLO 99,9% cho checkout, error budget 43 phút mỗi tháng quyết định có tiếp tục ra tính năng không."
 
-## 11.10 Cạm bẫy
+## 11.10 Pitfalls
 
 - Chỉ monitoring CPU/RAM mà không monitoring trải nghiệm người dùng.
 - Báo trung bình latency thay vì percentile.
@@ -115,7 +115,7 @@ Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc t
 - Ghi dữ liệu nhạy cảm vào log.
 - Coi OTel profiles là ổn định (hiện còn development).
 
-## 11.11 Tóm tắt
+## 11.11 Summary
 
 1. Monitoring trả lời câu hỏi đã biết; observability cho phép hỏi câu mới.
 2. Ba signal: metrics, logs, traces; nối bằng trace ID.
@@ -123,7 +123,7 @@ Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc t
 4. OpenTelemetry (OTLP, Collector) là chuẩn trung lập; traces/metrics/logs đã stable, profiles còn development.
 5. Lightstep/ServiceNow Cloud Observability đã ngừng; tránh vendor lock-in.
 
-## 11.12 Câu hỏi tự kiểm tra
+## 11.12 Self-check questions
 
 1. Khác biệt monitoring và observability?
 2. Nêu bốn golden signals.
@@ -132,7 +132,7 @@ Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc t
 5. Lợi ích của OpenTelemetry Collector là gì?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Monitoring theo dõi metric và threshold định sẵn; observability cho phép khám phá nguyên nhân những vấn đề chưa lường trước từ telemetry giàu ngữ cảnh.
 2. Latency, traffic, errors, saturation.
@@ -142,7 +142,7 @@ Alert "tỉ lệ lỗi checkout 5%" → xem dashboard golden signals → lọc t
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - OpenTelemetry signal status: https://opentelemetry.io/docs/specs/status/
 - Lightstep/Cloud Observability end of life: https://docs.lightstep.com/changelog/eol-notice (qua kết quả tìm kiếm; đối chiếu thêm các bài bên thứ ba)

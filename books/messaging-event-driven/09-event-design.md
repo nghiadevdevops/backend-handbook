@@ -1,10 +1,10 @@
-# Chương 9. Thiết kế event: loại event, schema, versioning, CloudEvents, schema registry
+# Chapter 9. Event design: event types, schema, versioning, CloudEvents, schema registry
 
-## 1. Tình huống
+## 1. Scenario
 
 Team Order thêm field, đổi `total` từ integer sang string, rồi deploy. Ba consumer của ba team khác cùng vỡ. Event là **public contract** giữa các service; thiết kế sai sẽ đắt hơn thiết kế API vì bạn không biết hết ai đang nghe, và event cũ nằm trong log hàng tuần.
 
-## 2. Ba kiểu nội dung event
+## 2. Three kinds of event content
 
 | Kiểu | Chứa gì | Ví dụ | Ưu / nhược |
 |---|---|---|---|
@@ -18,7 +18,7 @@ Phân biệt thêm:
 
 Quy tắc đặt tên: thì quá khứ, nghiệp vụ (`OrderPlaced`, không phải `OrderRowInserted`, không phải `OrderUpdated` chung chung). Event nói điều đã xảy ra, không ra lệnh.
 
-## 3. Envelope và CloudEvents
+## 3. Envelope and CloudEvents
 
 Mỗi message nên có metadata chuẩn: id duy nhất, loại, nguồn, thời điểm, phiên bản schema, correlation/causation id. **CloudEvents** (spec của CNCF, đã graduated) chuẩn hóa phần này. Attribute bắt buộc (v1.0): `id`, `source`, `specversion`, `type`; thường dùng thêm `time`, `datacontenttype`, `subject`, `dataschema`.
 
@@ -37,7 +37,7 @@ Mỗi message nên có metadata chuẩn: id duy nhất, loại, nguồn, thời 
 
 `id` ở đây chính là `event_id` dùng làm dedup key của inbox (chương 6). Kafka có "binary mode" đặt attribute vào header `ce_*` và giữ `data` nguyên làm value. Lab của sách dùng envelope tối giản tự định nghĩa (`event_id`, `event_type`, `payload`) cho dễ đọc; trong dự án thật nên dùng CloudEvents.
 
-## 4. Schema và versioning
+## 4. Schema and versioning
 
 Định nghĩa schema tường minh: JSON Schema, **Avro**, **Protobuf**. Avro/Protobuf nhỏ gọn hơn JSON và có compatibility rule rõ ràng.
 
@@ -59,33 +59,33 @@ Một service lưu schema có version, kiểm tra compatibility khi producer reg
 
 Khi chưa cần registry: đội nhỏ, ít consumer; có thể dùng JSON Schema trong repo chung kèm test contract (consumer-driven contract test, ví dụ Pact).
 
-## 6. Event để làm gì thì chứa gì: lời khuyên
+## 6. What an event should contain depends on its purpose: advice
 
 - Mặc định: event mang dữ liệu **đủ dùng cho 90% consumer** (state transfer vừa phải), không phải toàn bộ aggregate.
 - Không đưa dữ liệu nhạy cảm (PII, thẻ) vào event sống lâu trong log; nếu cần xóa theo GDPR, cân nhắc crypto-shredding hoặc chỉ chứa id.
 - Luôn có `event_id`, `occurred_at` (thời điểm nghiệp vụ xảy ra, khác thời điểm publish), `aggregate_id`, và version của aggregate nếu cần ordering.
 - Size: Kafka mặc định giới hạn message ~1 MB (`message.max.bytes`); payload lớn thì lưu blob ở nơi khác và gửi reference (claim check pattern).
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 - Phát event "thay đổi mọi thứ" từ DB trigger: lộ schema nội bộ, ràng buộc consumer vào bảng.
 - Đặt tên theo CRUD (`OrderUpdated`) buộc consumer đoán nghĩa.
 - Event chứa state nhưng không có version → không phân biệt cũ/mới khi đến out-of-order.
 - Đổi schema không kiểm tra compatibility, deploy sai thứ tự.
 - Dùng một event cho mọi consumer, ép thêm field riêng của từng team vào đó.
 
-## Tóm tắt
+## Summary
 1. Event notification nhỏ nhưng buộc gọi ngược; state transfer tự chủ nhưng nặng; chọn theo nhu cầu consumer.
 2. Domain event là nội bộ; integration event là public contract, dịch ở rìa.
 3. CloudEvents chuẩn hóa envelope (`id`, `source`, `specversion`, `type`...).
 4. Chỉ thêm optional field; breaking change = type mới; schema registry kiểm tra compatibility tự động.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Event-carried state transfer giải quyết vấn đề gì của event notification?
 2. Vì sao không nên dùng domain event làm public contract?
 3. Backward-compatible nghĩa là ai đọc ai?
 4. Thay đổi type của `total` từ number sang string: làm thế nào an toàn?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Consumer không phải gọi ngược API nguồn: giảm coupling, nguồn chết vẫn chạy.
 2. Nó phản ánh mô hình nội bộ thay đổi thường xuyên; mọi thay đổi sẽ phá consumer.

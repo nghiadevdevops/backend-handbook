@@ -1,12 +1,12 @@
-# Chương 3. Repository
+# Chapter 3. Repository
 
 > Nguồn: Martin Fowler, *Patterns of Enterprise Application Architecture* (2002); Evans (2003) đặt Repository vào ngôn ngữ DDD; Vernon (2013) phân tích hai kiểu thiết kế.
 
-## 3.1 Vấn đề
+## 3.1 The problem
 
 Chương 2 cho ta `Order` thuần domain. Nhưng đơn hàng phải sống qua nhiều request, tức phải lưu và load lại. Nếu handler gọi thẳng `pool.query('INSERT INTO orders ...')` hay một ORM, core lập tức dính vào driver/ORM: không chạy được script thuần, test phải có DB.
 
-## 3.2 Giải pháp: Repository
+## 3.2 The solution: Repository
 
 Fowler định nghĩa Repository là thành phần "**mediates between the domain and data mapping layers using a collection-like interface for accessing domain objects**" (PoEAA). Tức là đứng giữa domain và data mapping layer, cho domain một interface giống một collection các object, che đi chuyện lưu trữ. Với domain, repository đơn hàng trông như "một collection Order" chứ không phải SQL table.
 
@@ -16,7 +16,7 @@ Quy tắc phân chia:
 - **Implementation** (`InMemory...`, `Pg...`) thuộc **infrastructure**.
 - Mỗi **aggregate root** có một repository; không có repository riêng cho `OrderLine`.
 
-## 3.3 Hai phong cách thiết kế (Vernon)
+## 3.3 Two design styles (Vernon)
 
 Vernon mô tả hai cách thiết kế interface:
 
@@ -29,7 +29,7 @@ Vernon mô tả hai cách thiết kế interface:
 
 Cửa hàng này chọn **persistence-oriented** (`save`), vì adapter thật dùng driver `pg` thuần, không có Unit of Work. Lựa chọn nào cũng được, miễn nhất quán trong một dự án và thể hiện đúng ý: nhà phát triển core không biết bên dưới là SQL hay file.
 
-## 3.4 Sinh ID: một chiến lược duy nhất
+## 3.4 ID generation: a single strategy
 
 Ta chọn **ID sinh ở phía ứng dụng, trước khi lưu** (UUID v4, bằng `crypto.randomUUID()` có sẵn trong Node.js), thông qua `OrderRepository.nextIdentity()`. Lý do:
 
@@ -41,7 +41,7 @@ Ta chọn **ID sinh ở phía ứng dụng, trước khi lưu** (UUID v4, bằng
 
 Vì vậy interface **phải có** `nextIdentity()`: handler gọi nó, nên nó thuộc contract.
 
-## 3.5 Interface `OrderRepository`
+## 3.5 The `OrderRepository` interface
 
 > **Tiến hoá qua các chương.** Ở lần đầu (chương này) interface chỉ cần `nextIdentity`, `save`, `get`. Sang chương 4, luật "không mua lại sách đã sở hữu" cần thêm method thứ tư `customerHasPaidFor`. Để code khớp với `lab/`, ta trình bày bản cuối.
 
@@ -74,7 +74,7 @@ Nguyên tắc: interface **chứa đủ mọi method mà core gọi, và chỉ n
 
 Lưu ý `customerHasPaidFor` là câu hỏi nghiệp vụ ("đã trả tiền cho sách này chưa?") chứ không phải `where(...)` chung chung. Lý do ở chương 6 mục 6.5.
 
-## 3.6 Adapter in-memory
+## 3.6 The in-memory adapter
 
 Dùng cho test và cho `demo.ts`. Gọn, không IO (file `lab/src/infrastructure/in-memory/in-memory-order-repository.ts`):
 
@@ -121,7 +121,7 @@ export class InMemoryOrderRepository implements OrderRepository {
 
 Nhờ contract chung, mọi test của use case chạy trên cái này với tốc độ mili-giây. Cái bẫy của in-memory là nó giữ nguyên object: nếu bạn sửa `Order` sau khi `get()` mà chưa `save()`, thay đổi vẫn "dính". Adapter thật sẽ không như vậy; nên trong code ứng dụng luôn gọi `save()` sau khi sửa để test không che lỗi.
 
-## 3.7 Chọn công cụ truy cập PostgreSQL
+## 3.7 Choosing a PostgreSQL access tool
 
 Yêu cầu của adapter: ghi cả aggregate trong một transaction, đọc dựng lại aggregate, và một câu query gom (join, group by) cho read model. Tra trạng thái tháng 11/2026 trên npm registry:
 
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS order_lines (
 );
 ```
 
-## 3.8 Adapter PostgreSQL
+## 3.8 The PostgreSQL adapter
 
 Phần này chạy thật trên PostgreSQL 18.6 trong Docker (xem README và chương 8). Adapter chỉ là "bản ghi lưu trữ": các row `OrderRow`, `LineRow` không phải Entity. File `lab/src/infrastructure/postgres/pg-order-repository.ts`:
 
@@ -287,7 +287,7 @@ sequenceDiagram
     E->>DB: BEGIN, upsert orders, replace order_lines, COMMIT
 ```
 
-## 3.9 Contract test: một bộ test cho mọi adapter
+## 3.9 Contract tests: one test suite for every adapter
 
 Làm sao biết `InMemoryOrderRepository` và `PgOrderRepository` cư xử giống nhau? Viết **một** bộ khẳng định (file `lab/test/order-repository.contract.ts`) rồi chạy trên cả hai:
 
@@ -378,7 +378,7 @@ export function orderRepositoryContract(name: string, create: () => Promise<Orde
 
 `in-memory-order-repository.test.ts` gọi `orderRepositoryContract('InMemory', ...)`, còn `postgres-adapters.test.ts` gọi với `PgOrderRepository` (chỉ chạy khi có biến `DATABASE_URL`). Cả hai cùng qua 5 test: đó là bằng chứng các test use case trên in-memory phản ánh đúng adapter thật.
 
-## 3.10 Cạm bẫy thường gặp
+## 3.10 Common pitfalls
 
 - **Repository trả về builder/row của ORM**: rò rỉ infrastructure vào core. Trả về aggregate hoặc kiểu domain.
 - **Một repository cho mỗi table** thay vì mỗi aggregate root.
@@ -389,7 +389,7 @@ export function orderRepositoryContract(name: string, create: () => Promise<Orde
 - **Quên `client.release()`** hoặc quên `ROLLBACK`: connection bị giữ, pool cạn.
 - **Tin `Number(row.price_amount)` mãi mãi**: số vượt `Number.MAX_SAFE_INTEGER` sẽ mất chính xác. `Money` chặn bằng `Number.isSafeInteger`; nếu cần tiền lớn hơn, đổi sang `bigint`.
 
-## 3.11 Tóm tắt
+## 3.11 Summary
 
 1. Repository cho domain một interface giống collection, che chuyện lưu trữ (định nghĩa của Fowler).
 2. Interface ở domain, implementation ở infrastructure, một repository cho mỗi aggregate root.
@@ -398,7 +398,7 @@ export function orderRepositoryContract(name: string, create: () => Promise<Orde
 5. Interface chứa đủ mọi method core gọi; contract test chạy chung cho mọi adapter.
 6. Adapter PostgreSQL dùng `pg` thuần: transaction trong `save`, tham số hoá câu SQL, `reconstitute` khi đọc.
 
-## 3.12 Tự kiểm tra
+## 3.12 Self-check
 
 1. Trích đúng ý định nghĩa Repository của Fowler.
 2. Vì sao `OrderRepository` có `nextIdentity()`?
@@ -407,7 +407,7 @@ export function orderRepositoryContract(name: string, create: () => Promise<Orde
 5. Contract test giải quyết rủi ro gì?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Repository làm trung gian giữa domain layer và data mapping layer, bằng một interface giống collection để truy cập domain object.
 2. Vì ID được sinh phía ứng dụng và handler gọi nó. Interface phải chứa mọi method code gọi tới.

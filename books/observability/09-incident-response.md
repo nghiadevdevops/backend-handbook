@@ -1,12 +1,12 @@
-# Chương 9. Quy trình xử lý incident
+# Chapter 9. Incident Response Process
 
-## 1. Tình huống
+## 1. Scenario
 
 Alert `OrdersErrorBudgetBurnFast` kêu lúc 14:12. Năm kỹ sư cùng vào kênh chat, ba người cùng restart service, hai người cùng thử rollback hai phiên bản khác nhau, không ai báo cho bộ phận chăm sóc khách hàng. 40 phút sau hệ thống ổn lại nhưng không ai biết do thay đổi nào. Vấn đề không nằm ở kỹ thuật mà ở **tổ chức khi incident**: ai quyết định, ai thao tác, ai nói chuyện với bên ngoài.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### Vòng đời incident
+### Incident lifecycle
 
 ```
 Detect (alert) → Triage & declare → Mitigate → Resolve → Postmortem → Corrective action
@@ -16,7 +16,7 @@ Detect (alert) → Triage & declare → Mitigate → Resolve → Postmortem → 
 
 Thứ tự ưu tiên: **mitigate ảnh hưởng trước, tìm root cause sau**. Rollback, tắt feature flag, chuyển tải thường nhanh hơn chẩn đoán đầy đủ. Hỏi "thay đổi gì gần đây?" luôn là bước đầu (annotation deploy ở chương 8).
 
-### Declare sớm
+### Declare early
 
 Theo chương "Managing Incidents" của SRE book, nên **declare incident sớm và đóng sớm** còn hơn bắt đầu khung xử lý sau nhiều giờ. Gợi ý của sách cho thời điểm declare: cần đội thứ hai tham gia; người dùng nhìn thấy incident; hoặc vấn đề chưa giải được sau một giờ phân tích tập trung. Khai báo không phải thừa nhận thất bại.
 
@@ -53,7 +53,7 @@ Mỗi tổ chức tự định nghĩa; ví dụ minh họa:
 - Mẫu cập nhật ngắn: *Ảnh hưởng hiện tại, Điều đã biết, Đang làm gì, Lần cập nhật kế tiếp*.
 - Phân biệt kênh kỹ thuật (nhiều chi tiết) và kênh thông báo ngoài (ngắn, không suy đoán nguyên nhân).
 
-### Postmortem không đổ lỗi (blameless)
+### Blameless postmortems
 
 Sau incident đáng kể, viết **postmortem** để *học*, không để quy trách nhiệm. Nguyên tắc blameless: con người làm việc với thông tin và công cụ họ có; nếu một người sai mà hệ thống để sai gây hậu quả lớn, **hệ thống** cần sửa (quyền, kiểm tra, tự động hóa). Đổ lỗi khiến người ta giấu thông tin, và lần sau bạn mất dữ liệu quan trọng nhất.
 
@@ -71,7 +71,7 @@ Hành động: mỗi việc có người sở hữu, hạn, mức ưu tiên; li�
 
 Chú ý mục "dữ liệu observability có đủ không": mỗi postmortem nên dẫn tới ít nhất một cải tiến về alert, runbook, hoặc signal.
 
-## 3. Ví dụ: incident trong lab
+## 3. Example: an incident in the lab
 
 Chạy lab với `ERROR_RATE=0.05` ở inventory mô phỏng một incident âm ỉ:
 
@@ -81,14 +81,14 @@ Chạy lab với `ERROR_RATE=0.05` ở inventory mô phỏng một incident âm 
 4. **Mitigate**: trong tình huống thật có thể rollback phiên bản inventory hoặc trỏ sang replica; trong lab sẽ đặt `ERROR_RATE=0` rồi `docker compose up -d`.
 5. **Postmortem**: ghi ảnh hưởng bằng SLI (error rate ≈ 5% trong N phút, burn rate ≈ 10), và hành động (alert theo dependency, circuit breaker/retry cho gọi inventory).
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - Quy trình nặng (nhiều vai) cho SEV1, nhẹ hơn cho incident nhỏ; quy trình quá nặng khiến người ta né declare.
 - Mitigate nhanh bằng rollback có thể che mất nguyên nhân; thu thập bằng chứng (trace, log mẫu) trước khi xóa trạng thái, nếu không tốn thêm thời gian ảnh hưởng.
 - Postmortem cho mọi incident tốn thời gian; áp dụng cho incident vượt threshold (ví dụ tiêu đáng kể error budget, SEV1/2, gần suýt xảy ra).
 - **Không dùng** blameless như cớ để bỏ qua trách nhiệm: blameless nghĩa là "không phạt người", không có nghĩa là "không cần sửa gì".
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Nhiều người cùng sửa hệ thống, thay đổi chồng chéo; không ai biết trạng thái.
 - IC lao vào gõ lệnh, mất bức tranh chung.
@@ -98,14 +98,14 @@ Chạy lab với `ERROR_RATE=0.05` ở inventory mô phỏng một incident âm 
 - Dùng từ đổ lỗi ("do anh A quên") thay vì mô tả cơ chế ("quy trình không kiểm tra phiên bản trước khi deploy").
 - Hành động sửa là "cố gắng cẩn thận hơn": không phải hành động có thể kiểm chứng.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Mitigate trước, tìm root cause sau; declare sớm.
 - Vai trò rõ ràng: IC điều phối, Ops thao tác, Comms giao tiếp, Planning lo việc dài hơi; chỉ Ops chạm vào hệ thống.
 - Kênh chung và tài liệu trạng thái sống; cập nhật định kỳ.
 - Postmortem blameless: sửa hệ thống, mỗi hành động có chủ và hạn.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Vì sao IC không nên tự tay sửa lỗi?
 2. Vì sao chỉ nhóm Ops được thay đổi hệ thống trong incident?
@@ -113,7 +113,7 @@ Chạy lab với `ERROR_RATE=0.05` ở inventory mô phỏng một incident âm 
 4. Postmortem blameless khác postmortem đổ lỗi ở điểm nào về kết quả?
 5. Một action item tốt có những đặc điểm nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. IC cần giữ bức tranh tổng thể và điều phối; tự gõ lệnh làm mất khả năng quan sát toàn cục và ra quyết định.
 2. Tránh những thay đổi chồng chéo, khó truy ngược, làm xấu thêm tình hình và khó viết postmortem.

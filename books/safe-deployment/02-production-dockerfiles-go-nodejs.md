@@ -1,6 +1,6 @@
-# Chương 2. Dockerfile production cho Go và Node.js, cấu hình và secrets
+# Chapter 2. Production Dockerfiles for Go and Node.js, Configuration and Secrets
 
-## 1. Vấn đề
+## 1. The problem
 
 Ở chương 1 ta đã có nguyên tắc: multi-stage, user non-root, pin tag, healthcheck. Production còn đòi hỏi thêm ba thứ:
 
@@ -10,9 +10,9 @@
 
 Phiên bản tại thời điểm viết (11/2026), đã chạy thật trong lab: Go 1.27.3, Node.js 26.13.0 (LTS; `node:lts-slim` trỏ tới bản này), TypeScript 7.0.2 (`tsc` vẫn là lệnh build).
 
-## 2. Khái niệm
+## 2. Concepts
 
-### Dockerfile cho Go
+### Dockerfile for Go
 
 Go biên dịch ra một binary tĩnh, nên image cuối gần như chỉ cần binary. File thật: `lab/go-app/Dockerfile`.
 
@@ -58,7 +58,7 @@ Từng lựa chọn:
 
 Với cả hai, `docker exec -it ... sh` không dùng được. Cách debug: `kubectl debug` với ephemeral container (chương 8), hoặc dùng tag `:debug` của distroless (có busybox) ở môi trường không phải production. Mặc định nên chọn `distroless/static`; `scratch` chỉ khi bạn chắc không cần CA, tzdata hay user.
 
-### Dockerfile cho Node.js (TypeScript)
+### Dockerfile for Node.js (TypeScript)
 
 Node cần runtime lúc chạy (không biên dịch ra binary), nên image cuối vẫn chứa Node. File thật: `lab/node-app/Dockerfile`.
 
@@ -99,7 +99,7 @@ CMD ["node", "dist/server.js"]
 - `USER 1000:1000` thay vì `USER node`: user `node` của image chính thức có uid 1000. Dùng số để Kubernetes `runAsNonRoot: true` kiểm tra được (kubelet không thể chứng minh một tên user là non-root) và hadolint không báo DL3066.
 - Image `dist/*.test.js` bị xóa trước khi sang runtime; test không cần ở production.
 
-### Tín hiệu và PID 1
+### Signals and PID 1
 
 Trong container, process đầu tiên là **PID 1**. Kernel đối xử PID 1 đặc biệt: signal không có handler thì **bị bỏ qua** (thay vì giết process như bình thường), trừ khi chính process đó đăng ký handler. Hệ quả:
 
@@ -124,7 +124,7 @@ sequenceDiagram
 
 Trong Kubernetes còn một chi tiết: endpoint bị gỡ khỏi Service và `SIGTERM` gửi **song song**, nên vẫn có vài request mới tới sau signal. Cách chữa là `preStop` sleep vài giây (chương 8). Code thật của lab nằm trong `lab/go-app/main.go` và `lab/node-app/src/server.ts`.
 
-### Cấu hình qua environment variable (12-factor)
+### Configuration via environment variables (12-factor)
 
 Nguyên tắc: **một image, nhiều môi trường**. Image không chứa file `.env`. Cấu hình (DB host, `APP_ENV`, log format) đưa vào lúc chạy qua environment variable.
 
@@ -207,7 +207,7 @@ Request bị cắt ngang, app không in dòng "draining" (handler không chạy)
 
 **Biến môi trường lúc chạy:** `docker run --rm -e APP_VERSION=2.0-rc bookcheck-deploygo-node:1.0 node -e 'console.log(process.env.APP_VERSION)'` in `2.0-rc`: biến `-e` ghi đè `ENV` trong image, đó là cơ chế "một image nhiều môi trường". 
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - **`distroless/static` vs `scratch`:** `scratch` nhỏ hơn vài MB nhưng bạn tự gánh CA, tzdata, user. Lợi ích kích thước hiếm khi đáng kể so với rủi ro "HTTPS gọi ra ngoài lỗi chứng chỉ".
 - **Không có shell:** an toàn hơn (kẻ tấn công khó làm gì sau khi chiếm process) nhưng khó debug tại chỗ. Cần quy trình `kubectl debug` sẵn.
@@ -215,7 +215,7 @@ Request bị cắt ngang, app không in dòng "draining" (handler không chạy)
 - **Cache mount:** build nhanh hơn rõ nhưng cache nằm ngoài image; trên CI phải cấu hình lưu cache (chương 4).
 - Mount file `.env` vào container: tiện nhưng khó audit và dễ lộ; ưu tiên env hoặc secret manager.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 1. `CMD npm start` hoặc shell form: SIGTERM không tới app, deploy cắt request; sau `terminationGracePeriodSeconds` bị `SIGKILL`.
 2. Quên xử lý `SIGTERM`: Go mặc định kết thúc ngay khi nhận SIGTERM, bỏ mọi request đang chạy; Node chạy với PID 1 và không có handler thì bỏ qua signal, đợi tới lúc bị SIGKILL.
@@ -226,7 +226,7 @@ Request bị cắt ngang, app không in dòng "draining" (handler không chạy)
 7. Ghi file vào filesystem container: với `readOnlyRootFilesystem` (chương 8) sẽ lỗi; mount `emptyDir` vào thư mục cần ghi, hoặc dùng object storage.
 8. Đặt hạn chót shutdown trong app lớn hơn `terminationGracePeriodSeconds`: Kubernetes `SIGKILL` trước khi app kịp thoát.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Một image, nhiều môi trường: cấu hình và secret đến lúc chạy, không nằm trong image.
 - Go: `CGO_ENABLED=0`, `-trimpath -ldflags "-s -w"`, `distroless/static:nonroot` (17 MB trong lab).
@@ -234,14 +234,14 @@ Request bị cắt ngang, app không in dòng "draining" (handler không chạy)
 - Gọi thẳng binary hoặc `node` (exec form), không `npm start`; app tự xử lý `SIGTERM`; `--init`/`tini` khi có process con.
 - Lab chứng minh: SIGTERM giữa lúc có request, request vẫn hoàn tất với 200.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. Vì sao `CMD ["npm", "start"]` làm mất request khi deploy?
 2. `distroless/static` khác `scratch` ở những điểm nào?
 3. `ARG` có phù hợp để truyền token npm riêng tư không? Cách nào đúng hơn?
 4. Vì sao dùng `USER 1000:1000` thay vì `USER node` khi chạy trên Kubernetes với `runAsNonRoot`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. SIGTERM đi qua `npm` và `sh` trước khi tới app; app không nhận được hoặc bị giết trước khi drain, nên request đang chạy bị cắt (lab: `UND_ERR_SOCKET`).
 2. `distroless/static` có CA certificate, tzdata và user nonroot; `scratch` rỗng hoàn toàn. Cả hai không có shell.

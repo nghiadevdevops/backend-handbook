@@ -1,8 +1,8 @@
-# Chương 11. Vượt ra ngoài một database: 2PC, saga, outbox
+# Chapter 11. Beyond a Single Database: 2PC, Saga, Outbox
 
 > Chương này chỉ giới thiệu. Một cuốn khác trong bộ về messaging sẽ nói kỹ. Các đoạn SQL ở đây là minh họa, **chưa chạy trong lab**.
 
-## 1. Tình huống
+## 1. Scenario
 
 Đặt hàng cần: trừ kho (DB của dịch vụ kho), tạo đơn (DB đơn hàng), trừ tiền (cổng thanh toán bên ngoài), gửi email. Không có một transaction nào bao được tất cả. Mọi thứ bạn học ở các chương trước chỉ đúng **trong một database**. Khi dữ liệu nằm ở nhiều nơi, bạn cần chiến lược khác và mỗi chiến lược đánh đổi consistency lấy availability hoặc độ phức tạp.
 
@@ -54,7 +54,7 @@ COMMIT;
 
 Đảm bảo là **at-least-once**: relay có thể publish rồi chết trước khi đánh dấu, nên consumer có thể nhận trùng. Consumer phải **idempotent** (lưu `message_id` đã xử lý, hoặc thao tác tự nhiên idempotent). Thứ tự chỉ đảm bảo theo từng `aggregate_id` nếu bạn thiết kế như vậy. Có thể thay relay bằng CDC (change data capture) đọc WAL/binlog; cách này nằm ngoài sách.
 
-## 5. Chọn gì
+## 5. What to choose
 
 | Nhu cầu | Gợi ý |
 |---|---|
@@ -63,7 +63,7 @@ COMMIT;
 | Quy trình nhiều dịch vụ, chấp nhận trạng thái trung gian | Saga (kèm outbox cho mỗi bước) |
 | Cần atomic thật giữa vài tài nguyên tin cậy | 2PC/XA, với cái giá về lock và vận hành |
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Gọi API thanh toán rồi ghi DB (hoặc ngược lại) không có cơ chế bù: crash giữa chừng để lại trạng thái sai.
 2. Coi saga như transaction: quên rằng người khác nhìn thấy trạng thái dở dang.
@@ -71,7 +71,7 @@ COMMIT;
 4. Bật `max_prepared_transactions` mà không monitor prepared transaction bị bỏ quên.
 5. Compensating action cũng có thể thất bại; cần retry và alerting.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Transaction chỉ atomic trong một DB; qua nhiều hệ thống cần cơ chế khác.
 - 2PC cho atomic thật nhưng chặn và kẹt khi coordinator chết.
@@ -79,14 +79,14 @@ COMMIT;
 - Outbox: ghi event cùng transaction với dữ liệu, relay publish at-least-once.
 - Idempotency là điều kiện bắt buộc ở phía nhận.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. Vấn đề "dual write" là gì và outbox giải quyết thế nào?
 2. Vì sao participant 2PC có thể giữ lock vô hạn?
 3. Saga thiếu chữ I của ACID nghĩa là sao?
 4. Vì sao outbox cần consumer idempotent?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Ghi DB và publish là hai thao tác không atomic. Outbox ghi event vào DB cùng transaction, publish sau.
 2. Sau khi prepare, nó phải chờ quyết định; coordinator chết thì không ai quyết định.

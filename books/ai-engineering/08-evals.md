@@ -1,10 +1,10 @@
-# Chương 8. Evals: đo chất lượng thay vì cảm giác
+# Chapter 8. Evals: Measuring Quality Instead of Gut Feeling
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn sửa một dòng trong system prompt để câu trả lời "thân thiện hơn". Ba ca bạn thử tay trông tốt hơn, bạn deploy. Hai ngày sau, ticket báo rằng trợ lý đã ngừng gắn citation ở các câu hỏi về hoàn tiền. Không ai nhận ra vì không có gì đo. Với phần mềm thông thường bạn có unit test; với ứng dụng LLM, **eval** đóng vai trò đó, nhưng output không deterministic và thường không có một đáp án duy nhất nên cách làm khác.
 
-## 2. Khái niệm
+## 2. Concepts
 
 Eval = một tập tình huống (input kèm kỳ vọng) + cách scoring + quy trình chạy lặp lại để so sánh các phiên bản (prompt, model, tham số retrieval).
 
@@ -14,7 +14,7 @@ test set ──▶ run system (version X) ──▶ scoring ──▶ report
         compare X with baseline  ◀─────────┘
 ```
 
-### 2.1 Xây bộ test
+### 2.1 Building a test set
 
 - Bắt đầu nhỏ: **30 đến 50 ca thật** tốt hơn 1.000 ca tổng hợp lơ mơ. Lấy từ log thật (đã ẩn danh), ticket, câu hỏi nhân viên hay gặp.
 - Phủ **ca khó và edge case**: câu mơ hồ, ngoài phạm vi (kỳ vọng "không biết"), thiếu thông tin, nhiều ngôn ngữ, cố tình tấn công (chương 9).
@@ -29,13 +29,13 @@ Ví dụ định dạng JSONL của ShopAssist:
 {"id":"oos-001","type":"ngoai_pham_vi","input":"Hôm nay giá vàng bao nhiêu?","expect":{"refuse":true}}
 ```
 
-### 2.2 Ba loại scoring
+### 2.2 Three kinds of scoring
 
 1. **Chấm bằng code (ưu tiên số một).** Rẻ, nhanh, deterministic: JSON hợp lệ theo schema, có trích đúng `[doc:ID]` mong đợi, ID trích nằm trong tập đã cung cấp, độ dài, có keyword bắt buộc, không chứa chuỗi cấm, gọi đúng tool với đúng tham số. Đo riêng **retrieval**: chunk đúng có nằm trong top-k không (recall@k của chương 6-7).
 2. **Chấm bằng LLM (LLM-as-judge).** Dùng một model đọc câu trả lời và rubric rồi cho điểm hoặc chọn tốt hơn. Dùng cho tiêu chí mềm: "đúng ý", "có căn cứ vào tài liệu" (grounding), "giọng điệu".
 3. **Chấm bằng người.** Gold standard nhưng chậm và đắt; dùng để calibrate judge và xem mẫu ngẫu nhiên.
 
-### 2.3 LLM-as-judge và giới hạn
+### 2.3 LLM-as-judge and its limits
 
 Cách dùng tốt:
 - Rubric **cụ thể, binary hoặc thang ngắn** ("Câu trả lời có khẳng định điều không có trong tài liệu? Có/Không") hơn là "cho điểm 1-10 chất lượng".
@@ -55,7 +55,7 @@ Các bias này được ghi nhận trong nghiên cứu về LLM-as-a-judge; tôi
 
 Quy tắc: **judge để phát hiện degradation và ranking thô, không phải để phán quyết cuối**. Mọi quyết định lớn cần mẫu chấm tay.
 
-### 2.4 Regression khi đổi prompt hoặc model
+### 2.4 Regressions when changing the prompt or model
 
 Mọi thay đổi (prompt, model, tham số retrieval, kích thước chunk, phiên bản embedding) phải chạy bộ eval và so với **baseline** đã lưu.
 
@@ -70,7 +70,7 @@ Với mẫu nhỏ, chênh lệch vài điểm phần trăm có thể chỉ là n
 
 Đổi model còn phải kiểm chi phí và độ dài output: tokenizer khác nhau làm cùng một prompt tốn số token khác nhau (chương 1-2).
 
-### 2.5 Theo dõi trên production
+### 2.5 Monitoring in production
 
 Bộ test offline không bắt được mọi thứ. Trên production:
 - **Log** mọi lượt: input (đã ẩn dữ liệu nhạy cảm), chunk retrieved, tool đã gọi, output, model và phiên bản prompt, token, latency (chương 10).
@@ -79,7 +79,7 @@ Bộ test offline không bắt được mọi thứ. Trên production:
 - **Alert** theo chỉ số: tỷ lệ lỗi schema, tỷ lệ từ chối, tỷ lệ citation không hợp lệ, chi phí mỗi lượt.
 - Đưa các lượt tệ vào bộ test.
 
-## 3. Ví dụ: bộ chạy eval tối giản (TypeScript)
+## 3. Example: a minimal eval runner (TypeScript)
 
 Đoạn mã dưới chấm bằng code (file `lab/ts/src/evalRunner.ts`); hàm `ask` gọi hệ thống thật cần API key để chạy. Runner đã chạy thật với hàm `ask` giả và bộ ca `lab/ts/data/eval.jsonl` (`lab/ts/src/demoEval.ts`): ca có một lần lặp trả sai cho `pass_rate` 0,67, ca còn lại 1,0. Chưa chạy với hệ thống thật vì không có API key.
 
@@ -143,7 +143,7 @@ export class EvalRunner {
 }
 ```
 
-## 4. Trade-off
+## 4. Trade-offs
 
 | Phương pháp | Tốt ở | Yếu ở |
 |---|---|---|
@@ -153,7 +153,7 @@ export class EvalRunner {
 
 Khi **không** cần eval nặng: prototype vứt đi, hoặc chức năng rủi ro thấp. Nhưng ngay khi có người dùng thật, hãy có tối thiểu bộ chấm bằng code và 30 ca.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Chỉnh prompt cho đúng bộ test rồi báo cáo con số trên chính bộ test đó (overfitting).
 - Tin con số trung bình, bỏ qua regression theo từng ca.
@@ -162,7 +162,7 @@ Khi **không** cần eval nặng: prototype vứt đi, hoặc chức năng rủi
 - Không pin phiên bản judge nên điểm drift theo thời gian.
 - Bộ test không bao giờ cập nhật từ incident production.
 
-## 6. Tóm tắt
+## 6. Summary
 
 1. Eval là test của hệ thống LLM: bộ ca thật + cách chấm + so với baseline.
 2. Ưu tiên chấm bằng code; dùng LLM judge cho tiêu chí mềm và calibrate nó với chấm tay.
@@ -170,14 +170,14 @@ Khi **không** cần eval nặng: prototype vứt đi, hoặc chức năng rủi
 4. Mọi thay đổi prompt, model, chunking, embedding đều chạy eval; xem regression theo từng ca, chạy nhiều lần.
 5. Trên production: log, feedback, chấm mẫu, alert; đưa lượt tệ vào bộ test.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Vì sao nên bắt đầu bằng 30 ca thật thay vì 1.000 ca tổng hợp?
 2. Nêu hai bias của LLM-as-judge và một cách giảm.
 3. Vì sao so sánh theo từng ca quan trọng hơn so sánh trung bình?
 4. Bạn đổi model rẻ hơn, điểm tổng không đổi. Còn phải kiểm gì trước khi chuyển?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Ca thật phản ánh distribution và lỗi thực tế; ca tổng hợp lơ mơ dễ bỏ sót tình huống thật và tạo cảm giác an toàn giả. Có thể mở rộng dần.
 2. Position bias (giảm bằng đảo thứ tự hai lần), length bias (giảm bằng rubric binary, kiểm soát độ dài). Cũng có self-preference bias (dùng judge khác họ).

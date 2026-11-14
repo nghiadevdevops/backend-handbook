@@ -1,10 +1,10 @@
-# Chương 6. Authentication
+# Chapter 6. Authentication
 
-## 1. Vấn đề
+## 1. The problem
 
 Authentication (xác thực) trả lời "bạn là ai?". Đây là cửa chính của hệ thống, và là nơi attacker không cần khai thác lỗi code: chỉ cần thử password bị lộ từ nơi khác (**credential stuffing**), dụ người dùng (phishing) hoặc lợi dụng luồng quên password. Chương này nói cách lưu password, thêm yếu tố thứ hai, đi tới passkeys, và làm cứng các luồng xung quanh.
 
-## 2. Lưu password
+## 2. Storing passwords
 
 Password **không bao giờ** lưu thô, không encrypt hai chiều, không dùng hash nhanh (MD5, SHA-1, SHA-256 trần). Dùng hàm hash password **chậm, có salt, tốn bộ nhớ**:
 
@@ -58,11 +58,11 @@ Số đo 269 ms là một lần chạy trong container, gồm cả lần gọi �
 
 Parameter "tối thiểu" của OWASP là sàn. Hãy đo trên server thật: mục tiêu thường là ~100-500 ms mỗi lần hash mà tải login vẫn chịu được; nếu hash quá chậm, nó tự thành vector DoS (xem rate limit).
 
-### Chính sách password
+### Password policy
 
 Theo hướng dẫn hiện đại (NIST SP 800-63B, ASVS V6): ưu tiên **độ dài** hơn quy tắc thành phần (không bắt "1 hoa, 1 số, 1 ký tự đặc biệt"); cho phép dán (paste) để dùng password manager; không buộc đổi định kỳ; chặn password nằm trong danh sách bị lộ (ví dụ API Pwned Passwords dùng k-anonymity: gửi 5 ký tự đầu của SHA-1 và so khớp phần còn lại phía bạn; kiểm tra bằng `fetch` tới `api.pwnedpasswords.com/range/<prefix>`); cho phép độ dài tối đa đủ lớn (với bcrypt: nhớ giới hạn 72 byte, hoặc pre-hash cẩn thận; validate độ dài bằng zod, ví dụ `z.string().min(12).max(256)`).
 
-## 3. MFA (xác thực đa yếu tố)
+## 3. MFA (multi-factor authentication)
 
 Yếu tố: thứ bạn biết (password), thứ bạn có (điện thoại, security key), thứ bạn là (sinh trắc học). Mức an toàn các cách thứ hai:
 
@@ -75,7 +75,7 @@ Yếu tố: thứ bạn biết (password), thứ bạn có (điện thoại, sec
 
 Thực hành: lưu secret TOTP **encrypted** (mã hóa bằng AES-256-GCM của `node:crypto` với key từ secret store; library TOTP phổ biến: `otplib`, 13.6.0 tại thời điểm kiểm tra), cấp 8-10 mã khôi phục dùng một lần (lưu dạng hash), giới hạn thử mã sai, và khi bật/tắt MFA phải yêu cầu nhập lại password.
 
-## 4. Passkeys và WebAuthn
+## 4. Passkeys and WebAuthn
 
 **WebAuthn** (chuẩn W3C) cho phép login bằng asymmetric key pair: private key nằm trên thiết bị/trình quản lý passkey, server chỉ giữ public key. **Passkey** là credential WebAuthn có thể đồng bộ giữa thiết bị (iCloud Keychain, Google Password Manager, trình quản lý password...) và dùng được cho cả login không password.
 
@@ -93,7 +93,7 @@ Lý do chống phishing: chữ ký ràng buộc với **origin**, trang giả `s
 
 Cách tích hợp: dùng library đã kiểm chứng (ví dụ `@simplewebauthn/server` cho Node, 14.1.0 tại thời điểm kiểm tra; `@simplewebauthn/browser` phía client; chưa chạy trong lab) thay vì tự cài đặt xác minh. Giữ **phương án khôi phục** (passkey thứ hai, mã khôi phục), vì mất thiết bị là tình huống thật.
 
-## 5. Quên password
+## 5. Forgot password
 
 Luồng an toàn:
 
@@ -113,7 +113,7 @@ const tokenHash = createHash("sha256").update(token).digest("hex"); // chỉ lư
 
 SHA-256 đủ ở đây vì token đã có 256 bit entropy (khác password do con người đặt).
 
-## 6. Rate limit, account lockout và credential stuffing
+## 6. Rate limiting, account lockout and credential stuffing
 
 **Brute force** nhắm một tài khoản, nhiều password. **Credential stuffing** nhắm nhiều tài khoản, mỗi tài khoản vài cặp (email, password) rò từ nơi khác; mỗi IP chỉ vài lần nên rate limit theo tài khoản không bắt được.
 
@@ -126,13 +126,13 @@ Biện pháp phối hợp:
 - Thông báo lỗi chung: "Email hoặc password không đúng".
 - Thông báo cho người dùng khi có login từ thiết bị mới.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Argon2id mạnh hơn bcrypt chống GPU nhưng cần RAM/CPU; parameter quá cao với lưu lượng lớn làm server nghẹt. Bcrypt còn chấp nhận được cho hệ thống cũ với cost >= 10 (kiểm tra cost thực tế trong chuỗi hash đang lưu).
 - Passkey xóa password nhưng đòi hỏi trải nghiệm khôi phục tốt; nhiều hệ thống deploy song song với password + MFA.
 - SMS OTP tốt hơn không có MFA, nhưng không chống phishing.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Hash nhanh (`md5`, `sha256`) hoặc tự tạo "salt + sha".
 - So sánh token/HMAC bằng `===` thay vì `crypto.timingSafeEqual` (timing); với hash password thì dùng `argon2.verify`, đừng tự so chuỗi hash. Hàm `safeEqual` trong `lab/snippets/password.ts` hash hai chuỗi về cùng độ dài rồi gọi `timingSafeEqual` (hàm này ném lỗi nếu độ dài buffer khác nhau).
@@ -141,21 +141,21 @@ Biện pháp phối hợp:
 - Token reset lưu thô trong DB; link reset dựng từ `Host` header.
 - Cho phép MFA bị bỏ qua qua đường "quên password".
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Lưu password bằng Argon2id (m=19 MiB, t=2, p=1 là sàn) hoặc bcrypt (cost >= 10) và dùng `needsRehash` để nâng cấp dần.
 - MFA chống stuffing; WebAuthn/passkey còn chống cả phishing.
 - Luồng quên password: response đồng nhất, token hash/một lần/ngắn hạn, hủy session sau khi đổi.
 - Rate limit theo tài khoản và IP, tránh lockout vĩnh viễn, phát hiện bất thường.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Tham số Argon2id tối thiểu theo OWASP là gì?
 2. Credential stuffing khác brute force ở đâu, và vì sao rate limit theo IP chưa đủ?
 3. Vì sao passkey chống được phishing?
 4. Nêu ba điều cần làm với token đặt lại password.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. m=19456 KiB (19 MiB), t=2, p=1 (hoặc tổ hợp tương đương trong cheat sheet).
 2. Stuffing dùng cặp (email, password) bị lộ từ nơi khác trên nhiều tài khoản, mỗi IP/tài khoản chỉ thử ít lần, nên khó bị ngưỡng theo IP hoặc theo tài khoản riêng lẻ phát hiện; cần MFA, chặn password bị lộ, phát hiện bất thường.

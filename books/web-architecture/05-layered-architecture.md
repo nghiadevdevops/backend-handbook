@@ -1,12 +1,12 @@
-# Chương 5. Layered Architecture
+# Chapter 5. Layered Architecture
 
 > Nguồn đối chiếu: Evans (2003) mô tả bốn layer của DDD; Jeffrey Palermo, *Onion Architecture* (2008); Robert C. Martin, *The Clean Architecture* (bài viết 2012, sách 2017); Martin còn là người đặt tên Dependency Inversion Principle.
 
-## 5.1 Vấn đề
+## 5.1 The problem
 
 Ta đã có nhiều loại class: Entity, handler, repository, controller, adapter. Nếu để chúng gọi nhau tuỳ ý, vài tháng sau domain sẽ `import` controller và mọi nỗ lực chương 1 đổ sông. Cần một **luật tổ chức**: layer nào được biết layer nào.
 
-## 5.2 Đừng nhầm layered với 3-tier
+## 5.2 Don't confuse layered with 3-tier
 
 Hai thứ này thường bị trộn:
 
@@ -18,7 +18,7 @@ Hai thứ này thường bị trộn:
 
 Một ứng dụng NestJS chạy trên một máy duy nhất vẫn có thể tách layer rất rõ; ngược lại hệ thống 3-tier vẫn có thể trộn lẫn mã. Hai khái niệm trực giao.
 
-## 5.3 Bốn layer của ví dụ
+## 5.3 The four layers of the example
 
 ```mermaid
 flowchart TB
@@ -42,7 +42,7 @@ Hai điểm chốt cho cả sách:
 
 Trong `lab/` điều này kiểm chứng được bằng một lệnh: trong `src/domain` và `src/application` không có chuỗi `@nestjs`, `pg` hay `infrastructure`: `grep -rE "@nestjs|from .pg.|infrastructure" src/domain src/application` không in ra dòng nào.
 
-## 5.4 Hai cách hiểu "layering"
+## 5.4 Two interpretations of "layering"
 
 **Strict layering truyền thống** (kiểu 3-layer cũ): chỉ được gọi layer ngay bên dưới, trên xuống dưới: UI -> Business -> Data Access -> DB. Business layer **phụ thuộc** data access layer: `OrderService` gọi `OrderDao` concrete. Hệ quả: logic nghiệp vụ bị buộc vào công nghệ lưu trữ ở dưới.
 
@@ -62,7 +62,7 @@ flowchart LR
 
 Cả Onion (Palermo) và Clean (Martin) cùng ý tưởng nền: "domain/entities ở giữa, dependency chĩa vào trong". Khác biệt chủ yếu là từ vựng và số ring: Onion nói Domain Model, Domain Services, Application Services, Infrastructure; Clean nói Entities, Use Cases, Interface Adapters, Frameworks & Drivers. Ví dụ này (Domain - Application - Infrastructure) là phiên bản gọn của cùng họ đó, và cùng tinh thần với Hexagonal (chương 6).
 
-## 5.5 Dependency Inversion Principle và Dependency Injection: hai thứ khác nhau
+## 5.5 Dependency Inversion Principle and Dependency Injection: two different things
 
 - **DIP** (nguyên tắc, chữ D trong SOLID): high-level module không nên phụ thuộc low-level module; cả hai phụ thuộc abstraction. Điểm cốt lõi: **đảo hướng dependency của source code**. Nhìn vào các dòng `import` ở đầu file là thấy.
 - **DI** (kỹ thuật): object nhận dependency từ bên ngoài (qua constructor) thay vì tự `new`. DI chỉ là **cơ chế chọn implementation lúc runtime**.
@@ -100,7 +100,7 @@ const reader = new InMemoryOrderSummaryReader(orders);
 
 Đổi sang production chỉ cần composition root khác (chương 7 làm bằng module của NestJS); handler và domain không sửa dòng nào.
 
-## 5.6 Quy tắc dễ kiểm tra
+## 5.6 Easy-to-check rules
 
 1. Domain không `import` Application hay Infrastructure.
 2. Application không `import` Infrastructure; chỉ `import` Domain và interface do chính nó định nghĩa (port).
@@ -108,7 +108,7 @@ const reader = new InMemoryOrderSummaryReader(orders);
 4. Composition root (module của NestJS hoặc script khởi động) là chỗ duy nhất nối port với adapter.
 5. Một class đặt ở đâu do **nó phụ thuộc gì và đóng vai gì**, không do thư mục trông đẹp.
 
-## 5.7 Cạm bẫy thường gặp
+## 5.7 Common pitfalls
 
 - **Hiểu 3-tier là layered** hoặc ngược lại (mục 5.2).
 - **Đặt interface repository trong thư mục Infrastructure**: DIP bị phá, vì domain lại phải `import` infrastructure để biết interface.
@@ -118,7 +118,7 @@ const reader = new InMemoryOrderSummaryReader(orders);
 - **Quá nhiều layer trung gian cho CRUD**: layered cũng có chi phí; áp dụng có chọn lọc như chương 1.
 - **Controller ghi luật** vì thấy "tiện": nó là adapter, chỉ dịch.
 
-## 5.8 Tóm tắt
+## 5.8 Summary
 
 1. 3-tier là chia vật lý khi triển khai; layered là chia logic trong code.
 2. Strict layering truyền thống đi trên xuống dưới; DDD/Onion/Clean đảo để dependency hướng vào domain.
@@ -126,7 +126,7 @@ const reader = new InMemoryOrderSummaryReader(orders);
 4. Domain không biết ai; Application chỉ biết Domain và port; Infrastructure biết cả hai.
 5. Controller ở outermost layer, không thuộc Application.
 
-## 5.9 Tự kiểm tra
+## 5.9 Self-check
 
 1. Một ứng dụng chạy trên đúng một máy có thể "layered" không? Có "3-tier" không?
 2. Khác biệt dependency direction giữa strict layering và Onion/Clean?
@@ -134,7 +134,7 @@ const reader = new InMemoryOrderSummaryReader(orders);
 4. Controller thuộc layer nào trong sách này?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Có layered (chia code). Không 3-tier theo nghĩa vật lý nếu chạy cùng một máy.
 2. Strict: nghiệp vụ phụ thuộc data access ở dưới. Onion/Clean: infrastructure phụ thuộc domain, mọi mũi tên chĩa vào trung tâm.

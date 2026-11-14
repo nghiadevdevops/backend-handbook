@@ -10,7 +10,7 @@ const failed = ref(false)
 const source = decodeURIComponent(props.code)
 
 let uid = 0
-// Render tuần tự: mermaid dùng chung trạng thái toàn cục nên không render song song.
+// Render sequentially: mermaid keeps global state, so diagrams must not render in parallel.
 let queue: Promise<unknown> = Promise.resolve()
 
 async function draw() {
@@ -27,7 +27,7 @@ async function draw() {
     if (el.value) el.value.innerHTML = svg
     failed.value = false
   } catch (e) {
-    console.error('Mermaid lỗi', e)
+    console.error('Mermaid render error', e)
     document.getElementById('d' + id)?.remove()
     failed.value = true
   }
@@ -45,7 +45,7 @@ onMounted(() => {
 
 <template>
   <div class="mermaid-wrap">
-    <div ref="el" class="mermaid-diagram" role="img" aria-label="Sơ đồ" />
+    <div ref="el" class="mermaid-diagram" role="img" aria-label="Diagram" />
     <pre v-if="failed" class="mermaid-fallback"><code>{{ source }}</code></pre>
   </div>
 </template>

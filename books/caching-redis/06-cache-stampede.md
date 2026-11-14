@@ -1,6 +1,6 @@
-# Chương 6. Cache stampede (dogpile)
+# Chapter 6. Cache stampede (dogpile)
 
-## 1. Vấn đề
+## 1. The problem
 
 Key `product:42` rất nóng (2.000 req/s) hết hạn lúc 10:00:00. Trong 30 ms nạp lại, hàng trăm request cùng thấy miss và cùng chạy query nặng xuống PostgreSQL. DB quá tải, query chậm hơn, nạp lâu hơn, càng nhiều request cùng miss: vòng lặp xấu dẫn đến sập. Hiện tượng này gọi là **cache stampede** (còn gọi dogpile, thundering herd).
 
@@ -16,7 +16,7 @@ sequenceDiagram
   C->>R: SET key (x N)
 ```
 
-## 2. Kết quả đo (lab)
+## 2. Measured results (lab)
 
 Lab `lab/stampede` (xem README): 100 client đồng thời, mỗi client đọc `product:42` một lần ngay khi key vừa hết hạn; DB giả lập query nặng bằng `pg_sleep(0.2)`. Đếm số query thật đến PostgreSQL.
 
@@ -34,7 +34,7 @@ Cách đọc kết quả:
 
 Chạy lại: `docker exec bookcheck-cache-client sh /lab/stampede/run.sh naive 100` rồi `... lock 100`.
 
-### 2.1 Chạy lại bằng Go (goroutine, nhiều process)
+### 2.1 Re-running it in Go (goroutines, multiple processes)
 
 Bản shell ở trên dùng 100 process `psql`. Bản Go (`lab/go`, `go run`/`lab run`; xem chương 11 và `lab/README.md`) dùng **100 goroutine** cùng chờ một mốc thời gian, `valkey-go` + `pgx`, cùng hàm nạp `pg_sleep(0.2)` ghi `query_log`. Mỗi cấu hình chạy 3 lần; "5 x 20" là 5 process Go, mỗi process 20 goroutine.
 
@@ -56,13 +56,13 @@ Cách đọc, đặt cạnh số liệu shell:
 
 Kết quả cache-aside tuần tự bằng shell (`lab/cacheaside/run.sh`, 200 lần đọc trên 10 sản phẩm, TTL 60 giây): `hit=190 miss=10`, đúng 10 query DB. Sau khi `UPDATE products SET price=99 WHERE id=3` và `DEL product:3`, lần đọc tiếp theo là một miss (query DB thứ 11) và trả về `Book 3|99.00`. Tỷ lệ hit 190/200 = 95%, khớp với công thức ở chương 1. Bản Go (`ProductRepo`, chương 11) cho đúng cùng số: `hit=190 miss=10`, 10 query, rồi 11 sau update.
 
-## 3. Các cách chống
+## 3. Countermeasures
 
 ### 3.1 TTL jitter
 
 Cộng ngẫu nhiên vào TTL (`60 + rand(0..10)`) để **nhiều key khác nhau** không hết hạn cùng lúc (ví dụ sau khi warm-up hàng loạt). Không giải quyết được nhiều request trên **cùng một key**, chỉ là phần bắt buộc kèm theo.
 
-### 3.2 Lock khi nạp lại (mutex)
+### 3.2 Lock on reload (mutex)
 
 Chỉ một request được nạp; các request còn lại chờ hoặc phục vụ dữ liệu cũ.
 
@@ -86,7 +86,7 @@ Trong **một process** (hoặc một node), gom mọi request cùng key thành 
 
 Kết hợp cả hai: singleflight trong process (chỉ một goroutine mỗi process đi tranh lock) + distributed lock giữa các process.
 
-### 3.4 Phục vụ dữ liệu cũ khi đang nạp (stale-while-revalidate)
+### 3.4 Serve stale data while reloading (stale-while-revalidate)
 
 Lưu giá trị với TTL logic ngắn nhưng TTL vật lý dài hơn. Khi quá TTL logic, người đầu tiên lấy lock để nạp lại; những người khác **trả ngay giá trị cũ**. Không ai phải chờ. Chương 11 có bản cài đặt tự viết cho Node (`lab/node/src/swr.ts`).
 
@@ -143,11 +143,11 @@ func (c *Cache) XFetch(ctx context.Context, key string, ttl time.Duration, beta 
 
 `1 - Float64()` cho giá trị trong `(0,1]` nên `math.Log` âm hoặc bằng 0 và `- delta*beta*log(r)` không âm, đúng công thức. Kết quả đo ở mục 2.1: XFetch giảm số lần nạp nhưng **không về đúng 1**, vì không có lock.
 
-### 3.6 Warm-up và hạn chế gốc
+### 3.6 Warm-up and limiting the root cause
 
 Nạp sẵn key nóng (job định kỳ) và bảo vệ DB bằng giới hạn connection/concurrency (circuit breaker, bulkhead), để lúc stampede xảy ra DB không sập.
 
-## 4. Chọn thế nào
+## 4. How to choose
 
 | Kỹ thuật | Cần lock | Người dùng có thể chờ | Dữ liệu cũ | Độ phức tạp |
 |---|---|---|---|---|
@@ -159,21 +159,21 @@ Nạp sẵn key nóng (job định kỳ) và bảo vệ DB bằng giới hạn c
 
 Mặc định cho dịch vụ Go/Node: singleflight (Promise map) trong process + lock `SET NX PX` giữa các instance, cộng jitter; thêm SWR hoặc XFetch cho key nóng nạp đắt.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Lock không có TTL: người giữ chết thì key không bao giờ nạp lại.
 - Người chờ lock **lặp vô hạn**: phải có giới hạn số lần/thời gian, hết thì tự query hoặc trả lỗi.
 - Release lock bằng `DEL` mù: có thể xóa lock của người khác (dùng token + Lua).
 - Quên rằng cache cold start (khởi động lại Redis) là stampede toàn hệ thống: warm-up và giới hạn tải.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Stampede: nhiều request cùng miss một key nóng và cùng xuống DB.
 - Jitter chống hết hạn đồng loạt giữa nhiều key; mutex/singleflight chống nhiều request một key.
 - SWR và XFetch giúp người dùng không phải chờ.
 - Luôn đo số query DB trước và sau khi sửa.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Jitter có chống được stampede trên một key không? Vì sao?
 2. Vì sao singleflight in-process không đủ khi service chạy nhiều instance?
@@ -181,7 +181,7 @@ Mặc định cho dịch vụ Go/Node: singleflight (Promise map) trong process 
 4. Trong XFetch, `delta` lớn thì điều gì xảy ra?
 5. Vì sao phải kiểm token khi release lock?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không: các request vẫn cùng thấy miss tại cùng một thời điểm; jitter chỉ trải thời điểm hết hạn của nhiều key.
 2. Mỗi process có bộ gom riêng, nên N instance vẫn nạp N lần (đo được 5 query với 5 process).

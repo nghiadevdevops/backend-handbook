@@ -1,12 +1,12 @@
-# Chương 6. Vector index: exact search, HNSW, IVFFlat (pgvector)
+# Chapter 6. Vector Indexes: Exact Search, HNSW, IVFFlat (pgvector)
 
-## 1. Tình huống
+## 1. Scenario
 
 Bảng `kb_chunks` có 5.000 dòng thì `ORDER BY embedding <=> $1 LIMIT 5` chạy vài mili-giây. Khi lên vài trăm nghìn, vài triệu dòng, mỗi query phải tính distance tới **mọi** vector, và latency tăng tuyến tính. Bạn đã biết B-tree index giúp tìm chính xác một key. Với vector không có total order để B-tree dùng, nên cần các cấu trúc khác, và chúng đánh đổi một thứ mà index thông thường không bao giờ đòi hỏi: **độ chính xác**.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### 2.1 Exact search và ANN
+### 2.1 Exact search and ANN
 
 - **Exact (k-NN chính xác)**: scan toàn bộ, tính distance, lấy k nhỏ nhất. Luôn đúng 100%, chi phí O(N × d). Với N nhỏ (dưới vài chục nghìn dòng) hoặc khi query đã filter còn ít dòng, đây thường là lựa chọn tốt nhất, và cũng là **ground truth** để đo các index khác.
 - **ANN (Approximate Nearest Neighbor)**: index trả về k neighbor **gần đúng**, nhanh hơn nhiều, chấp nhận đôi khi bỏ sót một hai kết quả thật sự gần nhất.
@@ -52,11 +52,11 @@ Tham số (README pgvector 0.8.7):
 
 Ưu: tỷ lệ recall/latency thường tốt hơn IVFFlat, **không cần dữ liệu trước** khi tạo index và chèn thêm dần vẫn ổn. Nhược: build lâu hơn, index lớn hơn, tốn RAM; nên để graph vừa trong `maintenance_work_mem` khi build thì mới nhanh.
 
-### 2.4 Giới hạn kích thước
+### 2.4 Size limits
 
 Theo README: index `vector` hỗ trợ tối đa 2.000 chiều; `halfvec` 4.000 chiều; `bit` 64.000; `sparsevec` tối đa 1.000 phần tử khác không. Vượt thì dùng `halfvec`, dimensionality reduction (nếu model hỗ trợ), hoặc quantization. Index trên biểu thức `halfvec`: `CREATE INDEX ON items USING hnsw ((embedding::halfvec(3)) halfvec_l2_ops);` (ví dụ nguyên văn từ README, với 3 chiều minh họa).
 
-### 2.5 Filter kết hợp metadata
+### 2.5 Filtering combined with metadata
 
 Query thực tế luôn có điều kiện: `WHERE tenant_id = 7`. Index vector duyệt theo distance, **không** biết điều kiện đó. PostgreSQL thường làm: index trả `ef_search` candidate gần nhất toàn cục, **rồi** filter theo `WHERE`. Nếu điều kiện có selectivity cao (chỉ 1% dòng thỏa), trong 40 candidate có thể chỉ còn 0 đến 1 dòng đạt, nên bạn nhận **ít hơn k kết quả**, thậm chí rỗng, dù dữ liệu đúng tồn tại. Đây là lỗi gây khó chịu nhất khi đưa ANN vào sản phẩm multi-tenant.
 
@@ -68,7 +68,7 @@ Các cách xử lý:
 
 Kết quả thực đo ở mục 3 cho thấy cả ba kiểu.
 
-### 2.6 Chọn thế nào
+### 2.6 How to choose
 
 | Tình huống | Gợi ý |
 |---|---|
@@ -77,7 +77,7 @@ Kết quả thực đo ở mục 3 cho thấy cả ba kiểu.
 | Resource build/RAM hạn chế, chấp nhận recall thấp hơn, dữ liệu ít đổi | IVFFlat |
 | Vector quá lớn cho RAM | `halfvec`, dimensionality reduction, hoặc cân nhắc quantization |
 
-## 3. Lab: 50.000 vector tổng hợp, 384 chiều
+## 3. Lab: 50,000 synthetic vectors, 384 dimensions
 
 Mã nguồn đầy đủ trong `lab/`. Chạy lại bằng `lab/run.sh` (xem README). Thiết lập: PostgreSQL 18 với pgvector 0.8.7 (`pgvector/pgvector:0.8.7-pg18-trixie`), container giới hạn bộ nhớ, không map port.
 
@@ -85,7 +85,7 @@ Dữ liệu: 200 centroid ngẫu nhiên đã normalize; mỗi vector = centroid 
 
 Quy mô là **50.000 dòng** chứ không phải 100.000. Lần chạy đầu ở 100.000 dòng trên máy dùng chung với nhiều process khác: build HNSW `m=32, ef_construction=128` mất khoảng 410 giây và index 202 MB (số đo thật từ lần chạy đó), tổng thời gian vượt giới hạn 600 giây tôi đặt cho mỗi bước nên kết quả bị mất. Bản cuối chạy ở 50.000 dòng (bảng `items` 156 MB ở 100k, nửa đó ở 50k). Đổi lại số dòng trong `lab/sql/01-data.sql` nếu bạn muốn chạy lại ở quy mô lớn.
 
-### Kết quả thật (bản chạy cuối, `lab/results.txt`)
+### Real results (final run, `lab/results.txt`)
 
 100 query, top-10, distance cosine. `build_s` là thời gian `CREATE INDEX` (giây); `index_mb` là `pg_relation_size` của index; `avg_ms` và `p95_ms` là latency mỗi query đo trong server (bỏ network latency); `rows` là số dòng trung bình trả về.
 
@@ -113,7 +113,7 @@ Filter `category = $2` (1% số dòng, khoảng 500 dòng), index HNSW m=32, `ef
 | HNSW, `strict_order` | 0,331 | 138,34 | 269,00 | 10,0 |
 | B-tree trên `category` + sắp xếp chính xác (không dùng vector index) | 1,000 | 1,97 | 9,84 | 10,0 |
 
-### Đọc kết quả (và những điều không nên kết luận quá đà)
+### Reading the results (and what not to over-conclude)
 
 1. **Exact vs ANN.** Scan toàn bộ 50.000 vector mất trung bình 130 ms; các cấu hình index có recall tốt cho 1 đến 5 ms. Chênh lệch này sẽ lớn hơn nữa khi số dòng tăng, vì exact tăng tuyến tính.
 2. **HNSW: `m` và `ef_construction` quyết định recall ceiling.** Với `m=16, ef_construction=64` (mặc định), tăng `ef_search` từ 10 lên 40 rồi 100 nâng recall 0,824, 0,899, 0,930 nhưng chạm ceiling dưới 1. Graph tốt hơn (`m=32, ef_construction=128`) đạt 0,987 ngay ở `ef_search=40`, đổi lại build chậm gấp khoảng 1,9 lần (111,5 s so với 58,7 s) và index lớn hơn khoảng 4% (101,4 MB so với 97,7 MB). `ef_search` chỉ chữa được phần còn lại, không bù được graph xây kém.
@@ -124,7 +124,7 @@ Filter `category = $2` (1% số dòng, khoảng 500 dòng), index HNSW m=32, `ef
 
 Bài học vận hành: đo recall bằng exact làm ground truth, đo cả kết quả có filter đúng như query thật, và chọn cấu trúc theo selectivity của điều kiện filter. Với `tenant_id` có vài trăm tenant (mỗi tenant vài phần trăm dữ liệu hoặc nhỏ hơn), đây là tình huống 1% nói trên, nên cân nhắc partition theo tenant hoặc B-tree + exact cho tenant nhỏ.
 
-## 4. Cạm bẫy
+## 4. Pitfalls
 
 - Tạo IVFFlat trên bảng rỗng hoặc gần rỗng: centroid vô nghĩa, recall tệ. Build sau khi nạp dữ liệu.
 - Quên đặt `SET ivfflat.probes` / `hnsw.ef_search` rồi kết luận "index kém" vì để mặc định.
@@ -134,7 +134,7 @@ Bài học vận hành: đo recall bằng exact làm ground truth, đo cả kế
 - `ORDER BY` bằng biểu thức khác operator của index (ví dụ index `vector_l2_ops` nhưng query `<=>`): index không được dùng.
 - Build HNSW với `maintenance_work_mem` quá nhỏ: build chậm đi rất nhiều; có warning trong log khi graph không vừa memory.
 
-## 5. Tóm tắt
+## 5. Summary
 
 1. Exact search luôn đúng và là ground truth; với N nhỏ hoặc query filter mạnh thì thường đủ nhanh.
 2. ANN đánh đổi recall lấy tốc độ; đo recall@k so với exact trên dữ liệu của bạn.
@@ -142,14 +142,14 @@ Bài học vận hành: đo recall bằng exact làm ground truth, đo cả kế
 4. Filter metadata sau index có thể trả thiếu kết quả; dùng iterative scan, B-tree, partial index hoặc partition.
 5. Tham số query là operational knob, không phải hằng số: chỉnh bằng số đo.
 
-## 6. Câu hỏi tự kiểm tra
+## 6. Self-check questions
 
 1. Recall@10 bằng 0,92 nghĩa là gì?
 2. Vì sao IVFFlat không nên build trên bảng rỗng?
 3. Query `WHERE tenant_id = 7 ORDER BY emb <=> $1 LIMIT 10` qua HNSW chỉ trả 2 dòng dù tenant có hàng nghìn dòng. Nguyên nhân và hai cách khắc phục?
 4. Tăng `ef_search` ảnh hưởng gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Trung bình trong 10 kết quả đúng nhất (theo exact), index tìm lại được 9,2 kết quả.
 2. IVFFlat tính centroid bằng k-means từ dữ liệu lúc build; không có dữ liệu thì centroid không đại diện cho distribution thật, recall thấp.

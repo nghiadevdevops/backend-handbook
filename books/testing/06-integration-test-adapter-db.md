@@ -1,16 +1,16 @@
-# Chương 6. Integration test cho adapter với PostgreSQL thật
+# Chapter 6. Integration tests for adapters with a real PostgreSQL
 
-## 1. Tình huống
+## 1. Scenario
 
 `PostgresOrderRepository` chạy trên máy dev nhưng lỗi trên production: cột `placed_at` là `timestamptz` và timezone bị lệch; `ON CONFLICT` quên cập nhật dòng; lưu lại đơn nhân đôi dòng hàng; cột `bigint` trả về dưới dạng string nên `price + 1` thành `"30000000001"`. Không unit test nào bắt được vì lỗi nằm ở **sự tương tác với database thật**. Adapter là "keo" với infrastructure nên cách duy nhất kiểm tra nó là chạy với infrastructure thật.
 
-## 2. Nguyên tắc
+## 2. Principles
 
 - Dùng **DB thật cùng loại và phiên bản gần production** (không dùng SQLite thay PostgreSQL: khác data type, constraint, hành vi `ON CONFLICT`, timezone).
 - Mỗi test **bắt đầu từ clean state** và không để lại dấu vết.
 - Kiểm tra qua public port: `save()` rồi `get()` ("round trip"), cộng vài ca đọc/ghi thẳng vào DB cho constraint.
 
-## 3. Dựng PostgreSQL trong Docker
+## 3. Running PostgreSQL in Docker
 
 Lab dùng script `run.sh up`, thực chất làm:
 
@@ -48,7 +48,7 @@ Lab này **không dùng Testcontainers**, và đó là một trade-off có chủ
 
 Nếu Node chạy trực tiếp trên máy dev hoặc runner CI (không lồng trong container), Testcontainers thường là lựa chọn tiện hơn.
 
-## 4. Quản lý test data: transaction rollback
+## 4. Managing test data: transaction rollback
 
 Cách nhanh nhất để giữ DB sạch: mỗi test chạy trong một transaction và **rollback** ở cuối. Với driver `pg`, transaction gắn với **một connection**, nên test phải lấy một `PoolClient` riêng (không thể `pool.query('BEGIN')` vì mỗi lần `pool.query` có thể rơi vào connection khác):
 
@@ -103,7 +103,7 @@ So sánh các chiến lược dọn dữ liệu:
 
 Quyết định của lab: rollback cho phần lớn; riêng nhánh "adapter tự commit" có một test dùng `Pool` thật, id có tiền tố `own-` và được `DELETE` ở `afterAll`.
 
-## 5. Các test của adapter
+## 5. The adapter's tests
 
 Từ `lab/tests/integration/postgres-order-repository.test.ts`:
 
@@ -163,13 +163,13 @@ $ ./run.sh integ
 
 Ca `Pool` thật kiểm tra nhánh commit: một connection khác phải thấy dữ liệu sau `save`, điều mà test rollback không thể kiểm tra.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Integration test chậm hơn và cần infrastructure, nhưng là cách duy nhất bắt lỗi mapping/SQL. Một adapter nên có vài chục test, không phải hàng nghìn.
 - Đừng test logic domain qua DB: đã có unit test.
 - Với ORM/query builder (Prisma, Drizzle, Kysely...): cùng nguyên tắc, DB thật và transaction rollback; chỉ cách lấy connection trong transaction khác nhau theo thư viện (lab dùng `pg` trực tiếp để mọi thứ lộ rõ).
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - **SQLite in-memory thay Postgres**: test xanh nhưng production đỏ vì khác type/constraint.
 - **Dữ liệu dùng chung giữa test**: test này phụ thuộc dữ liệu test kia để lại.
@@ -179,14 +179,14 @@ Ca `Pool` thật kiểm tra nhánh commit: một connection khác phải thấy 
 - Chạy test song song (Vitest chạy mỗi file ở một worker) trên cùng một DB mà không isolation (schema/DB riêng cho mỗi worker). Lab chỉ có một file integration, và dùng id tiền tố riêng cho phần commit thật.
 - Quên đợi DB sẵn sàng (`pg_isready`) → test đầu tiên flaky.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Adapter cần test với infrastructure thật, cùng loại với production.
 - Round trip `save` rồi `get` là bài test cốt lõi; thêm ca cho DB constraint và cho kiểu dữ liệu của driver (`bigint`, `timestamptz`).
 - Transaction rollback giữ DB sạch rẻ nhất, nhưng adapter phải tôn trọng transaction ngoài.
 - Dựng DB bằng Docker (script hoặc Testcontainers), không map port ra host nếu không cần; lab chọn script vì Testcontainers cần Docker socket khi test chạy trong container.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao không dùng SQLite thay PostgreSQL trong integration test của lab?
 2. Vì sao `save` kiểm tra `this.#db instanceof pg.Pool`?
@@ -194,7 +194,7 @@ Ca `Pool` thật kiểm tra nhánh commit: một connection khác phải thấy 
 4. Test `saving again updates status and replaces lines` bảo vệ khỏi lỗi gì?
 5. Vì sao lab không dùng Testcontainers dù nó tiện hơn?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. SQLite khác PostgreSQL về data type, constraint, `ON CONFLICT`, timezone; test xanh không đảm bảo production đúng.
 2. Nếu được đưa một `PoolClient` đã `BEGIN` (test rollback) thì dùng nó thay vì mở/commit riêng, để rollback có hiệu lực; nếu được đưa `Pool` thì tự mở transaction.

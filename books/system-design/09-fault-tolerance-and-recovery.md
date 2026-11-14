@@ -1,8 +1,8 @@
-# Chương 9. Fault tolerance và recovery: retry, circuit breaker, rate limiting, HA
+# Chapter 9. Fault Tolerance and Recovery: Retry, Circuit Breaker, Rate Limiting, HA
 
 > Cập nhật: 2026-11-07.
 
-## 9.1 Lỗi là chuyện bình thường
+## 9.1 Failure is normal
 
 Ở quy mô lớn, *luôn có thứ gì đó đang hỏng*. Các loại failure hay gặp:
 
@@ -15,11 +15,11 @@
 
 Mục tiêu thiết kế: **phát hiện nhanh, giới hạn blast radius, graceful degradation, recovery nhanh (MTTR thấp)**.
 
-## 9.2 Timeout: nền móng
+## 9.2 Timeouts: the foundation
 
 Mọi call qua mạng phải có **timeout** (connect và read). Không timeout = thread bị treo vô hạn = cascading failure. Đặt timeout dựa trên latency percentile cao của dịch vụ đích (ví dụ cao hơn p99 một chút), không đặt "30 giây cho chắc". Truyền **deadline** xuyên suốt call chain để layer dưới biết còn bao nhiêu thời gian, tránh làm việc cho một request mà người gọi đã bỏ.
 
-## 9.3 Retry với exponential backoff và jitter
+## 9.3 Retry with exponential backoff and jitter
 
 Retry giúp vượt lỗi tạm thời, nhưng retry bừa bãi biến failure nhỏ thành outage.
 
@@ -89,7 +89,7 @@ Ví dụ: API công khai cho phép 100 request/phút/key, burst 20. Token bucket
 
 **Load shedding**: khi quá tải, chủ động *bỏ* request ít quan trọng (hoặc từ chối sớm bằng 503) để giữ chất lượng cho phần còn lại, thay vì để tất cả chậm dần rồi chết.
 
-## 9.6 High Availability và Fault Tolerance
+## 9.6 High Availability and Fault Tolerance
 
 | | High Availability (HA) | Fault Tolerance (FT) |
 |---|---|---|
@@ -104,7 +104,7 @@ HA nhắm vào *tỉ lệ uptime* (số 9); FT nhắm vào *không có gián đo
 
 **Health check**: deep health check (kiểm tra cả dependency) có nguy cơ làm toàn bộ fleet bị rút khỏi LB khi một dependency chung lỗi; nên phân biệt *liveness* và *readiness*.
 
-## 9.7 Backup và disaster recovery
+## 9.7 Backup and disaster recovery
 
 - **RPO** (Recovery Point Objective): chấp nhận mất tối đa bao nhiêu dữ liệu (tính bằng thời gian). Sync replication cho RPO ≈ 0; backup hằng đêm cho RPO ≈ 24 giờ.
 - **RTO** (Recovery Time Objective): chấp nhận gián đoạn tối đa bao lâu.
@@ -112,25 +112,25 @@ HA nhắm vào *tỉ lệ uptime* (số 9); FT nhắm vào *không có gián đo
 - **Replication không thay backup**: xóa nhầm hoặc hỏng logic lan sang mọi replica. Cần backup có versioning/point-in-time và **restore test định kỳ** (backup chưa từng restore thử là chưa có backup).
 - **Chaos engineering / game day**: chủ động gây lỗi (tắt instance, thêm latency) để kiểm chứng giả định fault tolerance.
 
-## 9.8 Đánh giá: uptime, SLA, MTTR, MTBF
+## 9.8 Measuring: uptime, SLA, MTTR, MTBF
 
 - Availability `= MTBF/(MTBF+MTTR)` (chương 2). Mục tiêu 99,99% ≈ 52,56 phút/năm; một incident mất 1 giờ đã vượt error budget cả năm.
 - **Error budget** `= 1 − SLO`: SLO 99,9% trong 30 ngày cho phép 43,2 phút lỗi; dùng để cân đối tốc độ ra tính năng và stability.
 - Phân biệt **SLA** (hợp đồng, có bồi thường), **SLO** (mục tiêu nội bộ), **SLI** (số đo). Đặt SLO của mình *chặt hơn* SLA đưa cho khách hàng.
 - Số 9 của hệ thống bị giới hạn bởi *dependency yếu nhất nối tiếp*: nếu dịch vụ của bạn gọi nhà cung cấp 99,9% một cách bắt buộc, bạn không thể cam kết 99,99% trừ khi có cơ chế redundancy/degrade.
 
-## 9.9 Ví dụ thiết kế: trang kết quả tìm kiếm phụ thuộc 3 dịch vụ
+## 9.9 Design example: a search results page that depends on 3 services
 
 Trang cần: kết quả chính (bắt buộc), gợi ý (phụ), giá khuyến mãi (phụ). Thiết kế: timeout 300 ms cho dịch vụ phụ, parallel; circuit breaker + fallback "không hiển thị gợi ý" khi dịch vụ gợi ý lỗi; bulkhead tách pool; retry tối đa 1 lần với jitter cho dịch vụ chính nếu `GET` (idempotent); rate limit theo người dùng; hạ layer nhiều AZ. Kết quả: lỗi ở dịch vụ phụ chỉ làm trang kém phong phú chứ không sập.
 
-## 9.10 Khi phỏng vấn nên nói gì
+## 9.10 What to say in an interview
 
 - "Mọi call có timeout; retry tối đa 3 lần, exponential backoff với full jitter, chỉ cho operation idempotent, ở một layer."
 - "Em đặt circuit breaker và fallback cho dependency không thiết yếu để tránh cascading failure."
 - "Rate limit bằng token bucket ở gateway, lưu counter trong Redis; khi Redis lỗi em chọn fail-open vì ưu tiên availability cho API đọc."
 - "Mục tiêu RPO ≈ 0, RTO vài phút: sync replication trong region, async sang region khác, có runbook failover và diễn tập định kỳ."
 
-## 9.11 Cạm bẫy
+## 9.11 Pitfalls
 
 - Retry không giới hạn, không backoff, không jitter.
 - Retry ở mọi layer gây retry amplification.
@@ -141,7 +141,7 @@ Trang cần: kết quả chính (bắt buộc), gợi ý (phụ), giá khuyến 
 - Health check sâu làm sập cả fleet.
 - Nhầm HA với FT.
 
-## 9.12 Tóm tắt
+## 9.12 Summary
 
 1. Timeout bắt buộc; retry = backoff + jitter + giới hạn + idempotent + một layer.
 2. Circuit breaker (closed/open/half-open), fallback và bulkhead chống cascading failure.
@@ -149,7 +149,7 @@ Trang cần: kết quả chính (bắt buộc), gợi ý (phụ), giá khuyến 
 4. HA giảm thời gian ngưng, FT không gián đoạn; chọn theo chi phí và yêu cầu.
 5. Định nghĩa RPO/RTO/SLO/error budget và restore test thực tế.
 
-## 9.13 Câu hỏi tự kiểm tra
+## 9.13 Self-check questions
 
 1. Tại sao phải thêm jitter vào exponential backoff?
 2. Ba layer gọi nhau, mỗi layer thử tối đa 3 lần. Tải tối đa lên layer thấp nhất?
@@ -158,7 +158,7 @@ Trang cần: kết quả chính (bắt buộc), gợi ý (phụ), giá khuyến 
 5. Phân biệt RPO và RTO.
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Để các client không synchronize và đập lại cùng lúc (thundering herd); jitter rải đều thời điểm retry.
 2. `3 × 3 × 3 = 27` lần.
@@ -168,7 +168,7 @@ Trang cần: kết quả chính (bắt buộc), gợi ý (phụ), giá khuyến 
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - AWS Builders' Library, "Timeouts, retries and backoff with jitter": https://builder.aws.com/content/3EumjoZascWd1oZiEgL8ORlv3qE/timeouts-retries-and-backoff-with-jitter
 - SLA/design availability: xem chương 2.

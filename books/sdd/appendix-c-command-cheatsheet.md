@@ -1,8 +1,8 @@
-# Phụ lục C. Cheatsheet lệnh (đã đối chiếu tài liệu chính thức, 07/11/2026)
+# Appendix C. Command cheatsheet (checked against official docs, 07/11/2026)
 
 Ký hiệu: **[đã chạy]** nghĩa là tôi chạy thử trong Docker; **[tài liệu]** nghĩa là lấy từ tài liệu chính thức, chưa chạy vì cần cài tool. Lệnh trong agent (bắt đầu bằng `/`) gõ trong khung chat của agent, không gõ vào terminal.
 
-## C.1. GitHub Spec Kit (v1.3.2, Python 3.11+, uv) [tài liệu]
+## C.1. GitHub Spec Kit (v1.3.2, Python 3.11+, uv) [docs]
 
 Terminal:
 
@@ -30,7 +30,7 @@ Trong Claude Code (skill, dấu gạch nối):
 
 Dạng gọi phụ thuộc agent: Claude Code `/speckit-...`; Codex `$speckit-...`; Kimi `/skill:...`. Feature đang hoạt động ghi ở `.specify/feature.json` (hoặc environment variable `SPECIFY_FEATURE_DIRECTORY`). Tùy chọn init cho Claude: `--integration-options="--no-model-invocation"` (chỉ chạy khi bạn gọi), `--integration-options="--events false"`.
 
-## C.2. OpenSpec (v1.16.1, Node 22.12+ nếu cài qua package manager) [tài liệu]
+## C.2. OpenSpec (v1.16.1, Node 22.12+ if installed via a package manager) [docs]
 
 ```bash
 npm install -g @fission-ai/openspec@latest     # hoặc curl/irm installer, hoặc brew install openspec
@@ -48,7 +48,7 @@ openspec version --check
 
 `/opsx:sync` gộp delta specs vào `openspec/specs/` (tùy chọn, change vẫn mở); `/opsx:archive` chuyển change vào `openspec/changes/archive/YYYY-MM-DD-<tên>/` và nhắc sync. `openspec/config.yaml` có các trường `schema`, `context`, `rules`. Một số tool dùng dạng khác (`/opsx-propose`, `$openspec-propose`).
 
-## C.3. AIUP (`aiup-core` 3.13.0 theo registry Tessl) [tài liệu]
+## C.3. AIUP (`aiup-core` 3.13.0 per the Tessl registry) [docs]
 
 ```text
 /plugin marketplace add ai-unified-process/marketplace
@@ -58,11 +58,11 @@ openspec version --check
 
 Skill `aiup-core`: `/requirements`, `/entity-model`, `/use-case-diagram`, `/business-process`, `/use-case-spec UC-001`, `/test-case`, `/stack`, `/use-case-implement`, `/use-case-test`, `/use-case-coverage`, `/test-case-implement`, `/test-case-coverage`, `/user-guide`, `/acceptance-protocol`, `/release-notes`, `/spec-review`, `/next`, `/open-questions`, `/architecture-decision`, `/reverse-engineer`. README hiển thị dạng không namespace; tài liệu Claude Code nói skill của plugin dùng `/tên-plugin:tên-skill`: nếu dạng ngắn không chạy, gõ `/` để xem tên thật. Plugin gộp `aiup-vaadin-jooq` và `aiup-angular-jpa` đã deprecated.
 
-## C.4. Kiro [tài liệu]
+## C.4. Kiro [docs]
 
 Không có "lệnh" cho SDD trong terminal: dùng UI. Spec gồm `requirements.md` (hoặc `bugfix.md`), `design.md`, `tasks.md`. Steering: `.kiro/steering/` (`product.md`, `tech.md`, `structure.md`; chế độ `always`, `fileMatch`, `manual`, `auto`). Hooks: JSON trong `.kiro/hooks/`.
 
-## C.5. Claude Code [tài liệu]
+## C.5. Claude Code [docs]
 
 | Việc | Lệnh hoặc vị trí |
 |---|---|
@@ -77,7 +77,7 @@ Không có "lệnh" cho SDD trong terminal: dùng UI. Spec gồm `requirements.m
 | Plugin | `/plugin`, `/plugin marketplace add <owner>/<repo>`, `/plugin install <tên>` |
 | Tiếp tục session | `claude --continue`, `claude --resume` |
 
-## C.6. Shell và git (đã chạy trong container) [đã chạy]
+## C.6. Shell and git (run in a container) [ran]
 
 ```bash
 # AC nào chưa có test (trong lab; chạy bằng sh trong container)

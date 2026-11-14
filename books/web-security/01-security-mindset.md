@@ -1,14 +1,14 @@
-# Chương 1. Tư duy bảo mật
+# Chapter 1. Security Mindset
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn đã viết một API đặt hàng chạy tốt: test xanh, response nhanh. Nhưng "chạy đúng với người dùng tốt" khác hẳn "không bị phá bởi người dùng xấu". Lỗi bảo mật gần như luôn nằm ở chỗ **code làm đúng điều mình viết, nhưng mình đã giả định sai về input hoặc về caller**.
 
 Ví dụ xuyên suốt của cả cuốn: một shop sách nhỏ (`Book`, `Order`, `User`, `Comment`) viết bằng TypeScript/Node.js (Express 5, PostgreSQL), có REST API `/api/orders/:id`, `/api/books?q=`, `/api/comments`. Các chương sau sẽ phá và vá chính những endpoint này, và phần lab chạy thật.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### 2.1 Ba mục tiêu: CIA
+### 2.1 Three goals: CIA
 
 - **Confidentiality** (bí mật): chỉ người được phép mới đọc được.
 - **Integrity** (toàn vẹn): dữ liệu không bị sửa trái phép.
@@ -16,7 +16,7 @@ Ví dụ xuyên suốt của cả cuốn: một shop sách nhỏ (`Book`, `Order
 
 Mỗi vulnerability phá ít nhất một trong ba. SQL injection đọc dữ liệu: phá C; mass assignment tự nâng quyền: phá I; ReDoS hay upload file khổng lồ: phá A.
 
-### 2.2 Threat modeling với STRIDE
+### 2.2 Threat modeling with STRIDE
 
 Threat modeling là việc ngồi xuống TRƯỚC khi code (hoặc khi review thiết kế) và hỏi: "Cái gì có thể sai?" Bốn câu hỏi của Shostack: Ta đang xây gì? Cái gì có thể sai? Ta làm gì với nó? Ta đã làm đủ tốt chưa?
 
@@ -74,7 +74,7 @@ Least privilege (đặc quyền tối thiểu): mỗi user, service, token, DB a
 
 Cấu hình mặc định phải an toàn; muốn nới lỏng phải chủ động và có lý do. Ví dụ: field mới thêm vào model mặc định **không** mass-assignable (validate body bằng schema allowlist như zod `strictObject`, thay vì spread `req.body` vào ORM hay câu UPDATE); endpoint mới mặc định yêu cầu đăng nhập (middleware xác thực gắn ở router gốc, route công khai là ngoại lệ được liệt kê); cookie session mặc định `HttpOnly`, `Secure`, `SameSite`.
 
-### 2.6 Các nguyên tắc khác nên thuộc lòng
+### 2.6 Other principles worth memorizing
 
 - **Never trust input** (không tin dữ liệu từ client): kể cả header, cookie, tên file, JWT claim chưa verify.
 - **Fail securely** (lỗi thì đóng): khi lỗi kiểm tra quyền, từ chối thay vì cho qua.
@@ -82,7 +82,7 @@ Cấu hình mặc định phải an toàn; muốn nới lỏng phải chủ đ�
 - **Keep it simple** (economy of mechanism): code bảo mật càng đơn giản càng ít lỗi; đừng tự viết crypto.
 - **Separation of duties**: người deploy không tự duyệt thay đổi nhạy cảm.
 
-## 3. Ví dụ: threat model nhanh cho `POST /api/orders`
+## 3. Example: a quick threat model for `POST /api/orders`
 
 | Threat | Kịch bản | Biện pháp |
 |---|---|---|
@@ -95,13 +95,13 @@ Cấu hình mặc định phải an toàn; muốn nới lỏng phải chủ đ�
 
 Một buổi như vậy thường tìm ra 5–10 việc cần làm, rẻ hơn nhiều so với patch sau khi bị exploit.
 
-## 4. Trade-off: khi nào làm, khi nào không
+## 4. Trade-offs: when to do it and when not to
 
 - Threat model đầy đủ cho mỗi tính năng là quá nặng. Hãy làm khi: thêm một trust boundary mới (tích hợp third-party, API công khai), xử lý dữ liệu nhạy cảm (thanh toán, y tế), hoặc đổi kiến trúc.
 - Với thay đổi nhỏ, một checklist 5 câu hỏi (ai gọi? dữ liệu của ai? input nào tin được? lỗi thì sao? log gì?) là đủ.
 - Bảo mật có chi phí: thêm layer = thêm latency, độ phức tạp, ma sát cho user. Cân theo mức rủi ro, không áp tối đa cho mọi thứ.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - "Security through obscurity": tin rằng URL `/admin-x7f3` không ai biết. Sai.
 - Chỉ bảo vệ ở UI (ẩn nút), quên bảo vệ API.
@@ -109,21 +109,21 @@ Một buổi như vậy thường tìm ra 5–10 việc cần làm, rẻ hơn nh
 - Threat model xong cất vào ngăn kéo, không cập nhật khi kiến trúc đổi.
 - Chống đúng một vector (ví dụ SQLi) mà bỏ layer 3 (DB user quyền root).
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Bảo mật = bảo vệ C-I-A; lỗi thường đến từ giả định sai về input/caller.
 - STRIDE là danh sách gợi ý giúp duyệt nhanh các loại threat trên mỗi trust boundary.
 - Defense in depth: nhiều layer độc lập; Least privilege: quyền tối thiểu; Secure by default: mặc định an toàn.
 - Threat model nhẹ, làm sớm, làm lại khi kiến trúc đổi.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. STRIDE gồm những chữ nào, và chữ nào đối ứng với property Authorization?
 2. Trust boundary là gì? Cho một ví dụ ở API Express.
 3. Vì sao hai layer phòng thủ cùng dựa vào một giả định không được tính là defense in depth?
 4. `Object.assign(user, req.body)` (hay `...req.body` vào ORM) vi phạm nguyên tắc nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Spoofing, Tampering, Repudiation, Information disclosure, Denial of service, Elevation of privilege. Chữ E (Elevation of privilege) đối ứng Authorization.
 2. Ranh giới nơi dữ liệu chuyển giữa các vùng có mức tin cậy khác nhau, ví dụ Internet → route handler Express, hoặc API → third-party payment gateway.

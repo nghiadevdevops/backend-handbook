@@ -1,12 +1,12 @@
-# Chương 8. Kubernetes căn bản cho developer
+# Chapter 8. Kubernetes Basics for Developers
 
-## 1. Vấn đề
+## 1. The problem
 
 Một server chạy Docker Compose không tự thay container hỏng trên máy khác, không rolling update có kiểm soát, không autoscale theo tải. **Kubernetes (K8s)** là hệ container orchestration: bạn khai báo *desired state* ("3 replica của image này, mỗi replica tối đa 256 MiB RAM") và K8s liên tục điều chỉnh thực tế cho khớp.
 
 Phiên bản tại thời điểm viết: Kubernetes **1.37** là bản mới nhất (1.37.1 ngày 15/09/2026; 1.34 hết hỗ trợ 27/10/2026), theo trang kubernetes.io/releases. Manifest trong lab được validate theo schema 1.37.0.
 
-## 2. Các đối tượng cơ bản
+## 2. Core objects
 
 ```mermaid
 flowchart TB
@@ -25,13 +25,13 @@ flowchart TB
 - **ConfigMap / Secret**: cấu hình và dữ liệu nhạy cảm tách khỏi image. **Lưu ý: Secret mặc định chỉ được encode base64, không phải encryption thật.** Bật encryption at rest cho etcd và giới hạn RBAC; hoặc dùng External Secrets.
 - **Ingress / Gateway API**: đưa traffic từ ngoài vào Service.
 
-### Ingress hay Gateway API (trạng thái 11/2026)
+### Ingress or Gateway API (status as of 11/2026)
 
 API `Ingress` vẫn tồn tại, chưa có kế hoạch bỏ. Nhưng **controller `ingress-nginx` đã ngừng bảo trì**: cộng đồng Kubernetes thông báo retire tháng 11/2025, không còn release hay security patch sau tháng 3/2026. **Gateway API** (`HTTPRoute`, `Gateway`) là hướng đi mới, biểu đạt tốt hơn (chia vai trò infrastructure và ứng dụng, weighted routing cho canary). Các lựa chọn controller gồm Envoy Gateway, Cilium, Istio, Traefik, kgateway... Trước khi chọn hãy kiểm tra trang chính thức của Gateway API để biết phiên bản và mức hỗ trợ; nguồn tôi tra có mâu thuẫn về số phiên bản mới nhất (v1.6.x hay v1.7.0), nên cuốn này không khẳng định.
 
 Manifest lab dùng `HTTPRoute` (`gateway.networking.k8s.io/v1`), validate bằng schema từ catalog CRD cộng đồng.
 
-## 3. Probe: ba loại, ba mục đích
+## 3. Probes: three kinds, three purposes
 
 | Probe | Câu hỏi | Nếu thất bại |
 |---|---|---|
@@ -56,7 +56,7 @@ livenessProbe:
   failureThreshold: 3
 ```
 
-## 4. Resource request / limit, HPA
+## 4. Resource requests / limits, HPA
 
 - `requests`: lượng resource scheduler **reserve**; cũng là cơ sở tính phần trăm cho HPA.
 - `limits`: trần. Vượt **memory limit** thì container bị OOMKilled; vượt **CPU limit** thì bị bóp (throttle). Nhiều đội đặt `limits.memory` mà bỏ `limits.cpu` để tránh throttle; đó là lựa chọn có tranh luận, tùy workload.
@@ -76,7 +76,7 @@ Với `maxUnavailable: 0`, K8s tạo Pod mới, chờ nó **Ready**, rồi mới
 
 **PodDisruptionBudget (PDB)**: giới hạn số Pod bị gián đoạn **tự nguyện** (drain node, nâng cấp cluster): `minAvailable: 2` nghĩa là không cho drain nếu còn dưới 2 Pod. PDB không bảo vệ khỏi involuntary disruption (node chết).
 
-### Graceful shutdown: chuỗi sự kiện khi Pod bị xóa
+### Graceful shutdown: the sequence of events when a Pod is deleted
 
 ```mermaid
 sequenceDiagram
@@ -94,7 +94,7 @@ Việc rút Pod khỏi endpoints và việc gửi SIGTERM xảy ra **gần như 
 
 Lưu ý ứng dụng: process PID 1 phải nhận được SIGTERM (dùng dạng exec `CMD ["node", ...]` hoặc `ENTRYPOINT ["/app"]`, không dùng shell form, không dùng `npm start`; chương 2) và tự xử lý nó: Go `signal.NotifyContext` + `srv.Shutdown`, Node `server.close()`. Lab chương 2 đã chứng minh request đang chạy vẫn hoàn tất khi nhận SIGTERM. Với worker xử lý job nền, đặt grace period đủ cho job dài nhất và dừng nhận job mới khi nhận SIGTERM. Image distroless **không có lệnh `sleep`**, nên `preStop` trong `app.yaml` dùng hook `sleep: { seconds: 10 }` có sẵn của Kubernetes thay cho `exec: ["sleep", "10"]`.
 
-## 6. Lab đã chạy: validate manifest bằng kubeconform
+## 6. Lab run: validating manifests with kubeconform
 
 Cluster thật (k3s) **không chạy** ở lab này (để giữ RAM thấp cho máy dùng chung). Manifest **chỉ được validate**, chưa được apply lên cluster nên các hành vi mô tả (rolling update, preStop...) chưa được kiểm chứng thực tế trong cuốn này.
 
@@ -110,13 +110,13 @@ kubeconform v0.8.0, schema 1.37.0 (chạy lại sau khi đổi sang image Go: us
 
 kubeconform chỉ kiểm schema, **không** bắt lỗi logic (selector không khớp label, image không tồn tại, Secret `app-secret` chưa tạo). Manifest mẫu dùng image Go; với service Node chỉ đổi image và `runAsUser: 1000`. Hãy kết hợp `kubectl apply --dry-run=server` trên cluster thật và các công cụ policy.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - K8s mạnh nhưng phức tạp về vận hành. Với 1-3 service và đội nhỏ, một service PaaS/container managed (hoặc Compose trên một máy) có thể rẻ hơn nhiều.
 - Dùng managed cluster (EKS, GKE, AKS...) thay vì tự dựng, trừ khi có lý do.
 - `maxSurge` cao làm rollout nhanh nhưng tốn resource tạm thời.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 1. Thiếu readiness probe: Pod mới nhận traffic khi chưa sẵn sàng.
 2. Liveness phụ thuộc DB.
@@ -126,7 +126,7 @@ kubeconform chỉ kiểm schema, **không** bắt lỗi logic (selector không k
 6. `readOnlyRootFilesystem: true` nhưng quên mount `emptyDir` cho `storage/`, `/tmp`, `bootstrap/cache`.
 7. PDB `minAvailable` bằng đúng số replica sẽ chặn mãi việc drain node.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Deployment quản lý ReplicaSet và Pod; Service load balancing tới Pod Ready.
 - Startup, readiness, liveness phục vụ ba mục đích khác nhau; liveness không kiểm tra phụ thuộc ngoài.
@@ -134,14 +134,14 @@ kubeconform chỉ kiểm schema, **không** bắt lỗi logic (selector không k
 - Gateway API là hướng mới; `ingress-nginx` đã retire.
 - Manifest lab mới được validate bằng kubeconform, chưa chạy trên cluster.
 
-## 10. Tự kiểm tra
+## 10. Self-check
 
 1. Readiness thất bại khác liveness thất bại thế nào?
 2. Vì sao cần `preStop: sleep` dù đã có SIGTERM?
 3. HPA cần điều kiện gì ở Pod?
 4. PDB có bảo vệ khi node chết không?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Readiness rút Pod khỏi Service (không giết); liveness restart container.
 2. Rút endpoints và gửi SIGTERM gần như song song, proxy có thể còn gửi request đến Pod đang tắt; sleep cho endpoints kịp cập nhật.

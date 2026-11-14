@@ -1,16 +1,16 @@
-# Chương 10. OpenAPI: spec, design-first, lint, docs, mock
+# Chapter 10. OpenAPI: spec, design-first, lint, docs, mock
 
-## 1. Vấn đề
+## 1. The problem
 
 Tài liệu API nằm trong Confluence, lệch code từ ba sprint trước. Đội mobile viết model bằng tay và vỡ vì field đổi tên. **OpenAPI Specification (OAS)** là mô tả máy đọc được của HTTP API: từ một file sinh ra tài liệu, SDK, mock server, test và kiểm tra lint.
 
-## 2. Phiên bản (kiểm tra 11/2026)
+## 2. Versions (checked 11/2026)
 
 - Phiên bản mới nhất trên spec.openapis.org: **OpenAPI 3.2.1 (10/9/2026)**, bản vá của 3.2.0 (3.2 phát hành năm 2025). Spec 3.2 hỗ trợ `webhooks` ở root level (có từ 3.1), method `query` (liên kết RFC 10008) và `additionalOperations` cho custom method.
 - 3.1 căn chỉnh Schema Object với JSON Schema 2020-12 (`type: ["string","null"]` thay cho `nullable`). 3.0.x vẫn phổ biến ở công cụ cũ.
 - Hỗ trợ công cụ có độ trễ: Redocly CLI hỗ trợ 3.2 (từ 2.3.0, 10/2025); với **Spectral** (`@stoplight/spectral-cli` 6.17.1 khi viết) tôi **chưa xác minh** mức hỗ trợ 3.2, xem kết quả lab bên dưới. Nếu công cụ bắt buộc của bạn chưa hỗ trợ, hạ về 3.1.x là lựa chọn hợp lý.
 
-## 3. Cấu trúc một spec
+## 3. Structure of a spec
 
 ```yaml
 openapi: 3.2.0
@@ -40,7 +40,7 @@ Spec hoàn chỉnh cho API ví dụ nằm ở `lab/openapi/orders.yaml` (đã li
 - Ví dụ (`examples`) cho mỗi response, dùng chính payload của lab.
 - `security`: Bearer JWT + scope.
 
-## 4. Design-first hay code-first
+## 4. Design-first or code-first
 
 | | Design-first | Code-first |
 |---|---|---|
@@ -60,27 +60,27 @@ Lint spec để ép quy ước (chương 1) và bắt lỗi sớm.
 - Đặt lint vào CI, chặn merge khi có lỗi.
 - Phát hiện breaking change: so sánh spec giữa các branch với `oasdiff` (kiểm tra công cụ hiện hành).
 
-### Kết quả lab
+### Lab results
 
 Chạy `bash lab/lint.sh` (hai container tạm `bookcheck-api-redocly`, `bookcheck-api-spectral`, bind-mount read-only). Kết quả ngày 8/11/2026 với `orders.yaml` khai báo `openapi: 3.2.0`:
 
 - **Redocly CLI 2.76.0** (`redocly/cli:latest`, `--extends recommended`): `Woohoo! Your API description is valid.`, 0 lỗi, 0 cảnh báo. Lần chạy đầu có 1 cảnh báo `no-server-example.com` (server trỏ example.com) và đã sửa.
 - **Spectral 6.17.1** (`stoplight/spectral:latest`, ruleset `spectral:oas` + 1 rule tự viết `.spectral.yaml`): `No results with a severity of 'error' found!`, 0 lỗi. Lần đầu có 5 cảnh báo (thiếu `contact`, scope không khai báo, thiếu `description`) và đã sửa. Lưu ý: việc Spectral không báo lỗi không chứng minh nó hiểu hết cú pháp riêng của 3.2; Redocly mới là bên tuyên bố hỗ trợ 3.2.
 
-## 6. Sinh tài liệu, mock, SDK
+## 6. Generating docs, mocks, and SDKs
 
 - Tài liệu: Redoc/Redocly (`redocly build-docs`), Swagger UI, Scalar, Stoplight Elements.
 - Mock: Prism (Stoplight) chạy mock từ spec, trả ví dụ đã khai báo; cho frontend làm song song.
 - SDK/stub: OpenAPI Generator (nhiều ngôn ngữ, chất lượng khác nhau; luôn review code sinh ra).
 - Test: schemathesis (property-based từ spec), Dredd (bản 14.1.0 phát hành 2/2023, ít hoạt động nên không khuyến nghị cho dự án mới); trong Node.js có thể validate response theo schema của spec bằng Ajv trong chính test (contract test tự viết).
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Spec giàu chi tiết tốn công viết/giữ; đổi lại là single source of truth.
 - Generator SDK tiện nhưng code sinh ra có thể xấu/khó tùy biến; một số API đáng viết SDK tay mỏng.
 - Dùng 3.2 sớm: được tính năng mới, nhưng giới hạn công cụ.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - Spec không được kiểm tra với hành vi thật nên trôi.
 - Schema quá lỏng (`type: object` không có property) làm spec vô nghĩa.
@@ -89,20 +89,20 @@ Chạy `bash lab/lint.sh` (hai container tạm `bookcheck-api-redocly`, `bookche
 - `example` vi phạm chính schema của nó (lint sẽ bắt).
 - `operationId` trùng/thiếu làm SDK sinh ra tên xấu.
 
-## 9. Tóm tắt
+## 9. Summary
 
 - OAS 3.2.1 là bản mới nhất (9/2026); nhớ kiểm tra hỗ trợ của công cụ.
 - Design-first + contract test cho API đa team.
 - Lint ở CI (Spectral hoặc Redocly), sinh docs/mock từ cùng file spec.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Khác biệt chính giữa nullable ở 3.0 và 3.1?
 2. Vì sao design-first cần contract test?
 3. Mock từ spec giúp ai?
 4. Nên đặt lint ở đâu trong quy trình?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. 3.0: `nullable: true`; 3.1+: `type: [X, "null"]` theo JSON Schema 2020-12.
 2. Để code không lệch khỏi spec theo thời gian.

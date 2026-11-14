@@ -1,12 +1,12 @@
-# Chương 9. Rate limiting, quota và caching HTTP
+# Chapter 9. Rate limiting, quotas, and HTTP caching
 
-## 1. Vấn đề
+## 1. The problem
 
 Một client lỗi lặp vô hạn vòng `GET /orders` và làm chậm cả hệ thống; một đối tác khác cào dữ liệu. Ngược lại, hàng triệu lượt `GET` cùng một order do mobile app refresh liên tục tốn tiền bandwidth dù dữ liệu không đổi. Rate limiting bảo vệ server; caching giảm tải hợp pháp.
 
 ## 2. Rate limiting
 
-### Algorithm phổ biến
+### Common algorithms
 
 | Algorithm | Ý tưởng | Đặc điểm |
 |---|---|---|
@@ -20,7 +20,7 @@ Rate limit key: theo API key/OAuth client, theo người dùng, theo IP (yếu: 
 
 Khi vượt: `429 Too Many Requests` (RFC 6585) + problem details + `Retry-After` (số giây hoặc HTTP-date). Với quá tải toàn hệ thống: `503` + `Retry-After`.
 
-### Header RateLimit: draft status
+### RateLimit headers: draft status
 
 IETF đang chuẩn hóa trong **draft-ietf-httpapi-ratelimit-headers**. Phiên bản mới nhất khi viết: **-11 (23/5/2026)**, *Active Internet-Draft*, Standards Track, hết hạn 24/11/2026 - **chưa là RFC**, và **cú pháp đã đổi so với các draft cũ**.
 
@@ -43,7 +43,7 @@ RateLimit: "default";r=50;t=30
 - Node.js/Fastify: plugin `@fastify/rate-limit` (11.2.2, đang được maintain) cấu hình `max`, `timeWindow`, `keyGenerator` (theo user id hoặc IP) và trả `429` kèm `Retry-After`; dùng store Redis/Valkey khi chạy nhiều instance. Dùng `errorResponseBuilder` để trả problem details (chương 5).
 - Client: coi 429 như tín hiệu backoff (chương 6).
 
-## 3. Caching HTTP (RFC 9111)
+## 3. HTTP caching (RFC 9111)
 
 ```mermaid
 sequenceDiagram
@@ -56,7 +56,7 @@ sequenceDiagram
   S-->>C: 304 Not Modified (no body)
 ```
 
-### Cache-Control thường dùng
+### Commonly used Cache-Control values
 
 | Directive | Ý nghĩa |
 |---|---|
@@ -71,7 +71,7 @@ sequenceDiagram
 
 Nhầm lẫn kinh điển: `no-cache` **không** có nghĩa "đừng cache"; đó là `no-store`.
 
-### Chiến lược cho API
+### Strategy for APIs
 
 - Dữ liệu cá nhân hóa: `Cache-Control: private` hoặc `no-store`; luôn xét `Vary: Authorization`/`Accept` nếu shared cache có thể chen vào.
 - Resource đọc nhiều, ít đổi: `ETag` + `max-age` ngắn + `stale-while-revalidate`.
@@ -79,17 +79,17 @@ Nhầm lẫn kinh điển: `no-cache` **không** có nghĩa "đừng cache"; đ�
 - Response của `POST` hầu như không được cache.
 - `Vary`: liệt kê các header request làm thay đổi response (`Vary: Accept`, `Accept-Language`).
 
-### ETag cho hai mục đích
+### ETag for two purposes
 
 Cùng ETag, hai việc: **đọc có điều kiện** (If-None-Match, tiết kiệm bandwidth, chương này) và **ghi có điều kiện** (If-Match, chống lost update, chương 2). Một thiết kế, hai lợi ích.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - Rate limit chặt bảo vệ hệ thống nhưng gây lỗi cho client hợp lệ burst; token bucket cho phép burst.
 - Cache mạnh giảm tải nhưng có rủi ro stale data; revalidation bằng ETag là điểm giữa.
 - Limit theo IP dễ nhưng sai với NAT/mobile carrier.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Rate limit chỉ ở một instance (không dùng store chung).
 - Tin `X-Forwarded-For` do client tự gửi để xác định IP.
@@ -99,20 +99,20 @@ Cùng ETag, hai việc: **đọc có điều kiện** (If-None-Match, tiết ki�
 - ETag không đổi khi dữ liệu đổi (hoặc đổi mỗi request).
 - Dựa vào header RateLimit của draft mà không ghi version đang dùng.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - Token bucket + key theo client; 429 + `Retry-After`; phân biệt rate limit và quota.
 - Header `RateLimit`/`RateLimit-Policy` vẫn là draft -11 (5/2026), cú pháp mới khác cũ.
 - `Cache-Control` + ETag + `304`; `private` cho dữ liệu cá nhân; `no-cache` không phải `no-store`.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Khác biệt rate limit và quota?
 2. `no-cache` khác `no-store` thế nào?
 3. Header RateLimit đã là RFC chưa?
 4. Một ETag phục vụ hai cơ chế nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Rate limit: tốc độ ngắn hạn bảo vệ hạ tầng; quota: tổng lượng theo kỳ, gắn gói dịch vụ.
 2. `no-cache`: được lưu nhưng phải revalidate; `no-store`: không được lưu.

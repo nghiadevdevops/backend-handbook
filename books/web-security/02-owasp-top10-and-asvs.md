@@ -1,10 +1,10 @@
-# Chương 2. OWASP Top 10 (2025) và ASVS
+# Chapter 2. OWASP Top 10 (2025) and ASVS
 
-## 1. Vấn đề
+## 1. The problem
 
 "Nên bảo vệ cái gì trước?" và "thế nào là đủ an toàn?" là hai câu hỏi mà cảm tính trả lời rất tệ. OWASP cung cấp hai công cụ bổ sung nhau: **Top 10** (nhận thức: những rủi ro phổ biến nhất) và **ASVS** (kiểm chứng: danh sách yêu cầu cụ thể để kiểm tra).
 
-## 2. OWASP Top 10: phiên bản 2025
+## 2. OWASP Top 10: the 2025 edition
 
 Tra cứu ngày 08/11/2026 tại `top10.owasp.org/2025`: trang gọi mình là bản **OWASP Top 10:2025** (phát hành cuối 2025, trang không ghi ngày chính xác; xác minh ngày phát hành cụ thể: chưa xác minh). Bản trước là 2021. Danh sách 2025:
 
@@ -53,7 +53,7 @@ Mỗi yêu cầu có mã `v<phiên bản>-<chương>.<mục>.<yêu cầu>`, ví 
 
 Một điểm khác bản 4.x: 5.0 tách riêng các chương Self-contained Tokens (JWT...), OAuth/OIDC, và coi **tài liệu hóa quyết định bảo mật** là một phần yêu cầu (nhiều yêu cầu mở đầu bằng "Verify that documentation defines..."). Điều này đồng nghĩa: ASVS không chỉ kiểm code mà kiểm cả quy trình.
 
-### Dùng ASVS làm checklist trong thực tế
+### Using ASVS as a checklist in practice
 
 ```mermaid
 flowchart LR
@@ -79,33 +79,33 @@ Mẫu bảng theo dõi:
 
 Số hiệu yêu cầu cụ thể: hãy copy từ file ASVS 5.0.0 chính thức thay vì tin ví dụ trong sách này.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - Top 10 dễ nhớ, rẻ, tốt cho đào tạo cả team; nhưng thô.
 - ASVS chi tiết, kiểm chứng được; nhưng nặng. Đừng cố đạt L3 cho blog cá nhân.
 - Kết hợp: Top 10 để mở đầu cuộc nói chuyện, ASVS để làm việc hằng ngày, và Cheat Sheet Series của OWASP để biết cách cài đặt từng mục.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Dùng bản cũ (Top 10 2021, ASVS 4.0.3) mà không ghi rõ phiên bản; khi audit phải ghi `ASVS 5.0.0` để tái lập.
 - Tích đủ ô nhưng không có bằng chứng.
 - Coi Top 10 là "tiêu chuẩn tuân thủ". Nó không phải.
 - Bỏ qua thứ tự ưu tiên: sửa lỗi hiếm trước lỗi Broken Access Control.
 
-## 6. Tóm tắt
+## 6. Summary
 
 - OWASP Top 10:2025 có A01 Broken Access Control đứng đầu; supply chain và xử lý exception là các mục nổi bật mới.
 - ASVS 5.0.0 (30/05/2025) có 17 chương, 3 level; là checklist kiểm chứng được.
 - Chọn level, lọc theo tính năng, biến thành acceptance criteria, ghi bằng chứng.
 
-## 7. Câu hỏi tự kiểm tra
+## 7. Self-check questions
 
 1. Hạng mục đứng đầu Top 10:2025 là gì?
 2. ASVS 5.0.0 có bao nhiêu chương, và các level là gì?
 3. Vì sao nên ghi rõ phiên bản ASVS khi báo cáo?
 4. Tại sao "đã chống đủ Top 10" chưa có nghĩa là an toàn?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. A01:2025 Broken Access Control.
 2. 17 chương (V1 đến V17), 3 level (L1, L2, L3).

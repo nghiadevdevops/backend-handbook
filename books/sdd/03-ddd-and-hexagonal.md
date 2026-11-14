@@ -1,14 +1,14 @@
-# Chương 3. DDD và Hexagonal Architecture trong thời AI
+# Chapter 3. DDD and Hexagonal Architecture in the AI era
 
-## 1. Tình huống
+## 1. Scenario
 
 Bạn bảo AI "thêm kiểm tra trùng phòng". Nó sửa trong controller. Tuần sau bạn bảo "thêm API khác để đặt phòng từ Slack", nó sao chép luôn đoạn kiểm tra sang handler Slack, thiếu mất một điều kiện. Business rule nằm rải rác vì không có "chỗ ở" rõ ràng cho nó. AI làm theo khuôn mẫu nó thấy trong code; nếu code đã lộn xộn, nó nhân bản sự lộn xộn.
 
 DDD (Domain-Driven Design) và Hexagonal Architecture cho AI (và cho bạn) một bản đồ: business rule ở đâu, infrastructure ở đâu, dependency đi hướng nào.
 
-## 2. Khái niệm
+## 2. Concepts
 
-### 2.1. Các khối xây dựng của DDD (phần cần cho SDD)
+### 2.1. DDD building blocks (the parts SDD needs)
 
 | Khái niệm | Định nghĩa ngắn | Ví dụ RoomBook |
 |---|---|---|
@@ -59,7 +59,7 @@ Dependency rule: `domain/` và `application/` **không import** `adapters/`. Có
 grep -rn "adapters" src/domain src/application && echo VI PHAM || echo OK
 ```
 
-### 2.4. Vì sao hợp với AI
+### 2.4. Why it suits AI
 
 - AI cần **boundary rõ** để biết sửa ở đâu. "Thêm business rule" nghĩa là sửa `domain/` hoặc `application/`, không đụng `adapters/`.
 - Port nhỏ, rõ nên AI viết adapter mới (database khác) mà không cần hiểu cả hệ thống.
@@ -67,7 +67,7 @@ grep -rn "adapters" src/domain src/application && echo VI PHAM || echo OK
 
 SDD và Hexagonal khớp nhau: UC trở thành layer `application/`, entity thành `domain/`, "Dependencies" trong UC chỉ ra port nào cần.
 
-### 2.5. Nối spec với cấu trúc code
+### 2.5. Connecting the spec to the code structure
 
 | Spec | Code |
 |---|---|
@@ -77,17 +77,17 @@ SDD và Hexagonal khớp nhau: UC trở thành layer `application/`, entity thà
 | `specs/decisions/ADR-001-...` | quyết định dùng ports/adapters |
 | AC | `tests/acceptance/uc001-create-booking.test.ts` |
 
-## 3. Ví dụ
+## 3. Example
 
 Đọc `application/create-booking.ts`: bảy business rule nằm trong một use case, mỗi rule ném `DomainError` với error code khớp bảng Exceptions của UC-001. Thử thêm một business rule "phòng đóng cửa vào thứ Bảy": bạn (hoặc AI) sửa spec trước (một dòng Exceptions mới `ROOM_CLOSED`, một AC), rồi một test, rồi code, và không cần đụng adapter nào.
 
-## 4. Trade-off
+## 4. Trade-offs
 
 - Hexagonal đầy đủ có chi phí: nhiều file, nhiều khái niệm. Với script, CRUD đơn giản, prototype vứt đi thì thừa.
 - Dấu hiệu nên dùng: có business rule thật, nhiều kênh vào (REST, Slack, batch), cần test không phụ thuộc infrastructure.
 - DDD đầy đủ (bounded context, event) chỉ đáng khi domain phức tạp và nhiều team. RoomBook không cần; ta chỉ mượn entity, value object và ubiquitous language.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Gọi mọi class có dữ liệu là entity; quên value object nên mọi thứ mutable.
 - Biến mọi entity thành aggregate root và cho repository riêng cho từng cái.
@@ -95,7 +95,7 @@ SDD và Hexagonal khớp nhau: UC trở thành layer `application/`, entity thà
 - Để adapter (ORM model) lọt vào `domain/`, khiến AI trộn business logic với database.
 - Đặt tên "port" cho Slack hay Outlook. Đó là adapter của một port `Notifier` hoặc `CalendarGateway`.
 
-## 6. Tóm tắt
+## 6. Summary
 
 1. Entity có identity; value object không có, immutable; không phải entity nào cũng là aggregate root.
 2. Port là interface của ứng dụng; adapter là implementation; tích hợp ngoài cụ thể là adapter.
@@ -103,14 +103,14 @@ SDD và Hexagonal khớp nhau: UC trở thành layer `application/`, entity thà
 4. Cấu trúc này cho AI biết sửa business rule ở đâu, và cho phép test acceptance chạy với fake adapter.
 5. Chỉ dùng mức DDD/Hexagonal vừa đủ cho độ phức tạp thật.
 
-## 7. Tự kiểm tra
+## 7. Self-check
 
 1. `TimeSlot` là entity hay value object? Vì sao?
 2. `OrderLine` trong hệ thống có `Order` có phải aggregate root không?
 3. Outlook calendar sync là port hay adapter? Port tương ứng có thể tên gì?
 4. Thêm database thật cần sửa những thư mục nào trong lab?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Value object: không có id, so sánh theo giá trị, immutable.
 2. Thường không: nó là entity con, truy cập qua `Order` (root).

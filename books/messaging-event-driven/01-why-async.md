@@ -1,6 +1,6 @@
-# Chương 1. Vì sao cần async: queue, log và pub/sub
+# Chapter 1. Why we need async: queues, logs, and pub/sub
 
-## 1. Tình huống
+## 1. Scenario
 
 Hệ thống đặt hàng (ví dụ xuyên suốt của cuốn này). Khi khách bấm "Đặt hàng", `POST /orders` phải làm: lưu đơn, trừ kho, tạo thanh toán, gửi email xác nhận, cập nhật báo cáo, báo cho đối tác vận chuyển. Nếu làm hết trong một request sync:
 
@@ -21,7 +21,7 @@ flowchart LR
   B --> R[Reporting]
 ```
 
-## 2. Ba mô hình cần phân biệt
+## 2. Three models to tell apart
 
 Nhiều người gọi tất cả là "message queue". Thực ra có ba mô hình khác nhau về bản chất:
 
@@ -46,14 +46,14 @@ Pub/Sub: publish m1 --> copy goes to queue of A, queue of B, queue of C
 
 Thực tế các sản phẩm lai nhau: SNS fan-out sang nhiều SQS queue (pub/sub + queue); RabbitMQ exchange (pub/sub) định tuyến vào queue.
 
-## 3. Message, command, event
+## 3. Messages, commands, events
 
 - **Command**: "hãy làm X" (`ReserveStock`). Gửi đến **một** nơi nhận cụ thể, người gửi mong có kết quả. Thường qua queue.
 - **Event**: "X đã xảy ra" (`OrderPlaced`). Quá khứ, immutable, người gửi không biết ai nghe. Thường qua pub/sub hoặc log.
 
 Chọn sai loại là nguồn gốc của nhiều thiết kế rối: một "event" tên `SendEmailEvent` thực chất là command ngụy trang.
 
-## 4. Sync vs async: trade-off
+## 4. Sync vs async: trade-offs
 
 Khi nào nên dùng messaging:
 - Thao tác phụ không cần có kết quả ngay (email, báo cáo, sync search index).
@@ -67,28 +67,28 @@ Khi nào KHÔNG:
 
 Cái giá không thể tránh: delivery có thể **duplicate**, **out-of-order**, **chậm**. Phần còn lại của cuốn sách là cách sống chung với ba điều đó.
 
-## 5. Cạm bẫy
+## 5. Pitfalls
 
 - Coi broker như RPC: gửi message rồi `sleep` chờ kết quả. Nếu cần request/reply, dùng HTTP/gRPC.
 - Ghi DB rồi publish ở hai bước riêng: crash giữa chừng thì mất event (chương 7 giải quyết).
 - Tưởng "đã gửi lên broker" là "đã xử lý xong".
 - Dùng một broker cho mọi thứ mà không hỏi: cần replay hay cần ack từng task?
 
-## Tóm tắt
+## Summary
 
 1. Messaging tách thời gian và coupling giữa các service, đổi lại bằng eventual consistency.
 2. Queue xóa message sau ack; pub/sub fan-out; log giữ lại và consumer tự giữ offset.
 3. Command gửi đến một nơi; event thông báo điều đã xảy ra.
 4. Đừng dùng broker khi gọi sync hoặc một bảng jobs là đủ.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Khác biệt cơ bản giữa queue và log về việc ai nhớ "đã đọc đến đâu"?
 2. Vì sao log cho phép replay còn queue thì không?
 3. `SendWelcomeEmail` nên là command hay event? Vì sao?
 4. Nêu hai tình huống không nên dùng messaging.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Queue: broker nhớ và xóa message sau ack. Log: broker giữ dữ liệu theo retention; mỗi consumer group giữ offset của mình.
 2. Log không xóa khi đọc nên chỉ cần đặt lại offset. Queue đã xóa message sau ack.

@@ -1,10 +1,10 @@
-# Chương 12. Bảo vệ repo
+# Chapter 12. Protecting the Repo
 
-## Vấn đề
+## The problem
 
 Ai đó commit file `.env` chứa API key, nó nằm trong history và ai cũng clone được. Hoặc commit mạo danh tác giả. Hoặc cả team có file `\r\n` lẫn `\n` và mỗi PR đổi cả nghìn dòng. Chương này gom các lớp bảo vệ: secret, chữ ký, `.gitignore`/`.gitattributes`, và hooks.
 
-## Secret lộ trong history
+## Secrets leaked in history
 
 Thứ tự bắt buộc:
 
@@ -62,7 +62,7 @@ gitsign mới nhất tra được là v0.18.0 (20/10/2026), còn phát triển (
 
 Bật "Require signed commits" trong ruleset chỉ có tác dụng khi cả team đã cấu hình ký; với squash merge trên giao diện GitHub, commit squash do GitHub ký bằng key của chính GitHub.
 
-## `.gitignore` và `.gitattributes`
+## `.gitignore` and `.gitattributes`
 
 `.gitignore` chỉ ảnh hưởng file chưa được track; file đã commit phải `git rm --cached`. Template gợi ý: `node_modules/`, `dist/`, `.env*` (cùng `!.env.example`), binary Go (`/bin/`), `*.test`, `coverage/`.
 
@@ -80,7 +80,7 @@ package-lock.json -diff
 
 `* text=auto` để git tự nhận file văn bản; `eol=lf` ép checkout dùng LF trên mọi OS (shell script có CRLF sẽ lỗi trong container Linux: `bad interpreter`). Sau khi thêm `.gitattributes` vào repo cũ, chạy `git add --renormalize .` rồi commit một lần riêng để chuẩn hóa. Với Go, `gofmt` dùng LF; editor trên Windows cần cấu hình tương ứng.
 
-## Hooks cho lint, test, commitlint
+## Hooks for lint, test, commitlint
 
 Hook nằm trong `.git/hooks` nên không được commit; các tool quản lý hook giải quyết việc chia sẻ:
 
@@ -128,7 +128,7 @@ export default { extends: ['@commitlint/config-conventional'] };
 
 **Cân nhắc chạy nhanh**: hook chậm khiến người ta dùng `--no-verify`. Quy tắc: pre-commit chỉ chạy việc nhanh trên file staged (format, lint, kiểm tra secret; dưới vài giây); pre-push hoặc CI chạy test đầy đủ; `commit-msg` chạy commitlint. Hook là hỗ trợ cục bộ, không phải rào chắn: CI và ruleset mới là nơi **bắt buộc** (hook bypass được bằng `--no-verify`).
 
-## Cạm bẫy
+## Pitfalls
 
 - Chỉ xóa file chứa secret ở commit mới, không dọn history lẫn rotate.
 - Rewrite history xong mà quên báo team; người khác push lại commit cũ.
@@ -136,21 +136,21 @@ export default { extends: ['@commitlint/config-conventional'] };
 - `core.autocrlf` mỗi người một kiểu, không có `.gitattributes`.
 - Require signed commits trong ruleset khi chưa ai cấu hình ký: chặn cả team.
 
-## Tóm tắt
+## Summary
 
 - Secret lộ: rotate trước, rồi mới dọn history bằng git-filter-repo.
 - Ký commit bằng SSH signing là cách dễ nhất; gitsign cho keyless.
 - `.gitattributes` với `* text=auto eol=lf` chấm dứt chuyện line ending.
 - Hook (husky/lefthook) cho phản hồi nhanh; CI và ruleset mới bắt buộc thật sự.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Vì sao rotate secret phải đi trước khi xóa khỏi history?
 2. SSH signing cần Git phiên bản nào trở lên?
 3. Vì sao hook không thể là cơ chế bắt buộc duy nhất?
 4. Dòng `.gitattributes` nào ép LF cho mọi file văn bản?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Secret đã lộ có thể bị lấy từ clone, fork, cache; xóa history không thu hồi nó.
 2. Git 2.34.

@@ -1,6 +1,6 @@
-# Chương 10. Kỹ thuật query: keyset pagination, upsert, row lock, counter, xóa trùng, CTE
+# Chapter 10. Query Techniques: Keyset Pagination, Upsert, Row Locks, Counters, Deduplication, CTEs
 
-## 10.1 Pagination: OFFSET chậm dần, keyset ổn định
+## 10.1 Pagination: OFFSET gets slower, keyset stays stable
 
 `OFFSET n LIMIT m` buộc database **đọc và bỏ** n dòng đầu. Trang càng sâu càng chậm. Keyset pagination (còn gọi seek method) nhớ **giá trị cuối trang trước** và dùng nó làm điểm bắt đầu cho index.
 
@@ -67,7 +67,7 @@ WITH ins AS (
 SELECT id FROM ins;
 ```
 
-## 10.4 Counter và lock contention
+## 10.4 Counters and lock contention
 
 Một dòng đếm duy nhất (`UPDATE counters SET n = n + 1 WHERE k = 'views'`) khiến mọi transaction xếp hàng chờ lock dòng đó. Giải pháp: chia counter thành nhiều "slot" ngẫu nhiên và cộng lại khi đọc.
 
@@ -87,7 +87,7 @@ ON DUPLICATE KEY UPDATE n = page_hits.n + new.n;
 ```
 Nếu độ chính xác tức thời không cần, ghi vào bảng nhật ký (append-only) rồi gom định kỳ cũng tránh được contention.
 
-## 10.5 Row lock ở database layer: `FOR UPDATE`
+## 10.5 Row locks at the database layer: `FOR UPDATE`
 
 `SELECT ... FOR UPDATE` lock các dòng đọc được cho đến hết transaction, để "đọc rồi sửa" an toàn. Với job queue, thêm `SKIP LOCKED` để nhiều worker lấy các dòng khác nhau, không chờ nhau (có ở cả PostgreSQL 9.5+ và MySQL 8.0+):
 
@@ -107,7 +107,7 @@ COMMIT;
 ```
 Cần một **index khớp** (`WHERE state='queued' ORDER BY id`). PostgreSQL: partial index `CREATE INDEX jobs_queued ON jobs(id) WHERE state = 'queued';` (đã chạy thử) giữ index nhỏ khi hầu hết job đã xong. Trong InnoDB, `FOR UPDATE` lock theo index: không có index phù hợp có thể lock nhiều dòng hơn dự tính.
 
-## 10.6 Xóa dòng trùng lặp bằng CTE
+## 10.6 Deleting duplicate rows with a CTE
 
 ```sql
 -- PostgreSQL: giữ dòng có id nhỏ nhất cho mỗi email
@@ -125,13 +125,13 @@ DELETE FROM dup WHERE id IN (SELECT id FROM ranked WHERE rn > 1);
 ```
 Làm trên bảng lớn thì xóa theo batch, và nhớ backup.
 
-## 10.7 CTE: dùng để đọc, không phải optimization fence
+## 10.7 CTEs: for readability, not an optimization fence
 
 CTE (`WITH ... AS`) giúp chia query phức tạp thành các bước. Hiệu năng:
 - PostgreSQL 12+: CTE không đệ quy, được dùng một lần, mặc định được **inline** như subquery (kết quả: `id = 5` được đẩy xuống và dùng `orders_pkey`). `AS MATERIALIZED` ép tính trước (`CTE Scan`), `AS NOT MATERIALIZED` ép inline. CTE được tham chiếu nhiều lần mặc định được materialize.
 - MySQL 8.0+: optimizer tự quyết định merge hay materialize (kiểm bằng `EXPLAIN`).
 
-## 10.8 Mẹo vặt
+## 10.8 Small tips
 
 - `SELECT *` làm hỏng covering index và kéo cột lớn qua mạng; liệt kê cột cần.
 - `COUNT(*)` trên bảng lớn luôn phải đếm thật (cả hai DB); nếu chỉ cần xấp xỉ, dùng statistics (`pg_class.reltuples`) hoặc counter riêng.
@@ -139,7 +139,7 @@ CTE (`WITH ... AS`) giúp chia query phức tạp thành các bước. Hiệu n�
 - Cập nhật hàng loạt: chia lô, tránh giữ transaction dài (PostgreSQL gây bloat, InnoDB giữ undo).
 - Đừng cộng số nguyên tự tạo "ID" bằng `MAX(id)+1`; dùng identity/auto-increment.
 
-## 10.9 Cạm bẫy thường gặp
+## 10.9 Common pitfalls
 
 - Keyset pagination với sort key không duy nhất: trang bị trùng hoặc mất dòng.
 - Giữ `VALUES()` trong `ON DUPLICATE KEY UPDATE`: deprecated từ 8.0.20.
@@ -147,7 +147,7 @@ CTE (`WITH ... AS`) giúp chia query phức tạp thành các bước. Hiệu n�
 - Dùng `FOR UPDATE` mà không có index khớp.
 - Dùng `RETURNING` trong code chạy chung PostgreSQL/MySQL.
 
-## 10.10 Tóm tắt
+## 10.10 Summary
 
 - Keyset pagination đọc đúng số dòng cần; OFFSET sâu đọc và bỏ tất cả dòng trước đó.
 - Upsert: PG `ON CONFLICT`; MySQL `ON DUPLICATE KEY UPDATE ... AS alias` (không dùng `VALUES()`).
@@ -155,7 +155,7 @@ CTE (`WITH ... AS`) giúp chia query phức tạp thành các bước. Hiệu n�
 - `FOR UPDATE SKIP LOCKED` cho queue; luôn có index khớp.
 - CTE trong PG 12+ mặc định không phải optimization fence; có `MATERIALIZED`/`NOT MATERIALIZED`.
 
-## 10.11 Tự kiểm tra
+## 10.11 Self-check
 
 1. Vì sao `OFFSET 400000` chậm còn keyset thì không?
 2. Viết lại `ON DUPLICATE KEY UPDATE n = n + VALUES(n)` theo cách không bị deprecated.
@@ -163,7 +163,7 @@ CTE (`WITH ... AS`) giúp chia query phức tạp thành các bước. Hiệu n�
 4. `SKIP LOCKED` dùng để làm gì?
 5. Trên MySQL, vì sao nên viết keyset ở dạng `a > x OR (a = x AND b > y)`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. OFFSET phải đọc rồi loại 400.000 mục; keyset dùng giá trị cuối trang làm điểm bắt đầu trong index.
 2. `INSERT ... VALUES (...) AS new ON DUPLICATE KEY UPDATE n = tbl.n + new.n`.

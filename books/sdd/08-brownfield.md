@@ -1,6 +1,6 @@
-# Chương 8. Brownfield: áp SDD vào hệ thống có sẵn
+# Chapter 8. Brownfield: applying SDD to an existing system
 
-## 1. Tình huống
+## 1. Scenario
 
 Trước RoomBook, văn phòng dùng một script PHP cũ tên `roomsheet` (6 năm tuổi, không tài liệu, người viết đã nghỉ) ghi vào bảng MySQL `tbl_rsv`. Công ty muốn thay bằng RoomBook nhưng **giữ nguyên các business rule người dùng đang quen**, kể cả những rule không ai nhớ có. Nếu bảo AI "viết lại cho sạch", nó sẽ viết một hệ thống đẹp với business rule sai.
 
@@ -11,14 +11,14 @@ Hai sai lầm điển hình với legacy cộng AI:
 
 Giải pháp: lấy hành vi *thật* ra thành spec, kiểm chứng với business stakeholder, lock bằng characterization test, rồi mới đổi.
 
-## 2. Năm bước
+## 2. Five steps
 
 ```mermaid
 flowchart LR
     S1[1. Entity from DB] --> S2[2. UC from code, logs, UI] --> S3[3. Validate baseline with business] --> S4[4. Characterization tests] --> S5[5. Refactor or rewrite, with spec + tests]
 ```
 
-### Bước 1: dựng Entity Model từ database
+### Step 1: Build the Entity Model from the database
 
 Lấy schema thật, đặt tên khái niệm theo glossary của dự án đích. Ví dụ bảng cũ:
 
@@ -33,7 +33,7 @@ Lấy schema thật, đặt tên khái niệm theo glossary của dự án đíc
 
 Ghi **cả mapping cũ sang mới** và các cột không rõ nghĩa vào danh sách open question. Đừng đoán `st = 9`.
 
-### Bước 2: dựng Use Case từ code, log, UI
+### Step 2: Build Use Cases from code, logs, and UI
 
 Ba nguồn: đọc code (điều kiện `if`, query), log hoặc dữ liệu thật (hành vi thực tế), và màn hình. Để AI hỗ trợ, nhưng **bắt nó trích dẫn nguồn** (file và dòng) cho mỗi business rule, và gắn nhãn "suy đoán" nếu không có bằng chứng.
 
@@ -51,7 +51,7 @@ Về dòng git: **bắt buộc có `--format=`**. Nếu thiếu, đầu ra lẫn
 
 **AIUP `reverse-engineer`:** nếu dùng plugin `aiup-core`, gọi skill `/reverse-engineer` hoặc yêu cầu bằng ngôn ngữ tự nhiên (ví dụ "reverse-engineer entity model và use case từ thư mục `legacy/roomsheet`"). Skill **không có cờ `--target` hay `--source`**; tài liệu mô tả nó đọc entry point, domain model, schema, authentication, integration rồi đề xuất entity model, use case diagram và use case, kèm danh sách hành vi chưa phân loại được. Đầu ra là đề xuất để người duyệt, không phải source of truth.
 
-### Bước 3: validate baseline với business
+### Step 3: Validate the baseline with the business
 
 Mang bản nháp UC (chỉ bảng business rule, không mang code) cho chị Hà và vài người dùng. Ba loại phản hồi và cách xử lý:
 
@@ -63,33 +63,33 @@ Mang bản nháp UC (chỉ bảng business rule, không mang code) cho chị Hà
 
 Mục tiêu: baseline = "hệ thống đang làm gì" đã được xác nhận, tách khỏi "ta muốn nó làm gì".
 
-### Bước 4: characterization test cho hành vi hiện tại
+### Step 4: Characterization tests for current behavior
 
 Trước khi đổi gì, viết test mô tả hành vi *hiện tại*, dù xấu. Chạy chúng với hệ thống cũ (qua API, hoặc query dữ liệu mẫu), rồi dùng lại chúng cho hệ thống mới. Tên test vẫn theo AC (ví dụ `test_ac_001_7_...`) cho những hành vi đã có UC; hành vi chưa có UC đặt tên tạm `test_legacy_...` và ghi lại để business quyết.
 
-### Bước 5: thay thế hoặc refactor, có spec và test bảo vệ
+### Step 5: Replace or refactor, protected by spec and tests
 
 Làm theo slice: mỗi lần một UC (đầu tiên UC-001), chạy bộ characterization test, rồi chuyển traffic. Mỗi thay đổi hành vi so với baseline phải có dòng "Lịch sử" trong UC và được duyệt (chương 4: Requirements-Driven).
 
-## 3. Công cụ
+## 3. Tools
 
 - **OpenSpec** hợp giai đoạn sau: baseline đã nằm trong `openspec/specs/`, mỗi thay đổi là một change với delta ADDED/MODIFIED/REMOVED. Tài liệu có trang "existing projects". `openspec init` không suy ra spec từ code cũ; bạn tạo baseline ở bước 1 đến 3.
 - **Spec Kit:** tài liệu "existing projects" khuyên tạo baseline và branch, `specify init --here --force --integration <khóa>`, chạy `/speckit-constitution` với nguyên tắc có bằng chứng (README, ADR, CI), chọn một slice giới hạn rồi `/speckit-specify`. Nó **không suy ra spec cho hành vi hiện có**; `spec.md` mô tả thay đổi dự kiến.
 - **AIUP `/reverse-engineer`:** để tạo bản nháp bước 1 và 2.
 - **Tự làm:** `grep`, `git log`, subagent chỉ đọc để trích dẫn business rule có nguồn.
 
-## 4. Nguyên tắc thực dụng
+## 4. Pragmatic principles
 
 - Đừng cố đặc tả toàn bộ legacy. Chọn slice có giá trị hoặc đang đau nhất.
 - Mọi business rule rút ra từ code phải có nguồn (file, dòng, hoặc dữ liệu); không nguồn thì đánh dấu suy đoán.
 - Giữ lại lỗi tương thích có chủ ý đến khi business quyết định bỏ.
 - Dữ liệu thật quý hơn code: đếm trong database xem rule "tối đa 4 giờ" có thật sự bị vi phạm không.
 
-## 5. Khi nào dừng
+## 5. When to stop
 
 Dừng khi (a) slice này đã được thay thế và characterization test pass, (b) chi phí khai quật vượt giá trị (hệ thống sắp bị tắt), hoặc (c) business không còn ai xác nhận được. Ghi lại phần chưa đặc tả như technical debt có chủ đích.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - Tin kết quả của AI khi nó "đọc" code mà không có trích dẫn.
 - Đổi tên field khi chuyển (`d1` → `start_at`) mà không ghi mapping; sau đó không đối soát được dữ liệu.
@@ -97,7 +97,7 @@ Dừng khi (a) slice này đã được thay thế và characterization test pas
 - Dùng lệnh git thiếu `--format=` rồi đọc nhầm bảng hotspot.
 - Dùng tool mong nó "tự hiểu" legacy; tool chỉ đề xuất.
 
-## 7. Tóm tắt
+## 7. Summary
 
 1. Hành vi thật được rút từ DB, code, log, UI, mỗi business rule có nguồn.
 2. Validate baseline với business trước khi đổi bất cứ thứ gì.
@@ -105,14 +105,14 @@ Dừng khi (a) slice này đã được thay thế và characterization test pas
 4. Làm từng slice; thay đổi hành vi phải có quyết định rõ ràng.
 5. Công cụ chỉ tạo bản nháp: Spec Kit không suy spec từ code; AIUP `reverse-engineer` kích hoạt bằng ngôn ngữ tự nhiên, không có cờ `--target`/`--source`.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. Vì sao lệnh hotspot cần `--format=`?
 2. Ba nguồn để rút Use Case từ hệ thống cũ?
 3. Test nào nên viết trước khi đụng code legacy?
 4. `st = 9` trong `tbl_rsv` nên xử lý thế nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không có nó, header commit và dòng trống bị đếm lẫn vào tên file.
 2. Code, log/dữ liệu thật, UI.

@@ -1,6 +1,6 @@
-# Chương 4. ORDER BY, GROUP BY, DISTINCT, JOIN, subquery, UPDATE/DELETE
+# Chapter 4. ORDER BY, GROUP BY, DISTINCT, JOIN, Subqueries, UPDATE/DELETE
 
-## 4.1 ORDER BY: để index lo việc sắp xếp
+## 4.1 ORDER BY: let the index do the sorting
 
 Index B-tree đã sắp xếp sẵn. Nếu thứ tự `ORDER BY` trùng thứ tự index (sau các cột lọc bằng `=`), database đọc index theo thứ tự và **không cần bước sort**, đặc biệt quý với `LIMIT`.
 
@@ -15,7 +15,7 @@ EXPLAIN (ANALYZE, COSTS OFF, TIMING OFF) SELECT * FROM orders ORDER BY created_a
 -- Limit -> Index Scan Backward using orders_created_idx   ~0.13 ms
 ```
 
-### Khi không có index: top-N, không sort toàn bộ
+### Without an index: top-N, no full sort
 
 Hiểu sai thường gặp: "không có index thì `ORDER BY ... LIMIT 10` sort cả bảng". Thực tế database vẫn **đọc mọi dòng khớp điều kiện**, nhưng chỉ giữ 10 dòng tốt nhất trong một heap nhỏ (priority queue), gọi là *top-N heapsort*:
 
@@ -37,7 +37,7 @@ EXPLAIN FORMAT=TREE SELECT * FROM orders WHERE status = 'paid' ORDER BY amount D
 
 Vậy chi phí là *đọc hết dòng khớp*, không phải *sort hết*. Muốn bỏ luôn chi phí đọc, cần index bao trùm cả lọc lẫn sắp xếp.
 
-### Index cho cả lọc và sắp xếp
+### One index for both filtering and sorting
 
 ```sql
 -- cả hai (MySQL từ 8.0 hỗ trợ DESC thật trong index)
@@ -55,7 +55,7 @@ EXPLAIN (COSTS OFF) SELECT * FROM orders WHERE status='paid' ORDER BY amount ASC
 
 Quy tắc: có thể đọc xuôi hoặc ngược nhưng **không đổi chiều giữa các cột** giữa chừng. Thứ tự hỗn hợp cần index khai báo đúng chiều từng cột.
 
-## 4.2 GROUP BY và DISTINCT
+## 4.2 GROUP BY and DISTINCT
 
 Có hai chiến lược: *hash aggregate* (gom bằng hash table, không cần thứ tự) và *group aggregate* (cần dữ liệu đã sắp theo group key, index giúp được).
 
@@ -69,7 +69,7 @@ EXPLAIN FORMAT=TRADITIONAL SELECT DISTINCT status FROM orders;
 -- Extra: Using index for group-by
 ```
 
-### GROUP BY theo primary key và functional dependency
+### GROUP BY on the primary key and functional dependency
 
 Nếu `GROUP BY` chứa primary key, các cột còn lại của bảng đó có **functional dependency** (phụ thuộc hàm) vào key nên được phép xuất hiện ở `SELECT` mà không cần `GROUP BY`. Cả PostgreSQL lẫn MySQL (chế độ `ONLY_FULL_GROUP_BY` mặc định) đều chấp nhận:
 
@@ -100,7 +100,7 @@ SELECT count(*) FROM users u JOIN orders o USING (user_id);
 
 (`USING (id)` giữa `users` và `orders` chạy được vì cả hai đều có `id`, nhưng sai về ngữ nghĩa: `orders.id` không phải key của user. Lỗi đặt tên thế này là lý do nên đặt foreign key tên khác primary key.)
 
-### DISTINCT ON (chỉ PostgreSQL) và NULL
+### DISTINCT ON (PostgreSQL only) and NULL
 
 `DISTINCT ON (country)` giữ một dòng cho mỗi `country`, dòng nào do `ORDER BY` quyết định. Khi `ORDER BY ... DESC`, PostgreSQL xếp NULL **đứng đầu**, nên dòng được giữ có thể là NULL:
 
@@ -153,7 +153,7 @@ WHERE u.email = 'user777@example.com';
 
 Thuật toán join khác (hash join, merge join) xuất hiện khi hai phía đều lớn; khi đó index quan trọng ít hơn, memory và statistics quan trọng hơn. Lọc và sắp xếp **sau** join (cột từ hai bảng khác nhau) thì không index đơn nào giúp trọn vẹn; xem kỹ thuật chuyển cột/denormalize ở chương 7 và 11.
 
-## 4.4 Subquery và NOT EXISTS
+## 4.4 Subqueries and NOT EXISTS
 
 Subquery không mặc định chậm: optimizer hiện đại thường *flatten* (gỡ phẳng) `IN`/`EXISTS` thành semi-join và `NOT EXISTS` thành anti-join.
 
@@ -168,7 +168,7 @@ Dùng `NOT EXISTS` thay vì `NOT IN` khi cột con có thể NULL (ngữ nghĩa 
 
 CTE: từ PostgreSQL 12, CTE không có tác dụng optimization fence trừ khi bạn yêu cầu. Thử nghiệm: với `WITH c AS NOT MATERIALIZED (...) SELECT * FROM c WHERE id = 5`, điều kiện `id = 5` được đẩy xuống và dùng `orders_pkey`. Với `AS MATERIALIZED`, CTE được tính trọn rồi mới lọc (`CTE Scan on c`). Chọn cái nào là có chủ đích.
 
-## 4.5 UPDATE và DELETE cũng cần index
+## 4.5 UPDATE and DELETE need indexes too
 
 `UPDATE ... WHERE` và `DELETE ... WHERE` tìm dòng giống `SELECT`, nên cùng quy tắc: điều kiện không có index thì full table scan và giữ lock lâu. Thêm vào đó, mỗi index là chi phí ghi (chương 9).
 
@@ -189,7 +189,7 @@ WHERE u.status = 'banned' AND o.status = 'new';
 
 `DELETE` của bảng cha cần index trên cột foreign key bảng con (nhất là PostgreSQL) để kiểm tra constraint nhanh.
 
-## 4.6 Cạm bẫy thường gặp
+## 4.6 Common pitfalls
 
 - Tưởng `ORDER BY ... LIMIT` không index là sort toàn bảng; thực tế là top-N heapsort sau khi đọc hết dòng khớp.
 - Quên index trên cột foreign key ở PostgreSQL.
@@ -197,7 +197,7 @@ WHERE u.status = 'banned' AND o.status = 'new';
 - Đặt tên cột primary key trùng tên cột ở bảng khác rồi dùng `USING` nhầm.
 - Trộn cú pháp: `DISTINCT ON`, `UPDATE ... FROM` là PostgreSQL; `UPDATE ... JOIN`, `IF()` là MySQL.
 
-## 4.7 Tóm tắt
+## 4.7 Summary
 
 - Index đúng thứ tự cho phép bỏ bước sort; không có index thì top-N heapsort chỉ giữ N dòng.
 - Multicolumn index cho `WHERE` + `ORDER BY` cần đúng chiều từng cột.
@@ -205,7 +205,7 @@ WHERE u.status = 'banned' AND o.status = 'new';
 - Join cần index ở phía trong; PostgreSQL không tự index foreign key, MySQL thì có.
 - `DISTINCT ON` (PG) cần `NULLS LAST` nếu muốn bỏ qua NULL khi `DESC`.
 
-## 4.8 Tự kiểm tra
+## 4.8 Self-check
 
 1. `ORDER BY amount DESC LIMIT 10` không index: database sort bao nhiêu dòng trong memory?
 2. Vì sao `GROUP BY u.id` cho phép `SELECT u.name` mà `GROUP BY u.country` thì không?
@@ -213,7 +213,7 @@ WHERE u.status = 'banned' AND o.status = 'new';
 4. Viết lại `DISTINCT ON (country) ... ORDER BY country, name DESC` để bỏ qua NULL.
 5. `NOT IN (subquery)` khác `NOT EXISTS` ở điểm nguy hiểm nào?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Chỉ giữ 10 dòng (top-N heapsort), dù vẫn phải đọc mọi dòng khớp điều kiện.
 2. `u.id` là primary key nên mọi cột của `users` có functional dependency vào nó; `country` không phải key.

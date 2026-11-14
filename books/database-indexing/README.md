@@ -1,52 +1,52 @@
-# Database Indexing: bản học lại (cập nhật 11/2026)
+# Database Indexing
 
-Bản viết lại bằng lời mới, theo dàn ý chủ đề của ebook "Database Indexing & Những Điều Developer Cần Biết", để tự học. Nội dung đã được kiểm chứng bằng cách chạy thật trên PostgreSQL và MySQL trong Docker; khi kết quả thật khác điều định viết, nội dung theo kết quả thật.
+A rewrite in new wording, following the topic outline of the ebook "Database Indexing & What Developers Need to Know", for self-study. The content was verified by actually running it on PostgreSQL and MySQL in Docker; where the real result differed from what was about to be written, the text follows the real result. The lecture text of the chapters is written in Vietnamese.
 
-## Phiên bản đã dùng và đã chạy thử
+## Versions used and tested
 
-Kết quả của `SELECT version()`:
+Output of `SELECT version()`:
 
-| DB | `version()` | Ghi chú |
+| DB | `version()` | Notes |
 |---|---|---|
-| PostgreSQL | `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit` | image `postgres:latest`, collation database `en_US.utf8` |
-| PostgreSQL + PostGIS | PostgreSQL 18.6, PostGIS 3.7.0 | image `postgis/postgis:latest`, chỉ dùng cho chương 8 (mục 8.3) |
-| MySQL | `9.7.4` | image `mysql:lts`, engine InnoDB, collation `utf8mb4_0900_ai_ci` |
+| PostgreSQL | `PostgreSQL 18.6 (Debian 18.6-1.pgdg13+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit` | image `postgres:latest`, database collation `en_US.utf8` |
+| PostgreSQL + PostGIS | PostgreSQL 18.6, PostGIS 3.7.0 | image `postgis/postgis:latest`, used only in chapter 8 (section 8.3) |
+| MySQL | `9.7.4` | image `mysql:lts`, InnoDB engine, collation `utf8mb4_0900_ai_ci` |
 
-Tình hình phiên bản tại 07/11/2026 (tra từ postgresql.org và dev.mysql.com, không dựa trí nhớ):
+Version status as of 2026-11-07 (checked on postgresql.org and dev.mysql.com, not from memory):
 
-- **PostgreSQL**: 18 là bản chính thức mới nhất, ra ngày 25/09/2025, bản vá hiện tại 18.6. Các bản 17.11, 16.15, 15.19 còn được hỗ trợ; 14 hết hỗ trợ ngày 12/11/2026. PostgreSQL 19 đang ở giai đoạn **release candidate** (RC 1 ngày 15/10/2026), chưa phát hành chính thức; sách chỉ nhắc 19 như thông tin chưa chốt, chưa chạy thử.
-- **MySQL**: có hai nhánh, LTS và Innovation. 9.7 là bản LTS (9.7.0 ra ngày 21/04/2026, mới nhất là 9.7.4 ngày 20/10/2026); 8.4 cũng là một dòng LTS. Tài liệu MySQL nói 9.7 là bản dùng đánh số tuần tự cuối cùng; sau đó dùng đánh số theo lịch (ví dụ "26.7" là bản tháng 7/2026). Tôi **không xác định chắc** số hiệu bản Innovation mới nhất và ngày phát hành chính xác của từng bản 26.x; bản sách chỉ chạy thử 9.7.4.
-- Tính năng liên quan index/optimizer đã xác minh: skip scan multicolumn B-tree (PostgreSQL 18), `uuidv7()` built-in (PostgreSQL 18), `Index Searches` trong `EXPLAIN` (PostgreSQL 18), Skip Scan range access (MySQL 8.0.13+), `EXPLAIN ANALYZE` (MySQL 8.0.18+), `EXPLAIN` mặc định dạng TREE (quan sát trên 9.7.4), hypergraph optimizer có trong bản Community từ 9.7 (bật bằng `optimizer_switch='hypergraph_optimizer=on'`, theo release notes, chưa thử), MD5()/SHA()/SHA1() không còn built-in từ MySQL 9.6 (đã thử trên 9.7.4).
+- **PostgreSQL**: 18 is the latest major release, released 2025-09-25, current patch release 18.6. Versions 17.11, 16.15, and 15.19 are still supported; 14 reaches end of support on 2026-11-12. PostgreSQL 19 is at the **release candidate** stage (RC 1 on 2026-10-15) and not yet officially released; the book mentions 19 only as unconfirmed information and has not tested it.
+- **MySQL**: there are two tracks, LTS and Innovation. 9.7 is an LTS release (9.7.0 released 2026-04-21, latest is 9.7.4 on 2026-10-20); 8.4 is also an LTS line. The MySQL documentation says 9.7 is the last release with sequential numbering; after that, calendar-based numbering is used (for example "26.7" is the July 2026 release). I **could not confirm** the version number of the latest Innovation release or the exact release date of each 26.x release; the book only tested 9.7.4.
+- Index/optimizer-related features that were verified: multicolumn B-tree skip scan (PostgreSQL 18), built-in `uuidv7()` (PostgreSQL 18), `Index Searches` in `EXPLAIN` (PostgreSQL 18), Skip Scan range access (MySQL 8.0.13+), `EXPLAIN ANALYZE` (MySQL 8.0.18+), `EXPLAIN` defaulting to TREE format (observed on 9.7.4), the hypergraph optimizer included in the Community edition since 9.7 (enabled with `optimizer_switch='hypergraph_optimizer=on'`, per the release notes, not tried), MD5()/SHA()/SHA1() no longer built in from MySQL 9.6 (tried on 9.7.4).
 
-## Mục lục
+## Contents
 
-1. [Nền tảng: index là gì, B-tree hoạt động ra sao, bảng được lưu thế nào](01-index-fundamentals-and-storage.md)
-2. [Multicolumn index: bốn nguyên tắc và chuyện skip scan](02-multicolumn-index-four-rules.md)
-3. [Operator, NULL, LIKE, function bọc cột và data type](03-operators-null-like-functions-types.md)
-4. [ORDER BY, GROUP BY, DISTINCT, JOIN, subquery, UPDATE/DELETE](04-order-by-group-by-distinct-join.md)
-5. [Optimizer, EXPLAIN và statistics](05-optimizer-explain-statistics.md)
-6. [Covering index và Index-Only Scan](06-covering-index-index-only-scan.md)
-7. [Kỹ thuật index nâng cao: expression, partial index, giới hạn kích thước, unique và NULL](07-advanced-index-techniques.md)
-8. [JSON, full-text search, spatial data, exclusion constraint](08-json-full-text-spatial-exclusion.md)
-9. [Chi phí ghi, bảo trì index và dọn index thừa](09-write-cost-maintenance-unused-indexes.md)
-10. [Kỹ thuật query: keyset pagination, upsert, row lock, counter, xóa trùng, CTE](10-query-techniques-pagination-locking-upsert-cte.md)
-11. [Thiết kế schema: primary key, UUID, partition, pre-sorting, precomputation](11-schema-design-uuid-partition-precomputation.md)
+1. [Fundamentals: What an Index Is, How a B-tree Works, How Tables Are Stored](01-index-fundamentals-and-storage.md)
+2. [Multicolumn Indexes: Four Rules and Skip Scan](02-multicolumn-index-four-rules.md)
+3. [Operators, NULL, LIKE, Wrapped Columns and Data Types: When an Index Can Be Used](03-operators-null-like-functions-types.md)
+4. [ORDER BY, GROUP BY, DISTINCT, JOIN, Subqueries, UPDATE/DELETE](04-order-by-group-by-distinct-join.md)
+5. [Optimizer, EXPLAIN and Statistics: Why the Database Doesn't Use Your Index (or Uses It Wrongly)](05-optimizer-explain-statistics.md)
+6. [Covering Indexes and Index-Only Scans: Queries That Never Touch the Table](06-covering-index-index-only-scan.md)
+7. [Advanced Index Techniques: Expression, Partial Index, Low-Cardinality Columns, "Ghost" Conditions, Size Limits, Unique and NULL](07-advanced-index-techniques.md)
+8. [Indexes for JSON, Full-Text Search, Spatial Data and Exclusion Constraints](08-json-full-text-spatial-exclusion.md)
+9. [Write Cost, Index Maintenance and Dropping Unused Indexes](09-write-cost-maintenance-unused-indexes.md)
+10. [Query Techniques: Keyset Pagination, Upsert, Row Locks, Counters, Deduplication, CTEs](10-query-techniques-pagination-locking-upsert-cte.md)
+11. [Schema Design: Primary Keys, UUIDs, Partitioning, Pre-Sorting and Precomputation](11-schema-design-uuid-partition-precomputation.md)
 
-## Cách đọc
+## How to read
 
-- Học theo thứ tự 1 đến 6 trước: đó là phần cốt lõi (B-tree, thứ tự cột, điều kiện nào dùng được index, đọc plan). Các chương 7 đến 11 là kỹ thuật bổ sung, đọc theo nhu cầu.
-- Mỗi chương: giải thích, ví dụ (schema, query, EXPLAIN rút gọn), cạm bẫy, tóm tắt, câu hỏi tự kiểm tra. **Đáp án nằm trong thẻ `<details>` ở cuối mỗi chương**: tự trả lời trước khi mở.
-- Mọi khối SQL có nhãn `-- PostgreSQL`, `-- MySQL` hoặc `-- cả hai` ở dòng đầu. Cú pháp chỉ của một DB không được dùng lẫn: ví dụ `DISTINCT ON`, `UPDATE ... FROM`, `RETURNING`, `ALTER TABLE ... DETACH PARTITION` là PostgreSQL; `IF()`, `ALTER TABLE ... DROP PARTITION`, `UPDATE ... JOIN`, `INSERT IGNORE` là MySQL.
-- Số liệu thời gian (ms) chỉ để so sánh tương đối trên máy thử với dữ liệu nhỏ nằm hết trong RAM, không dùng làm hệ số tuyệt đối.
-- Plan được rút gọn, bỏ các dòng `Planning`, `Buffers` khi không cần.
-- Dữ liệu thử: `users` 300.000 dòng, `orders` khoảng 500.000 dòng, sinh bằng `generate_series` (PostgreSQL) và recursive CTE (MySQL). Script nằm ngoài thư mục này, trong thư mục test của phiên làm việc.
+- Study chapters 1 to 6 first, in order: that is the core (B-tree, column order, which conditions can use an index, reading plans). Chapters 7 to 11 are supplementary techniques; read them as needed.
+- Each chapter has: explanation, examples (schema, query, abbreviated EXPLAIN), pitfalls, summary, self-check questions. **Answers are in a `<details>` block at the end of each chapter**: try answering before opening it.
+- Every SQL block is labeled `-- PostgreSQL`, `-- MySQL`, or `-- both` on its first line. Syntax specific to one DB must not be mixed: for example `DISTINCT ON`, `UPDATE ... FROM`, `RETURNING`, `ALTER TABLE ... DETACH PARTITION` are PostgreSQL; `IF()`, `ALTER TABLE ... DROP PARTITION`, `UPDATE ... JOIN`, `INSERT IGNORE` are MySQL.
+- Timing figures (ms) are only for relative comparison on a test machine with small data that fits entirely in RAM; do not use them as absolute factors.
+- Plans are abbreviated, with `Planning` and `Buffers` lines dropped when not needed.
+- Test data: `users` with 300,000 rows, `orders` with about 500,000 rows, generated with `generate_series` (PostgreSQL) and a recursive CTE (MySQL). The scripts live outside this folder, in the test folder of the working session.
 
-## Những ví dụ chưa chạy thử hoặc chưa chắc
+## Examples not tested or uncertain
 
-- Mọi thứ về PostgreSQL 19 (RC) và hypergraph optimizer của MySQL: chỉ theo ghi chú phát hành.
-- Bảng so sánh functional index ở hệ khác (MariaDB, SQL Server, Oracle, SQLite): theo tài liệu, chưa chạy.
-- Chi tiết triển khai InnoDB về kiểm tra visibility với covering index (chương 6): không đo.
-- Nguyên nhân MySQL ước lượng sai cho `status = 'active'` dù đã có histogram (chương 5): chưa xác định.
-- `EXPLAIN ANALYZE` với `UPDATE`/`DELETE` nhiều bảng trên MySQL: kết quả thử nghiệm không đủ rõ để kết luận.
-- "Skip scan chỉ cho query covering" của MySQL: đúng trong ví dụ đã thử (SELECT * không dùng skip scan); điều kiện đầy đủ xem tài liệu MySQL.
-- Mối liên hệ chính xác giữa `Index Searches: 11` và số giá trị status (5) ở chương 2: chỉ nói "nhiều lần tìm kiếm".
+- Everything about PostgreSQL 19 (RC) and the MySQL hypergraph optimizer: based on release notes only.
+- The comparison table of functional indexes in other systems (MariaDB, SQL Server, Oracle, SQLite): based on documentation, not run.
+- InnoDB implementation details of visibility checks with covering indexes (chapter 6): not measured.
+- The cause of MySQL's misestimate for `status = 'active'` despite having a histogram (chapter 5): not determined.
+- `EXPLAIN ANALYZE` with multi-table `UPDATE`/`DELETE` on MySQL: the test results were not clear enough to conclude.
+- "Skip scan only for covering queries" in MySQL: true in the example tried (SELECT * did not use skip scan); see the MySQL documentation for the full conditions.
+- The exact relationship between `Index Searches: 11` and the number of status values (5) in chapter 2: only stated as "many searches".

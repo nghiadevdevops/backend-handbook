@@ -1,17 +1,17 @@
-# Chương 6. So sánh và cách chọn workflow
+# Chapter 6. Comparing and Choosing a Workflow
 
-## Vấn đề
+## The problem
 
 Ba chương trước mô tả bốn mô hình. Câu hỏi thực tế là: **team của tôi nên dùng cái nào?** Câu trả lời phụ thuộc vào cách bạn phát hành, không phải vào sở thích.
 
-## Hai câu hỏi quyết định
+## Two deciding questions
 
 1. **Bạn kiểm soát thời điểm người dùng nhận code không?** Web service, API nội bộ: có (deploy khi muốn). Mobile app, thư viện, phần mềm cài ở khách: không (người dùng tự nâng cấp, hoặc store duyệt).
 2. **Có bao nhiêu version phải sống song song?** Một (production hiện tại) hay nhiều (1.x, 2.x cùng nhận fix)?
 
 Hai câu này phân loại gần hết trường hợp.
 
-## Bảng chọn theo loại sản phẩm
+## Choice table by product type
 
 | Loại sản phẩm | Version song song | Workflow đề xuất | Ghi chú |
 |---|---|---|---|
@@ -22,7 +22,7 @@ Hai câu này phân loại gần hết trường hợp.
 | Phần mềm on-premise | nhiều | Git Flow hoặc GitLab Flow release branches | QA tách biệt, support branch |
 | Monorepo nhiều service | 1 mỗi service | Trunk-based | CI theo path (Chương 10) |
 
-## Bảng theo quy mô và tần suất
+## Table by scale and frequency
 
 | Yếu tố | Nghiêng về trunk/GitHub Flow | Nghiêng về Git Flow/release branch |
 |---|---|---|
@@ -32,7 +32,7 @@ Hai câu này phân loại gần hết trường hợp.
 | Rollback | feature flag hoặc redeploy bản trước | không thể (đã nằm trên thiết bị người dùng) |
 | Yêu cầu compliance (audit trail theo release) | tag + changelog đủ | release branch có chữ ký phê duyệt |
 
-## Khuyến nghị rõ ràng
+## Clear recommendation
 
 **Với web service hoặc API deploy liên tục (trường hợp phổ biến nhất của người đọc TS/Go backend): dùng trunk-based development với short-lived branch và squash merge qua PR.**
 
@@ -48,7 +48,7 @@ Cấu hình cụ thể:
 
 **Với mobile**: trunk + cắt `release/x.y` tại ngày code freeze, chỉ nhận fix đã có trên trunk (upstream first).
 
-## Cách chuyển từ Git Flow sang trunk
+## How to move from Git Flow to trunk
 
 1. Đo trước: tuổi trung bình của feature branch, thời gian merge, số conflict mỗi release.
 2. Cải thiện CI (nhanh, ổn định) trước khi đổi nhánh.
@@ -56,28 +56,28 @@ Cấu hình cụ thể:
 4. Cho `develop` merge vào `main`, ngừng tạo release branch trừ khi cần; để `develop` làm alias đọc-chỉ rồi xóa.
 5. Đo lại bằng DORA và tuổi PR.
 
-## Cạm bẫy
+## Pitfalls
 
 - Chọn workflow theo "công ty lớn nào đó dùng". Họ có CI và hạ tầng khác bạn.
 - Trộn: `develop` tồn tại nhưng ai cũng merge thẳng vào `main`.
 - Quy trình quá nặng cho team 3 người, hoặc quá lỏng cho team 30 người.
 - Không ghi workflow thành văn bản (Chương 13), mỗi người một kiểu.
 
-## Tóm tắt
+## Summary
 
 - Chọn theo hai câu hỏi: có kiểm soát thời điểm người dùng nhận code không, và có bao nhiêu version song song.
 - Web/API deploy liên tục: trunk-based, squash, feature flag.
 - Thư viện, mobile, on-premise: trunk cộng release branch, hoặc Git Flow khi nhiều version.
 - Chuyển workflow là thay đổi văn hóa, cần CI nhanh và PR nhỏ trước.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 
 1. Hai câu hỏi quyết định workflow là gì?
 2. Khuyến nghị cho API deploy liên tục?
 3. Vì sao mobile thường cần release branch?
 4. Bước đầu tiên khi chuyển từ Git Flow sang trunk?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Có kiểm soát thời điểm người dùng nhận code không, và có bao nhiêu version phải hỗ trợ song song.
 2. Trunk-based, short-lived branch, squash merge, CI bắt buộc, feature flag.

@@ -1,4 +1,4 @@
-# Chương 5. Optimizer, EXPLAIN và statistics: vì sao database không dùng index của bạn (hoặc dùng sai)
+# Chapter 5. Optimizer, EXPLAIN and Statistics: Why the Database Doesn't Use Your Index (or Uses It Wrongly)
 
 ## 5.1 Query lifecycle
 
@@ -12,7 +12,7 @@ flowchart LR
 
 Optimizer dựa trên **statistics** (số dòng, số giá trị khác nhau, phân bố, correlation giữa thứ tự vật lý và thứ tự cột) và các cost constant (đọc tuần tự rẻ hơn đọc ngẫu nhiên) để chọn plan rẻ nhất *theo ước lượng*. Nó có thể sai, vì statistics cũ, hoặc không biết các cột liên quan với nhau.
 
-## 5.2 Đọc EXPLAIN: bản đúng cho cả hai DB
+## 5.2 Reading EXPLAIN: the right version for both databases
 
 | | PostgreSQL | MySQL |
 |---|---|---|
@@ -35,7 +35,7 @@ Plan hiện `Delete on orders -> Index Scan using orders_pkey`. Trên PostgreSQL
 
 MySQL 9.7.4: với `DELETE` một bảng, `EXPLAIN ANALYZE` trả về `-> <not executable by iterator executor>` và dữ liệu không bị xóa (đã kiểm, số dòng không đổi). Với `DELETE`/`UPDATE` nhiều bảng, tài liệu MySQL cho biết `EXPLAIN ANALYZE` có hỗ trợ nên phải coi là có thực thi; trong thử nghiệm của tôi kết quả không đủ rõ để kết luận, vì vậy cứ **luôn bọc trong transaction và `ROLLBACK`**. Với MySQL, ít nhất `EXPLAIN` thường (không ANALYZE) luôn an toàn.
 
-### Những thứ cần tìm trong plan
+### What to look for in a plan
 
 PostgreSQL:
 - `Seq Scan`, `Index Scan`, `Index Only Scan`, `Bitmap Index Scan` + `Bitmap Heap Scan`.
@@ -45,11 +45,11 @@ PostgreSQL:
 
 MySQL (TREE): `Index lookup`, `Index range scan`, `Covering index lookup`, `Table scan`, `Filter`, `Sort`, và `cost`, `rows` ước lượng; với ANALYZE có `actual time`, `rows`, `loops`.
 
-## 5.3 Lý do 1: index không khớp query
+## 5.3 Reason 1: the index doesn't match the query
 
 Đã gặp ở chương 2 và 3: sai thứ tự cột, bọc cột trong function, implicit cast, `LIKE '%x'`, thiếu `text_pattern_ops` trên PG. Khi nghi ngờ, hãy tự hỏi: "điều kiện này cho B-tree điểm bắt đầu nào?".
 
-## 5.4 Lý do 2: full table scan thực sự rẻ hơn
+## 5.4 Reason 2: a full table scan is actually cheaper
 
 Index scan phải đọc index rồi nhảy sang bảng cho từng dòng; nếu phần lớn bảng khớp thì sequential scan rẻ hơn. Dữ liệu thử: 300.000 dòng `users`, `status = 'active'` chiếm 99%.
 
@@ -81,7 +81,7 @@ EXPLAIN ANALYZE SELECT * FROM users IGNORE INDEX (users_status_idx) WHERE status
 
 MySQL ước lượng 149.274 dòng (thực tế 297.000) và chọn tra index rồi nhảy vào B-tree của primary key cho từng dòng: chậm khoảng 4 lần so với table scan. Tôi đã thử thêm histogram trên cột `status` (`ANALYZE TABLE users UPDATE HISTOGRAM ON status WITH 4 BUCKETS`), ước lượng vẫn không đổi; tôi **chưa xác định chắc nguyên nhân** (nghi ngờ optimizer ưu tiên số liệu từ index cho cột đã có index). Hãy xem đây là minh họa rằng optimizer có thể sai, và rằng cách xử lý là đo thật (`EXPLAIN ANALYZE`) rồi dùng `IGNORE INDEX`/`FORCE INDEX` hoặc hint khi cần, không phải một quy luật.
 
-## 5.5 Lý do 3: database chọn index khác
+## 5.5 Reason 3: the database picks a different index
 
 Khi có nhiều index khả dụng, optimizer chọn theo chi phí ước lượng: index nào lọc được nhiều dòng nhất, index nào tránh được bước sort, index nào covering. Ví dụ: `WHERE status = 'paid' ORDER BY created_at DESC LIMIT 10` với index `(created_at)` và index `(status, amount, id)`: PostgreSQL chọn đi ngược `orders_created_idx` và lọc `status`, vì 1/5 dòng là `paid` nên chỉ cần đọc khoảng 50 mục để đủ 10 dòng (`Rows Removed by Filter: 40`). Điều này đúng nhưng mong manh: nếu `paid` hiếm, plan đó sẽ thảm họa. Giải pháp là index `(status, created_at)`.
 
@@ -95,7 +95,7 @@ Công cụ kiểm soát:
 
 Đã kiểm với MySQL: sau khi đặt `users_status_idx` thành `INVISIBLE`, `EXPLAIN` chuyển sang `Table scan`.
 
-## 5.6 Statistics: ANALYZE và các công cụ
+## 5.6 Statistics: ANALYZE and related tools
 
 ```sql
 -- PostgreSQL
@@ -122,11 +122,11 @@ ANALYZE TABLE users UPDATE HISTOGRAM ON country WITH 5 BUCKETS;   -- histogram c
 ```
 Histogram của MySQL hữu ích nhất cho cột **không** nằm trong index nhưng dùng trong `WHERE`/`JOIN`.
 
-## 5.7 Index usage statistics (để biết index nào đang được dùng)
+## 5.7 Index usage statistics (to see which indexes are used)
 
 Đã nói ở chương 9; tóm tắt: `pg_stat_all_indexes` (PostgreSQL, giữ qua clean shutdown từ PG 15) và `performance_schema` / `sys.schema_unused_indexes` (MySQL, **mất khi restart**).
 
-## 5.8 Cạm bẫy thường gặp
+## 5.8 Common pitfalls
 
 - Chạy `EXPLAIN ANALYZE` trên `DELETE`/`UPDATE` ở production mà không bọc transaction.
 - Chỉ xem `EXPLAIN` không `ANALYZE`, rồi tin con số ước lượng.
@@ -134,7 +134,7 @@ Histogram của MySQL hữu ích nhất cho cột **không** nằm trong index n
 - Quên `ANALYZE` sau khi nạp dữ liệu hàng loạt hoặc sau khi tạo expression index (PostgreSQL thu thập statistics cho expression khi `ANALYZE`).
 - Kết luận từ bảng quá nhỏ: với vài trăm dòng, `Seq Scan` luôn đúng.
 
-## 5.9 Tóm tắt
+## 5.9 Summary
 
 - Optimizer chọn plan rẻ nhất theo ước lượng; statistics sai thì plan sai.
 - `EXPLAIN` chỉ ước lượng, `EXPLAIN ANALYZE` chạy thật (nguy hiểm với DML); trên PG nên dùng `(ANALYZE, BUFFERS)`, trên MySQL có từ 8.0.18.
@@ -142,7 +142,7 @@ Histogram của MySQL hữu ích nhất cho cột **không** nằm trong index n
 - `ANALYZE (SKIP_LOCKED) t` là cú pháp PostgreSQL đúng; `ANALYZE` không chặn đọc/ghi thông thường.
 - Khi optimizer sai, đo thật rồi mới can thiệp (INVISIBLE index, hint, statistics mở rộng).
 
-## 5.10 Tự kiểm tra
+## 5.10 Self-check
 
 1. Khác nhau giữa `EXPLAIN` và `EXPLAIN ANALYZE`, và rủi ro khi dùng cái thứ hai trên `DELETE`?
 2. `Index Cond` khác `Filter` thế nào trong plan PostgreSQL?
@@ -150,7 +150,7 @@ Histogram của MySQL hữu ích nhất cho cột **không** nằm trong index n
 4. Cách thử "nếu bỏ index này thì sao" an toàn trên MySQL?
 5. Viết đúng cú pháp ANALYZE bỏ qua bảng bị lock trên PostgreSQL.
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. `EXPLAIN` chỉ hiển thị plan ước lượng; `EXPLAIN ANALYZE` thực thi thật nên `DELETE` xóa dữ liệu thật. Bọc trong transaction và `ROLLBACK`.
 2. `Index Cond` là điều kiện dùng để định vị trong index; `Filter` là điều kiện lọc sau khi đã đọc dòng, kèm `Rows Removed by Filter` là công vô ích.

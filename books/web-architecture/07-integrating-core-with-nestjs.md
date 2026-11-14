@@ -1,12 +1,12 @@
-# Chương 7. Ghép core vào NestJS 12
+# Chapter 7. Integrating the Core with NestJS 12
 
 > Phiên bản dùng trong sách (tra cứu 11/2026 trên npm registry và tài liệu NestJS): **Node.js 26 (LTS, Docker image `node:26`, thực tế v26.13.0)**, **TypeScript 7.0.2**, **NestJS 12.4.0** (`@nestjs/core`, `@nestjs/common`, `@nestjs/platform-express`, `@nestjs/testing`), `@nestjs/event-emitter` 12.0.2, `class-validator` 0.15.1, `class-transformer` 0.5.1, `pg` 8.23.1, `fastify` 5.12.8, PostgreSQL 18.6 (image `postgres:18`).
 
-## 7.1 Vấn đề
+## 7.1 The problem
 
 Core đã chạy bằng TypeScript thuần. Giờ ta cần dựng web: nhận request, validate, gọi use case, trả JSON. Việc của chương này: **nối** core với NestJS mà không để core biết NestJS.
 
-## 7.2 NestJS 12 và toolchain hiện nay
+## 7.2 NestJS 12 and the current toolchain
 
 Những điểm của NestJS 12 ảnh hưởng đến cách dựng dự án (theo migration guide của NestJS):
 
@@ -224,7 +224,7 @@ export function configureApp(app: INestApplication): void {
 
 Top-level `await` dùng được vì lab là ESM.
 
-## 7.4 Provider singleton và test với InMemory
+## 7.4 Singleton providers and testing with InMemory
 
 Provider mặc định là singleton nên cùng một `InMemoryOrderRepository` được cấp cho mọi nơi inject (handler, `EbookPurchasePolicy` bên trong handler, test). Nếu bạn cấu hình scope `TRANSIENT` hay `REQUEST` cho repository in-memory, mỗi lần resolve sẽ ra một repository khác nhau và dữ liệu lưu ở chỗ này không thấy ở chỗ kia: test đỏ khó hiểu. Với repository in-memory hãy giữ singleton, hoặc truyền sẵn một instance bằng `overrideProvider(...).useValue(...)`.
 
@@ -344,7 +344,7 @@ describe('NestJS: controller, DI token, ValidationPipe và event', () => {
 
 Ghi chú: `app.listen(0)` cho hệ điều hành chọn cổng trống, nên test không chiếm cổng cố định; `fetch` có sẵn trong Node.js nên không cần thêm thư viện test HTTP. `FixedClock` thay `SystemClock`, `RecordingOrderNotifier` thay `LogOrderNotifier`; cả hai đều được inject qua đúng token.
 
-## 7.5 DTO, ValidationPipe, route và controller
+## 7.5 DTOs, ValidationPipe, routes and controllers
 
 Validate **hình dạng** dữ liệu vào bằng DTO + `ValidationPipe`, ở rìa (file `lab/src/nest/place-order.dto.ts`):
 
@@ -370,7 +370,7 @@ Luật nghiệp vụ ("đã sở hữu chưa") **không** nằm ở đây mà �
 
 Route khai báo bằng decorator trên controller (`@Controller('orders')`, `@Get()`, `@Post()`); controller đã xem ở chương 6. Lỗi nghiệp vụ (`DomainRuleViolation`) được controller chuyển thành 422; lỗi hình dạng đã bị pipe chặn trước bằng 400. Cách khác, đặt việc dịch lỗi vào một exception filter (`@Catch(DomainRuleViolation)`) dùng chung cho mọi controller; sách giữ `try/catch` trong controller cho dễ đọc. Danh tính khách lấy từ header `x-customer-id` cho gọn; ứng dụng thật dùng Guard xác thực.
 
-## 7.6 Clock, event và PostgreSQL trong NestJS
+## 7.6 Clock, events and PostgreSQL in NestJS
 
 - **Clock:** `SystemClock` dùng `new Date()`, không cần thư viện nào. Test đóng băng thời gian bằng `FixedClock` qua port, không cần mock global timer.
 - **Event:** adapter `NestEventPublisher` và subscriber `OrderConfirmationSubscriber` xem ở chương 8.
@@ -430,7 +430,7 @@ describe('NestJS + PostgreSQL (không override provider)', { skip }, () => {
 });
 ```
 
-## 7.7 Lỗi nghiệp vụ và lỗi lập trình trong TypeScript
+## 7.7 Business errors and programming errors in TypeScript
 
 JavaScript chỉ có một lớp gốc `Error`, không tách `Exception` và `Error` như một số ngôn ngữ. Sách dùng hai lớp riêng (file `lab/src/domain/shared/errors.ts`):
 
@@ -462,7 +462,7 @@ export class InvalidArgumentError extends Error {
 
 Hai điểm riêng của TypeScript: (1) `instanceof` hoạt động với subclass của `Error` nhờ target ES2023; trên target quá cũ (ES5) thì không, vì hạn chế của việc biên dịch class kế thừa `Error`; (2) `catch (error)` có kiểu `unknown`, nên luôn phải kiểm `instanceof` trước khi đọc `error.message`, như trong controller và `demo.ts`.
 
-## 7.8 So sánh: ghép thủ công bằng Fastify (hoặc Express), không DI container
+## 7.8 Comparison: manual wiring with Fastify (or Express), no DI container
 
 NestJS không phải điều kiện của kiến trúc này. Vì core chỉ là class và interface, ta ghép được bằng một framework HTTP tối giản, và **composition root là một file đọc từ trên xuống**. Lab có bản Fastify (file `lab/src/fastify/build-app.ts`): adapter HTTP nhận dependency qua tham số hàm, validate bằng JSON Schema có sẵn của Fastify, dịch `DomainRuleViolation` thành 422 trong `setErrorHandler`.
 
@@ -577,11 +577,11 @@ Test (`lab/test/fastify.test.ts`) dùng `app.inject` của Fastify, tức gọi 
 
 Express 5 ghép theo đúng cách của Fastify (hàm dựng app nhận dependency, `app.post('/orders', ...)` gọi `placeOrder.handle(...)`); sách chỉ chạy bản Fastify và không chạy bản Express. Điểm cần rút ra: **core không đổi một dòng** giữa NestJS và Fastify (cả hai test đều import đúng các file trong `src/domain` và `src/application`). Đó là phần thưởng của việc tách core.
 
-## 7.9 Đổi framework: nói cho đúng
+## 7.9 Swapping frameworks: an honest account
 
 Core TypeScript thuần dùng lại được giữa NestJS, Fastify, Express, hay một worker không có HTTP, bằng cách viết lại phần adapter và composition root. Đổi sang **ngôn ngữ khác** (Go, Java) thì phải viết lại core: cái ta giữ được là mô hình, luật, và test dạng đặc tả. Cũng lưu ý: dùng lại core giữa framework chỉ đúng khi core thật sự không import framework; chỉ cần một `@Injectable()` lọt vào `src/application` là bạn đã buộc core vào NestJS.
 
-## 7.10 Cạm bẫy thường gặp
+## 7.10 Common pitfalls
 
 - **Gắn `@Injectable()` hoặc `@Inject()` vào handler/domain** vì tiện: phá boundary của chương 1. Dùng `useFactory` ở module.
 - **Quên `.js` ở `import` tương đối** trong dự án ESM: `tsc` báo lỗi với `module: NodeNext`; nếu chạy file đã biên dịch từ nơi khác còn gặp `ERR_MODULE_NOT_FOUND`.
@@ -594,7 +594,7 @@ Core TypeScript thuần dùng lại được giữa NestJS, Fastify, Express, ha
 - **Cho domain import `@nestjs/*`** (ví dụ `Logger`, `HttpException`) vì tiện.
 - **Validate trong handler thay vì ở rìa.** Hình dạng dữ liệu là việc của rìa; handler chỉ đổi sang ID branded.
 
-## 7.11 Tóm tắt
+## 7.11 Summary
 
 1. NestJS 12: package ESM, cần Node.js 20.19 hoặc 22.12 trở lên, vẫn dùng `experimentalDecorators` và `emitDecoratorMetadata`; lab dùng TypeScript 7.0.2 và Node.js 26.
 2. Composition root là module: DI token (`Symbol`) cho từng port, `useFactory` để dựng handler của core không decorator.
@@ -602,7 +602,7 @@ Core TypeScript thuần dùng lại được giữa NestJS, Fastify, Express, ha
 4. DTO class + `ValidationPipe` cho hình dạng dữ liệu, core cho luật; kiểu của TypeScript không tồn tại lúc chạy nên dữ liệu ngoài phải được validate ở rìa.
 5. Ghép thủ công bằng Fastify (hoặc Express) cũng được, không cần DI container; core không đổi dòng nào giữa hai cách.
 
-## 7.12 Tự kiểm tra
+## 7.12 Self-check
 
 1. Vì sao NestJS cần DI token (`Symbol`) mà không inject thẳng theo kiểu interface?
 2. Vì sao handler của core được dựng bằng `useFactory` thay vì gắn `@Injectable()`?
@@ -611,7 +611,7 @@ Core TypeScript thuần dùng lại được giữa NestJS, Fastify, Express, ha
 5. Hai ưu điểm và hai nhược điểm của ghép thủ công bằng Fastify so với NestJS?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Interface của TypeScript bị xoá lúc biên dịch, lúc chạy không còn gì để tra container; cần một giá trị (Symbol hoặc abstract class) làm khoá.
 2. Để core không import decorator của NestJS; module (ở infrastructure) làm việc nối dây.

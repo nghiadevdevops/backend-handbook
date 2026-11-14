@@ -1,10 +1,10 @@
-# Chương 8. Acceptance test và traceability từ acceptance criteria tới test
+# Chapter 8. Acceptance tests and traceability from acceptance criteria to tests
 
-## 1. Tình huống
+## 1. Scenario
 
 Product owner hỏi: "Acceptance criteria AC-ORD-5 (thanh toán bị từ chối thì đơn giữ nguyên) đã có test chưa?" Bạn lục 300 test và không chắc. Trong Spec-Driven Development, acceptance criteria (AC) là hợp đồng với nghiệp vụ; nếu không có traceability từ AC → test, bạn không biết yêu cầu nào đang được bảo vệ, yêu cầu nào đang bị hở.
 
-## 2. Acceptance test là gì
+## 2. What an acceptance test is
 
 Acceptance test kiểm tra **một hành vi mà người dùng/nghiệp vụ quan tâm**, diễn đạt theo ngôn ngữ nghiệp vụ, độc lập với implementation. Nó không bắt buộc đi qua UI hay HTTP. Với Hexagonal, entry point tự nhiên là **use case (driving port)**, với fake ở các port ra ngoài:
 
@@ -16,7 +16,7 @@ Acceptance test kiểm tra **một hành vi mà người dùng/nghiệp vụ qua
 
 Mức này vừa đủ nhanh (ms) để chạy mỗi commit, vừa đủ cao để mô tả yêu cầu. Khi cần bảo đảm hệ thống nối đúng từ HTTP xuống DB, thêm vài test mỏng ở chương 7 và 12.
 
-## 3. Bảng AC của dự án mẫu
+## 3. The sample project's AC table
 
 `lab/docs/acceptance-criteria.md`:
 
@@ -29,7 +29,7 @@ Mức này vừa đủ nhanh (ms) để chạy mỗi commit, vừa đủ cao đ�
 | AC-ORD-5 | đơn đã đặt | cổng thanh toán từ chối | đơn vẫn `placed` |
 | AC-ORD-6 | đơn đã thanh toán | khách hủy đơn | bị từ chối |
 
-## 4. Từ AC sang test: một AC, một test, có mã
+## 4. From AC to test: one AC, one test, with an ID
 
 Quy ước của lab: tên test bắt đầu bằng mã AC (`AC-ORD-n: ...`). Hai lợi ích: đọc tên là biết yêu cầu nào, và chạy riêng được bằng `vitest run -t AC-ORD-5` (`-t` lọc theo tên test; kết quả thật: `Tests  1 passed | 5 skipped (6)`). Vitest có cơ chế tag riêng cho test ở các bản mới; lab chọn tiền tố trong tên vì `grep` đọc được cả tên lẫn tài liệu AC và chạy được ở mọi phiên bản.
 
@@ -96,7 +96,7 @@ AC-ORD-6 -> in docs
 
 Script thoát với mã 1 nếu có AC không có test hoặc có test mồ côi. Đã thử thêm một dòng `AC-ORD-7` giả vào tài liệu: script in `AC-ORD-7 -> 0 test file(s)` và `exit=1`; có thể đưa vào CI để fail build. Đây là cơ chế đơn giản; công cụ BDD đầy đủ (Cucumber.js với Gherkin `.feature`) cung cấp traceability sẵn nhưng thêm một lớp ngôn ngữ phải bảo trì. Chọn Gherkin khi nghiệp vụ thực sự viết/đọc kịch bản; nếu chỉ developer đọc, test Vitest có mã AC là đủ (chưa chạy thử Cucumber.js trong lab).
 
-## 6. Quan hệ với các loại test khác
+## 6. Relationship with other kinds of test
 
 | AC | Test chính | Test bổ trợ |
 |---|---|---|
@@ -106,35 +106,35 @@ Script thoát với mã 1 nếu có AC không có test hoặc có test mồ côi
 
 Acceptance test trả lời "yêu cầu có được thỏa không", unit test trả lời "mọi biên của quy tắc có đúng không". Hai thứ không thay thế nhau.
 
-## 7. Trade-off
+## 7. Trade-offs
 
 - Mỗi AC một test giữ bộ acceptance nhỏ và dễ đọc; đừng nhồi ca biên vào đây.
 - Acceptance qua use case nhanh nhưng không chứng minh HTTP/DB nối đúng; cần thêm test mỏng ở layer đó.
 - Gắn mã AC trong tên test thêm chút kỷ luật nhưng mua được traceability gần như miễn phí.
 - KHÔNG nên viết AC mơ hồ ("hệ thống phản hồi nhanh"): không thể có test deterministic.
 
-## 8. Cạm bẫy
+## 8. Pitfalls
 
 - AC thay đổi mà test không đổi theo (test bị drift khỏi yêu cầu). Review PR sửa AC phải kèm sửa test.
 - Test acceptance chứa implementation detail (kiểm tra SQL, tên class) làm nó vỡ khi refactor.
 - Một test kiểm tra nhiều AC cùng lúc: không biết AC nào hỏng.
 - Dùng dữ liệu "ma thuật" khó hiểu trong Given; dùng số có ý nghĩa (1.200.000 vượt ngưỡng 1.000.000).
 
-## 9. Tóm tắt
+## 9. Summary
 
 - Acceptance test mô tả hành vi theo ngôn ngữ nghiệp vụ; với Hexagonal, điểm vào là use case.
 - Quy ước: một AC, một test, mã AC làm tiền tố tên test.
 - Bidirectional traceability; script đơn giản đã đủ để phát hiện AC chưa có test.
 - Acceptance bổ sung chứ không thay unit test hay integration test.
 
-## 10. Câu hỏi tự kiểm tra
+## 10. Self-check questions
 
 1. Tại sao dùng use case làm điểm vào cho acceptance test thay vì HTTP?
 2. Lợi ích của tiền tố `AC-ORD-5:` trong tên test là gì?
 3. Backward traceability là gì và vì sao cần?
 4. Khi nào nên dùng Gherkin (Cucumber.js) thay vì Vitest có mã AC?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Nhanh (ms), ổn định, vẫn mô tả đúng hành vi nghiệp vụ; HTTP/DB được kiểm tra riêng bằng test mỏng.
 2. Chạy riêng theo AC (`vitest run -t AC-ORD-5`), và script trace đếm được AC có test hay chưa.

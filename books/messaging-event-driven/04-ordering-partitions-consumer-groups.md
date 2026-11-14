@@ -1,10 +1,10 @@
-# Chương 4. Ordering, partition, consumer group và rebalancing
+# Chapter 4. Ordering, partitions, consumer groups, and rebalancing
 
-## 1. Tình huống
+## 1. Scenario
 
 Đơn #123 phát ba event: `OrderPlaced`, `OrderPaid`, `OrderCancelled`. Nếu consumer xử lý `OrderCancelled` trước `OrderPlaced` thì read model sai. Cần ordering, nhưng ordering toàn cục (global order) không scale. Giải pháp thực tế là **ordering theo key**: mọi event của cùng một đơn hàng đi theo cùng một đường.
 
-## 2. Partition và key (Kafka)
+## 2. Partitions and keys (Kafka)
 
 Topic chia thành N **partition**, mỗi partition là một ordered log. Producer chọn partition bằng `hash(key) % N` (partitioner mặc định, murmur2). Cùng key → cùng partition → ordering được giữ.
 
@@ -23,7 +23,7 @@ Chọn key:
 
 Ordering phía producer: cần `enable.idempotence=true` để retry không xáo trộn ordering (với `max.in.flight.requests.per.connection <= 5`).
 
-## 3. Consumer group
+## 3. Consumer groups
 
 Các consumer cùng `group.id` chia partition: mỗi partition thuộc **tối đa một** consumer trong group tại một thời điểm.
 
@@ -52,31 +52,31 @@ Giảm đau:
 - Cooperative assignor / protocol mới KIP-848.
 - Xử lý nhanh, đẩy việc nặng sang thread/queue khác nhưng đừng commit offset trước khi xong.
 
-## 5. So sánh với queue
+## 5. Comparison with queues
 
 - **RabbitMQ**: ordering theo queue chỉ giữ khi **một** consumer; nhiều consumer + redelivery làm lệch ordering. Muốn ordering theo key dùng *Single Active Consumer* hoặc **consistent-hash exchange** (plugin), hoặc Stream/super stream.
 - **SQS FIFO**: `MessageGroupId` tương đương key; các group chạy parallel, trong group tuần tự.
 - **Kafka share group**: bỏ giới hạn partition, đổi lại không còn ordering.
 
-## 6. Trade-off và cạm bẫy
+## 6. Trade-offs and pitfalls
 
 - Cần ordering nghiêm ngặt theo key và parallelism cao: nhiều partition + key tốt. Cần parallelism cao hơn số partition và không cần ordering: share group hoặc queue.
 - Cạm bẫy: key null "vô tình"; key có phân bố lệch; tăng partition giữa chừng; xử lý parallel trong consumer bằng thread pool làm hỏng ordering mà không hay; producer retry không bật idempotence làm đảo ordering.
 - Event "không phụ thuộc ordering" nên được thiết kế để chịu được out-of-order (version number, `updated_at`, bỏ qua event cũ hơn trạng thái hiện có).
 
-## Tóm tắt
+## Summary
 1. Ordering chỉ có theo partition; dùng key (thường là aggregate id) để giữ ordering theo entity.
 2. Một partition tối đa một consumer trong group; số partition là trần parallelism.
 3. Rebalance gây dừng và xử lý lại; KIP-848 (mặc định từ Kafka 4.0) giảm tác động.
 4. Hot key và đổi số partition là hai nguồn failure phổ biến.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Topic 6 partition, group 10 consumer: bao nhiêu consumer thực sự làm việc?
 2. Vì sao chọn `customer_id` làm key có thể nguy hiểm?
 3. Tăng partition từ 6 lên 12 ảnh hưởng gì đến ordering?
 4. Static membership giải quyết vấn đề gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. 6; 4 consumer còn lại nhàn rỗi.
 2. Khách lớn tạo hot key: một partition bị quá tải trong khi các partition khác rảnh.

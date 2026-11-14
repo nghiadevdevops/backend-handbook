@@ -1,12 +1,12 @@
-# Chương 9. Contract test giữa các service (Pact JS) và schema test
+# Chapter 9. Contract tests between services (Pact JS) and schema tests
 
 > **Trạng thái kiểm chứng:** schema test (mục 3) và luồng Pact consumer + provider (mục 4) là code thật trong `lab/`, đã chạy xanh với `@pact-foundation/pact` 17.1.4 (Vitest 5.1.0, Node 26). Phần **Pact Broker** và `can-i-deploy` (mục 5) **chưa chạy thử** (cần một broker); mô tả theo docs.pact.io. Lab dùng pact file cục bộ thay cho broker.
 
-## 1. Tình huống
+## 1. Scenario
 
 Service `order` đổi `total` từ số nguyên sang chuỗi `"1080000.00"`. Test của `order` xanh, test của web-shop (consumer) xanh vì nó dùng mock cũ. Lên production: web-shop vỡ. Dựng môi trường E2E cho mọi cặp service thì chậm và brittle. Contract test giải quyết đúng chỗ này: kiểm tra từng cặp consumer-provider **độc lập, không cần chạy cả hai cùng lúc**.
 
-## 2. Hai cách tiếp cận
+## 2. Two approaches
 
 | | Schema test (phía provider) | Consumer-driven contract (Pact) |
 |---|---|---|
@@ -17,7 +17,7 @@ Service `order` đổi `total` từ số nguyên sang chuỗi `"1080000.00"`. Te
 
 Hợp lý nhất: schema test cho mọi service (rẻ), Pact cho những cặp consumer-provider quan trọng, thuộc nhóm khác nhau.
 
-## 3. Schema test
+## 3. Schema tests
 
 `presentOrder` (`lab/src/application/order-presenter.ts`) là JSON shape mà client nhìn thấy. `lab/tests/contract/schema.test.ts` pin nó lại:
 
@@ -68,7 +68,7 @@ it('detects a field that changed type (total as string)', () => {
 
 Trong thực tế bạn nên sinh/kiểm tra từ một machine-readable specification như OpenAPI hoặc JSON Schema thay vì object viết tay, để tài liệu và test không lệch nhau (ví dụ validate response bằng Ajv với schema từ file OpenAPI; mình chưa chạy thử trong lab). Lab này đã dùng JSON Schema ở phía *request* (`placeBodySchema` trong `src/http/app.ts`), đó là một nửa của bài toán.
 
-## 4. Pact JS: luồng consumer-driven (đã chạy)
+## 4. Pact JS: the consumer-driven flow (run)
 
 ```
  Consumer (web-shop)                      Provider (order-service)
@@ -169,7 +169,7 @@ Thông báo của Pact chỉ rõ JSONPath (`$.total`) và kiểu đã thỏa thu
 
 Trong hệ thống Hexagonal: contract test của consumer gắn vào **adapter HTTP client** (driven port → adapter gọi order-service, `HttpOrderClient`); contract test của provider gắn vào **driving adapter HTTP** (handler Fastify). Port giữ domain sạch khỏi chuyện này.
 
-## 5. Khi nào dùng Pact
+## 5. When to use Pact
 
 Dùng khi: nhiều đội, deploy độc lập, nhiều consumer cho một provider, E2E liên service đã quá chậm/khó bảo trì. Khi đó thêm Pact Broker và bước `can-i-deploy` (chưa chạy thử trong lab) để chặn deploy một bản provider làm vỡ consumer đang chạy production.
 
@@ -177,7 +177,7 @@ Không dùng khi: một đội sở hữu cả hai đầu và deploy cùng nhau 
 
 Pact cũng không thay thế test hành vi nghiệp vụ của provider: nó chỉ kiểm tra *shape và các interaction* chứ không kiểm tra logic.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 - Contract quá chặt (khớp giá trị chính xác thay vì type): vỡ liên tục. Dùng matcher.
 - Dùng Pact như test chức năng provider (đẩy cả logic nghiệp vụ vào contract).
@@ -186,14 +186,14 @@ Pact cũng không thay thế test hành vi nghiệp vụ của provider: nó ch�
 - Schema test sinh tay lệch khỏi tài liệu OpenAPI thật.
 - Hai test (consumer, provider) chạy song song và đọc file pact chưa được ghi (xem lưu ý trên).
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Contract test kiểm tra cặp consumer-provider độc lập, thay cho E2E liên service.
 - Schema test rẻ, kiểm tra tập con consumer cần; thêm field an toàn, đổi tên/type là vỡ.
 - Pact JS: consumer viết expectation với mock server, sinh file pact, provider verify bằng `Verifier` + provider state; broker và `can-i-deploy` chặn deploy sai (broker chưa chạy thử trong lab).
 - Cả schema test và luồng Pact consumer/provider trong lab đã chạy thật.
 
-## 8. Câu hỏi tự kiểm tra
+## 8. Self-check questions
 
 1. Vì sao `assertShape` cho phép thêm field mới vào response?
 2. Điểm khác biệt chính giữa schema test và Pact là gì?
@@ -201,7 +201,7 @@ Pact cũng không thay thế test hành vi nghiệp vụ của provider: nó ch�
 4. Vì sao consumer test và provider verification của lab nằm trong cùng một file?
 5. Khi nào Pact là quá mức cần thiết?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Nó chỉ duyệt các field có trong contract; field dư không bị kiểm tra, nên thay đổi backward compatible không làm đỏ.
 2. Pact do consumer dẫn dắt, mô tả đúng cái consumer dùng và có process broker; schema test do provider tự khai báo schema.

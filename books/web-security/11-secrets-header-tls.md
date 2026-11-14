@@ -1,6 +1,6 @@
-# Chương 11. Secrets, cấu hình, security header và TLS
+# Chapter 11. Secrets, Configuration, Security Headers and TLS
 
-## 1. Vấn đề
+## 1. The problem
 
 Nhiều vụ lộ dữ liệu không do khai thác code mà do **cấu hình**: file `.env` được web server phục vụ, chế độ debug bật trên production hiện stack trace kèm environment variable, API key đẩy lên GitHub, bucket mở công khai. Security Misconfiguration là A02 trong OWASP Top 10:2025, và "mishandling of exceptional conditions" (A10) bao gồm việc lỗi làm lộ thông tin. Chương này nói cách quản lý secret, cấu hình an toàn, header phòng thủ và TLS.
 
@@ -37,7 +37,7 @@ export const env = Env.parse(process.env);   // ném lỗi khi khởi động n�
 - Production: `NODE_ENV=production` (Express tắt stack trace trong response lỗi mặc định, bật cache view). Kiểm tra `.dockerignore` loại `.env`, `.git`, `node_modules`.
 - File `.env` ngoài thư mục được serve tĩnh; chỉ `express.static` đúng một thư mục công khai (ví dụ `public/`), không bao giờ `express.static(".")`.
 
-## 3. Cấu hình an toàn
+## 3. Secure configuration
 
 - `NODE_ENV=production`, không bật chế độ debug. Trang lỗi chung chung cho client, chi tiết vào log (chương 13). Express 5 có error-handling middleware mặc định, nhưng bạn nên tự viết một handler cuối app trả `{"error":"internal error"}` và log chi tiết phía server. Lab của sách cho thấy một lỗi SQL lộ nguyên văn thông báo của DB (`unterminated quoted string at or near ...`): đó là dạng lộ thông tin cần tránh.
 - Tắt banner phiên bản: `app.disable("x-powered-by")` (helmet cũng bỏ header này), `server_tokens off` (nginx).
@@ -47,7 +47,7 @@ export const env = Env.parse(process.env);   // ném lỗi khi khởi động n�
 - Secure by default (chương 1): môi trường mới dựng lên phải an toàn trước khi ai đó chỉnh.
 - Xử lý lỗi theo hướng **fail closed**: exception trong authorization check thì từ chối, không "cho qua".
 
-## 4. Security header
+## 4. Security headers
 
 Response header chỉ dẫn browser bật thêm cơ chế phòng thủ. Rẻ, nên làm hết:
 
@@ -103,13 +103,13 @@ Kiểm tra từ ngoài vào: `curl -sI https://domain` và đối chiếu với 
 - Gọi service ngoài: **bật verify certificate** (Node mặc định đã verify; không bao giờ đặt `NODE_TLS_REJECT_UNAUTHORIZED=0` hay `rejectUnauthorized: false` "cho chạy được").
 - Cryptography trong ứng dụng: dùng `node:crypto` đúng cách (AES-256-GCM, `scrypt`/`timingSafeEqual`) hoặc libsodium; sinh ngẫu nhiên bằng `crypto.randomBytes`/`crypto.randomUUID`/`crypto.randomInt`, không `Math.random()` cho token.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 - Secret manager chuyên dụng tăng độ an toàn nhưng thêm hạ tầng; dự án nhỏ có thể bắt đầu với secret của nền tảng deploy (GitHub Actions secrets, Docker/Kubernetes secrets) kèm quét tự động.
 - HSTS preload bảo vệ lần truy cập đầu nhưng khó đảo ngược.
 - CSP, COOP chặt có thể làm hỏng tích hợp third-party (widget, thanh toán); deploy theo Report-Only.
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - `.env` hoặc `.git` truy cập được qua web vì document root sai.
 - Chế độ debug/stack trace bật ở production (`NODE_ENV` không phải `production`).
@@ -118,21 +118,21 @@ Kiểm tra từ ngoài vào: `curl -sI https://domain` và đối chiếu với 
 - Cấu hình cho `X-Forwarded-For` tin mọi nguồn.
 - Một key dùng cho mọi môi trường; không có quy trình rotation.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Secret không vào Git/image; inject lúc chạy, rotation, quét tự động.
 - Production: `NODE_ENV=production`, ẩn banner, chặn truy cập file nhạy cảm, least privilege.
 - Header cơ bản: HSTS, `nosniff`, `Referrer-Policy`, `Permissions-Policy`, CSP; deploy HSTS từng bước.
 - TLS 1.2+ (ưu tiên 1.3), certificate tự động gia hạn, cấu hình trusted proxies đúng.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao xóa secret ở commit sau vẫn chưa an toàn?
 2. `nosniff` ngăn điều gì?
 3. Rủi ro của HSTS `preload` khi một subdomain chưa có HTTPS?
 4. Vì sao phải cấu hình trusted proxies khi ứng dụng đứng sau load balancer?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Lịch sử Git vẫn chứa secret (và có thể đã bị sao chép/quét); phải revoke và rotate secret.
 2. Việc browser tự đoán MIME và thực thi nội dung (ví dụ file text/JSON bị xử lý như script/HTML).

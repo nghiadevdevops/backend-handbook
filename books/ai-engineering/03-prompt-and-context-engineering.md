@@ -1,10 +1,10 @@
-# Chương 3. Prompt engineering và context engineering
+# Chapter 3. Prompt Engineering and Context Engineering
 
-## 1. Tình huống
+## 1. Scenario
 
 ShopAssist cần một chức năng nhỏ: đọc email khách hàng và trả về JSON `{intent, order_id, urgency}` để hệ thống tự phân loại ticket. Bản đầu viết "hãy trả về JSON", 95% lần đúng, 5% lần model chèn thêm câu "Đây là kết quả:" trước JSON và `json_decode` nổ. Chương này nói cách viết prompt để lỗi kiểu đó biến mất, và cách sắp xếp context cho vừa đúng vừa rẻ.
 
-## 2. Khái niệm
+## 2. Concepts
 
 **Prompt engineering** là cách diễn đạt chỉ dẫn. **Context engineering** rộng hơn: quyết định toàn bộ thứ đi vào context window ở mỗi lượt (instruction, ví dụ, retrieved docs, history, kết quả tool) và theo thứ tự nào. Thực tế, phần lớn chất lượng nằm ở context engineering.
 
@@ -141,14 +141,14 @@ Thứ tự là yếu tố then chốt: cache khớp theo **prefix**. Đặt ph�
 
 Ví dụ giá trị: Sonnet 5.5 với base $2/triệu token, 3.000 token system+ví dụ ổn định: lần ghi 5 phút tốn $2,5/triệu thay vì $2, các lần đọc sau chỉ $0,10/triệu (0,05×). Với 1.000 request/giờ, phần cố định này gần như miễn phí. Nhà cung cấp khác có cơ chế cache riêng, giá và điều kiện khác, cần đọc docs riêng.
 
-### 2.5 Quản lý history và tài liệu
+### 2.5 Managing history and documents
 
 - **Cắt hoặc tóm tắt history** khi dài: giữ nguyên N lượt gần nhất, tóm tắt phần cũ thành một đoạn, lưu bản tóm tắt vào database.
 - **Đưa tài liệu liên quan nhất**, không phải nhiều nhất (chương 7).
 - **Kết quả tool** thường dài: cắt bớt trường không cần trước khi đưa lại cho model.
 - Với model có thinking/reasoning, phần suy nghĩ cũng tốn token output; điều chỉnh mức effort theo độ khó (docs Anthropic có tham số effort; mặc định khác nhau theo model).
 
-## 3. Trade-off
+## 3. Trade-offs
 
 | Kỹ thuật | Dùng khi | Không dùng khi |
 |---|---|---|
@@ -157,7 +157,7 @@ Ví dụ giá trị: Sonnet 5.5 với base $2/triệu token, 3.000 token system+
 | Prompt caching | Prefix lớn lặp lại, lưu lượng đều | Prompt ngắn dưới threshold, lưu lượng thưa hơn TTL |
 | Chain-of-thought / thinking | Reasoning nhiều bước | Classification đơn giản (tốn token, chậm) |
 
-## 4. Cạm bẫy
+## 4. Pitfalls
 
 - Prompt dài toàn "KHÔNG ĐƯỢC": nêu lý do và hành vi mong muốn hiệu quả hơn cấm.
 - Sửa prompt theo cảm tính mà không có eval, làm ca này tốt thì ca khác hỏng (chương 8).
@@ -166,7 +166,7 @@ Ví dụ giá trị: Sonnet 5.5 với base $2/triệu token, 3.000 token system+
 - Bỏ qua `stop_reason` nên không phát hiện bị cắt hoặc từ chối.
 - Lưu prompt trong chuỗi rải rác trong code. Hãy quản lý prompt như code: có version, review, test.
 
-## 5. Tóm tắt
+## 5. Summary
 
 1. Context engineering quyết định cái gì vào context window và theo thứ tự nào; phần ổn định ở đầu, phần động ở cuối.
 2. Few-shot dùng để cố định định dạng và edge case; 3 đến 5 ví dụ đa dạng.
@@ -174,14 +174,14 @@ Ví dụ giá trị: Sonnet 5.5 với base $2/triệu token, 3.000 token system+
 4. Prompt caching theo prefix, có threshold tối thiểu và TTL; đo bằng các trường `usage`.
 5. Prompt là code: versioning và kiểm bằng eval.
 
-## 6. Câu hỏi tự kiểm tra
+## 6. Self-check questions
 
 1. Vì sao chèn `"Thời gian: 2026-11-07 10:03:21"` ở dòng đầu system prompt làm hỏng prompt caching?
 2. Schema JSON ép `order_id` là string. Vì sao vẫn cần kiểm tra bằng code?
 3. Khi nào few-shot phản tác dụng?
 4. Làm sao biết một request có trúng cache không?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Cache khớp theo prefix. Dòng đầu đổi mỗi giây nên không có prefix nào giống lần trước. Chuyển thông tin động xuống cuối.
 2. Schema chỉ đảm bảo hình dạng. Mã đó có thể không tồn tại hoặc thuộc khách khác; phải tra database và kiểm authorization.

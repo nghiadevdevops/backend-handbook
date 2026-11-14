@@ -1,10 +1,10 @@
-# Chương 4. Pagination, filtering, sorting, field selection
+# Chapter 4. Pagination, filtering, sorting, field selection
 
-## 1. Vấn đề
+## 1. The problem
 
 `GET /orders` trả 2 triệu record và làm sập server. Bản vá đầu tiên: `?page=3&per_page=50`. Vài tháng sau trang 40.000 mất 8 giây, và user thấy trùng/mất đơn khi dữ liệu mới chèn vào trong lúc đang lật trang. Chương này giải thích vì sao và cách làm đúng.
 
-## 2. Hai kiểu pagination chính
+## 2. The two main pagination styles
 
 ### Offset/limit (page/size)
 
@@ -55,7 +55,7 @@ Lab cài đặt dạng:
 
 `next_cursor` là `null` khi hết dữ liệu. Có thể bổ sung `Link: <...>; rel="next"` (RFC 8288) cho client thích header.
 
-### Cursor phải opaque
+### Cursors must be opaque
 
 Client coi cursor là chuỗi bất kỳ, chỉ đưa lại nguyên vẹn. Lab chỉ base64url hóa `id` cho dễ thấy; production nên **sign hoặc encrypt** để (a) không bị sửa tay, (b) đổi được nội dung sau này. Cursor sai trả `400` với problem `invalid-cursor`.
 
@@ -83,22 +83,22 @@ WHERE (created_at, id) < (:c, :i) ORDER BY created_at DESC, id DESC LIMIT 21
 ```
 (Row-value comparison có trong PostgreSQL và MySQL 8; cần composite index khớp thứ tự.)
 
-## 6. Field selection và expand
+## 6. Field selection and expand
 
 - `?fields=id,status,total` giảm payload cho mobile. Dùng khi payload thực sự lớn; mỗi biến thể là một thứ cần test và cache riêng.
 - `?expand=customer` nhúng resource liên quan.
 - GraphQL (chương 11) giải bài toán này tận gốc nếu nhu cầu chọn field rất đa dạng.
 
-## 7. Trong Fastify/Node.js
+## 7. In Fastify/Node.js
 
 Fastify không có sẵn pagination, bạn tự viết keyset (xem `GET /orders` trong `lab/api/index.ts`): sắp theo `id` tăng dần, lọc `id > cursor`, lấy `limit + 1` dòng để biết còn trang sau hay không, rồi mã hóa `id` cuối trang thành opaque cursor bằng `Buffer.from(id).toString("base64url")`. Cursor chỉ là opaque với client; server phải validate khi giải mã (lab trả `400 invalid-cursor` khi sai định dạng). Nếu dùng ORM/query builder, kiểm tra xem nó hỗ trợ keyset hay chỉ `OFFSET`/`COUNT`; với dataset lớn đừng dùng offset.
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - Cursor làm mất "trang 5/20"; nếu UI cần nó, offset cho phạm vi nhỏ có thể chấp nhận.
 - Giới hạn `limit` tối đa (lab: 100) để chống lạm dụng, và đặt mặc định hợp lý.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Không giới hạn `limit`.
 - Sort theo cột không có index trên bảng lớn.
@@ -107,21 +107,21 @@ Fastify không có sẵn pagination, bạn tự viết keyset (xem `GET /orders`
 - Cursor chứa dữ liệu nhạy cảm dạng thô.
 - Lờ im filter parameter không hợp lệ.
 
-## 10. Tóm tắt
+## 10. Summary
 
 - Offset đơn giản nhưng chậm/không ổn định; cursor/keyset ổn định và nhanh.
 - Opaque cursor, `next_cursor = null` khi hết.
 - Filter/sort theo allowlist, có tie-breaker duy nhất.
 - Giới hạn `limit`; tránh `COUNT(*)` mặc định.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao offset sâu chậm?
 2. Vì sao cursor cần field duy nhất?
 3. Vì sao lấy `limit + 1` record?
 4. Khi nào vẫn chọn offset?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. DB vẫn duyệt và loại `offset` row đầu trước khi trả.
 2. Nếu nhiều row cùng giá trị sort, vị trí "sau cursor" không xác định và có thể sót/lặp.

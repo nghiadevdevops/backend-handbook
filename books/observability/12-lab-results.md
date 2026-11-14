@@ -1,8 +1,8 @@
-# Chương 12. Lab: dựng stack và kiểm chứng bằng API
+# Chapter 12. Lab: Building the Stack and Verifying via API
 
 Mục tiêu: tự tay xác nhận rằng metric, trace và log **thật sự tới backend và khớp nhau**, không chỉ "app chạy không lỗi". Mọi kết quả dưới đây là kết quả chạy thật ngày 08/11/2026 trên Docker Desktop (WSL2), với hai service viết bằng **Go 1.27.3** và **OpenTelemetry Go SDK v1.47.0**. (Bản đầu của lab dùng PHP; các bài học của bản đó được rà lại ở mục 5.)
 
-## 1. Kiến trúc lab
+## 1. Lab architecture
 
 ```
  curl (traffic) ──► orders (Go, :8080) ──► inventory (Go, :8080)
@@ -32,7 +32,7 @@ Thư viện (từ `lab/app/go.mod`): `go.opentelemetry.io/otel` và `sdk`, `sdk/
 
 Các file: `lab/compose.yaml`, `lab/app/{go.mod,go.sum,Dockerfile,main.go}`, `lab/otel/collector.yaml`, `lab/prometheus/prometheus.yml`, `lab/rules/slo-orders.yml`, `lab/rules/tests/slo-orders.test.yml`, `lab/scripts/{traffic.sh,verify.sh,trace_by_id.sh}`.
 
-## 2. Code Go (trích từ `lab/app/main.go`)
+## 2. Go code (excerpt from `lab/app/main.go`)
 
 Khởi tạo SDK: exporter OTLP/HTTP tự đọc `OTEL_EXPORTER_OTLP_ENDPOINT`, resource đọc `OTEL_SERVICE_NAME`; metrics gửi **cumulative** (mặc định của SDK) mỗi 5 giây.
 
@@ -63,7 +63,7 @@ func (h traceHandler) Handle(ctx context.Context, r slog.Record) error {
 
 Phải gọi `slog.ErrorContext(ctx, ...)` (có `ctx`) thì handler mới thấy span; `slog.Error(...)` không có `ctx` sẽ mất `trace_id`. Về bridge: trang docs OTel Go ghi Logs ở mức "Release candidate", nhưng CHANGELOG của `opentelemetry-go` ghi bản **1.47.0 (02/10/2026)** là bản stable đầu tiên của `otel/log` và `otel/sdk/log`. Bridge `contrib/bridges/otelslog` thì khi kiểm tra vẫn là module **v0** (v0.21.0), chưa stable, nên lab dùng log JSON có `trace_id` thay vì bridge. Đây là sự lệch giữa docs và changelog; hãy kiểm tra lại khi áp dụng.
 
-## 3. Chạy lại
+## 3. Re-running
 
 ```bash
 cd lab
@@ -79,7 +79,7 @@ docker compose down -v
 
 Gây lỗi khác: sửa `ERROR_RATE` hoặc `SLOW_RATE` trong `compose.yaml` rồi `docker compose up -d`. Sau khi sửa `otel/collector.yaml` phải `docker compose restart otel-collector`.
 
-## 4. Kết quả xác nhận bằng API (từ container `curl` khác)
+## 4. Results confirmed via API (from a separate `curl` container)
 
 Hai đợt traffic, mỗi đợt 300 request: cả hai đợt đều cho 285 thành công và 15 lỗi (HTTP 502). Tổng **600 request: 570 thành công, 30 lỗi**.
 
@@ -109,7 +109,7 @@ Gọi `GET /api/v3/traces/d2e0b9dec2892c36e766df3a58a7c3f9` (script `trace_by_id
 
 Cũng trong lab, `go tool pprof -top http://orders:6060/debug/pprof/heap` (chạy trong container `golang`) lấy được heap profile: `inuse_space` khoảng 1,5 MB, đứng đầu là `runtime.mallocgc`. Con số này chỉ chứng minh endpoint pprof dùng được; service gần như rảnh nên không có điểm nóng nào để phân tích.
 
-## 5. Kiểm tra rule bằng promtool (Docker, `prom/prometheus:v3.16.0`)
+## 5. Checking rules with promtool (Docker, `prom/prometheus:v3.16.0`)
 
 ```bash
 docker run --rm --entrypoint promtool -v "$PWD/rules:/rules:ro" prom/prometheus:v3.16.0 check rules /rules/slo-orders.yml
@@ -120,7 +120,7 @@ docker run --rm --entrypoint promtool -v "$PWD/rules:/rules:ro" prom/prometheus:
 
 Rule và test không đổi so với bản PHP (SLI lấy từ metric `span_metrics`, không phụ thuộc ngôn ngữ). Bốn ca test mô tả ở chương 7 vẫn qua.
 
-## 6. Lỗi gặp khi dựng lab bằng Go
+## 6. Errors hit when building the lab in Go
 
 | # | Triệu chứng | Nguyên nhân | Sửa |
 |---|---|---|---|
@@ -131,7 +131,7 @@ Rule và test không đổi so với bản PHP (SLI lấy từ metric `span_metr
 
 Lưu ý: không có lỗi nào trong số này làm số đếm sai. Chúng là loại lỗi "đọc nhầm số" khi kiểm chứng, và lỗi #1, #2 chỉ lộ ra vì tôi đối chiếu với số request.
 
-### Bài học của bản PHP cũ: còn đúng hay đã bỏ
+### Lessons from the old PHP edition: still valid or dropped
 
 | Bài học của bản PHP | Trạng thái |
 |---|---|
@@ -146,7 +146,7 @@ Lưu ý: không có lỗi nào trong số này làm số đếm sai. Chúng là 
 
 Bài học tổng quát giữ nguyên: **luôn đối chiếu số metric với số request đã gửi**, và nhớ rằng lỗi hay nằm ở bước đọc (label, cửa sổ thời gian) chứ không chỉ ở bước ghi.
 
-## 7. Giới hạn của lab (chưa kiểm chứng)
+## 7. Lab limitations (not verified)
 
 - Không chạy Grafana, Tempo, Alertmanager, Pyroscope, node_exporter, OTLP logs, bridge `otelslog`, `otelpgx`/`otelsql` và Node.js: các chương nói về chúng dựa trên tài liệu, đã ghi rõ.
 - Chưa kiểm chứng việc mất dữ liệu khi service tắt mà không gọi `Shutdown`; code lab gọi `Shutdown` của hai provider khi nhận SIGTERM.
@@ -155,14 +155,14 @@ Bài học tổng quát giữ nguyên: **luôn đối chiếu số metric với 
 - Không đo thời gian hoàn thành traffic, nên chương này không đưa số liệu throughput.
 - PostgreSQL `pg_stat_statements` được chạy thử ở container tạm ngoài compose trong lần viết đầu (chương 11); lần này không chạy lại.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Xác nhận bằng API từ container khác cho thấy dữ liệu **thực sự** tới Prometheus và Jaeger, và số đếm khớp tuyệt đối với số request (600, 570 và 30).
 - Trace đi qua 2 service Go; log của cả hai có cùng `trace_id` với trace trong Jaeger.
 - Với Go, nhóm lỗi "nhiều worker ghi đè series" của PHP biến mất; thay vào đó lỗi nằm ở nhãn `exported_job`, độ trễ flush và cửa sổ `rate()`.
 - Rule burn-rate được kiểm bằng `promtool test rules`; SLI từ `span_metrics` không đổi khi đổi ngôn ngữ.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Vì sao lab xác nhận từ một container `curl` khác thay vì xem log của app?
 2. Vì sao `rate5m` ra `NaN` sau đợt traffic đầu tiên, và sửa thế nào?
@@ -170,7 +170,7 @@ Bài học tổng quát giữ nguyên: **luôn đối chiếu số metric với 
 4. Vì sao bản Go không cần `delta_to_cumulative` và `resource/strip_process`?
 5. Vì sao phải dùng `slog.ErrorContext(ctx, ...)` thay vì `slog.Error(...)`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Log app chỉ chứng minh app đã gửi; gọi API backend chứng minh dữ liệu đã đi hết đường ống, qua mạng, và được lưu/query được.
 2. Series span metrics xuất hiện lần đầu đã ở giá trị cuối và đứng yên, nên `rate()` bằng 0 và phép chia `0/0` ra `NaN`. Cần traffic liên tục để counter tăng trong cửa sổ; chạy thêm đợt thứ hai.

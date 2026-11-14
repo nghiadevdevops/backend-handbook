@@ -1,6 +1,6 @@
-# Chương 10. SSRF, path traversal, upload, deserialization, mass assignment, prototype pollution
+# Chapter 10. SSRF, Path Traversal, Upload, Deserialization, Mass Assignment, Prototype Pollution
 
-## 1. Vấn đề
+## 1. The problem
 
 Chương này gom các lỗi mà dữ liệu từ client điều khiển **resource phía server**: URL server sẽ gọi (SSRF), đường dẫn file server sẽ mở (path traversal, upload), dữ liệu server sẽ dựng lại thành object (deserialization), các trường server sẽ gán vào model (mass assignment), và cấu trúc object của chính runtime JavaScript (prototype pollution). Điểm chung: server tin quá nhiều vào thứ client đưa.
 
@@ -14,7 +14,7 @@ Tính năng "nhập URL ảnh đại diện", "preview link", webhook, import t�
 
 Năm 2025 SSRF (CWE-918) nằm trong A01 Broken Access Control của OWASP Top 10:2025.
 
-### Phòng thủ
+### Defenses
 
 1. **Tránh** nếu được: cho chọn từ danh sách đã định, hoặc để client tự tải.
 2. **Allowlist** host/scheme: chỉ `https`, chỉ domain đối tác biết trước.
@@ -25,7 +25,7 @@ Năm 2025 SSRF (CWE-918) nằm trong A01 Broken Access Control của OWASP Top 1
 
 Cạm bẫy: kiểm tra bằng regex chuỗi hostname (`http://evil.com@127.0.0.1/`, `http://2130706433/` là dạng số thập phân của 127.0.0.1, IPv6, `localtest.me` trỏ về 127.0.0.1). Chỉ so sánh IP sau resolve mới đáng tin.
 
-### Cài đặt trong Node.js
+### Setup in Node.js
 
 Cách làm chống DNS rebinding gọn nhất là đặt kiểm tra vào chính hàm `lookup` mà socket dùng để lấy địa chỉ, nên IP đã kiểm tra chính là IP được kết nối. Global `fetch` của Node không cho gắn `lookup` trực tiếp; cần `Agent` của package `undici` (8.12.4 tại thời điểm kiểm tra 08/11/2026; `fetch` trong Node thực chất cũng là undici đóng gói sẵn). Code dưới đây là `lab/snippets/ssrf.ts`, đã chạy thật trên Node 26:
 
@@ -235,14 +235,14 @@ Một request làm bẩn cả process cho tới khi restart, ảnh hưởng mọ
 5. Giảm thiệt hại: chạy Node với `--disable-proto=delete` (xóa hẳn accessor `__proto__`; bản chất không chặn được đường `constructor.prototype`, nên chỉ là layer phụ).
 6. Cập nhật dependency: `lodash`, `minimist`, `qs`, `axios` đều từng có advisory prototype pollution (xem lab `npm audit`, chương 12).
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - Allowlist host SSRF an toàn nhất nhưng kém linh hoạt; cho phép URL tùy ý buộc bạn dựng cả khối kiểm tra IP + egress control.
 - Re-encode ảnh tốn CPU nhưng triệt payload ẩn.
 - Schema allowlist tốn công liệt kê, đổi lại an toàn mặc định.
 - `strictObject` báo lỗi cho client gửi field thừa (có thể làm vỡ client cũ gửi dư field); `object` mặc định âm thầm bỏ field lạ.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Tin `Content-Type`/file extension từ client.
 - Kiểm tra URL bằng regex thay vì so IP sau resolve; quên redirect; quên rằng IP literal bỏ qua bước `lookup`.
@@ -251,7 +251,7 @@ Một request làm bẩn cả process cho tới khi restart, ảnh hưởng mọ
 - Deep merge tự viết (hoặc `lodash.merge` bản cũ) trên JSON từ client.
 - Trả thẳng lỗi của HTTP client về user (lộ topo nội bộ).
 
-## 10. Tóm tắt
+## 10. Summary
 
 - SSRF: allowlist, kiểm IP sau resolve (tại `lookup` của socket) và cả IP literal, tắt redirect, tách network egress, IMDSv2.
 - Path traversal/upload: không dùng tên file của user, lưu ngoài thư mục static, kiểm magic bytes, giới hạn kích thước.
@@ -259,14 +259,14 @@ Một request làm bẩn cả process cho tới khi restart, ảnh hưởng mọ
 - Mass assignment: schema allowlist (zod `strictObject`) và dùng `parsed.data`, không spread `req.body`.
 - Prototype pollution: validate trước khi merge, `Map`/`Object.create(null)`, chặn `__proto__`, cập nhật dependency.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. Vì sao kiểm tra hostname bằng chuỗi là không đủ để chống SSRF, và vì sao chỉ cài `lookup` kiểm tra IP vẫn chưa đủ?
 2. Hai cách đảm bảo đường dẫn không thoát khỏi thư mục gốc?
 3. Vì sao schema allowlist an toàn hơn blacklist khi thêm cột mới?
 4. Prototype pollution là gì và vì sao một request có thể ảnh hưởng mọi user?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Hostname có thể là dạng IP số, IPv6, domain trỏ về 127.0.0.1, redirect hoặc DNS rebinding; phải so IP sau resolve và kết nối tới đúng IP đó. Hostname là IP literal không đi qua `lookup`, nên phải kiểm tra riêng (lab đã gặp đúng lỗi này).
 2. Không dùng tên file client (lưu ID trong DB); hoặc `path.resolve()` rồi kiểm tra tiền tố thư mục gốc (hoặc `sendFile` với `root`).

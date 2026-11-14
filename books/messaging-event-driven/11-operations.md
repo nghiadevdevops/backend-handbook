@@ -1,6 +1,6 @@
-# Chương 11. Vận hành: consumer lag, monitoring, replay, chạy parallel nhiều version
+# Chapter 11. Operations: consumer lag, monitoring, replay, running multiple versions in parallel
 
-## 1. Tình huống
+## 1. Scenario
 
 Thứ Hai, email xác nhận chậm 3 tiếng. Không có exception nào, mọi service "xanh". Nguyên nhân: consumer chậm hơn tốc độ vào, backlog tích tụ qua cuối tuần. Hệ thống async **thất bại âm thầm**: lỗi hiện ra dưới dạng "chậm" chứ không phải "gãy". Vì vậy monitoring là một phần của thiết kế, không phải thứ thêm sau.
 
@@ -15,7 +15,7 @@ kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group in
 
 Lag tuyệt đối ít ý nghĩa bằng **xu hướng** và **thời gian chờ** (time lag: tuổi của message cũ nhất chưa xử lý). Lag 10 000 mà đang giảm thì ổn; lag 100 mà tăng đều thì hỏng. Share group (Kafka 4.2+) có metric lag riêng (KIP-1226). RabbitMQ: `messages_ready` và `messages_unacknowledged` của queue; SQS: `ApproximateNumberOfMessagesVisible` và `ApproximateAgeOfOldestMessage`.
 
-## 3. Cái cần theo dõi (tối thiểu)
+## 3. What to monitor (minimum)
 
 | Layer | Metric | Alert khi |
 |---|---|---|
@@ -42,7 +42,7 @@ Với log (Kafka), replay là tính năng, nhưng nguy hiểm nếu không chu�
 - Replay DLQ (redrive) sau khi sửa bug: đẩy về topic gốc hoặc retry topic, có rate control.
 - Khi replay lượng lớn, dùng rate limit để không đè downstream DB.
 
-## 5. Chạy parallel nhiều version consumer (deploy, migration)
+## 5. Running multiple consumer versions in parallel (deploy, migration)
 
 **Rolling deploy** cùng group: consumer cũ và mới cùng tồn tại, partition di chuyển (rebalance, chương 4). Hệ quả: một message có thể được xử lý bởi code cũ rồi code mới. Yêu cầu:
 - Mọi version phải xử lý được **cả schema cũ và mới** (chương 9: tolerant reader, compatible change).
@@ -55,33 +55,33 @@ Với log (Kafka), replay là tính năng, nhưng nguy hiểm nếu không chu�
 
 **Migration broker/topic**: dual-publish (gửi cả topic cũ và mới), chuyển consumer, rồi tắt topic cũ; hoặc MirrorMaker 2 để sao chép.
 
-## 6. Một số thực hành vận hành khác
+## 6. Other operational practices
 - Graceful shutdown: bắt SIGTERM, dừng nhận thêm, xử lý xong message đang chạy, commit rồi mới thoát; nếu không, mỗi lần deploy sinh ra duplicate và rebalance.
 - Health check phân biệt "process sống" và "consumer thật sự đang tiến": nếu không commit offset trong N phút thì coi là không khỏe.
 - Runbook: cách xử lý lag cao, DLQ đầy, broker mất node. Diễn tập định kỳ (chaos): kill consumer, kill broker.
 - Capacity: số partition ≥ số consumer tối đa dự kiến; theo dõi dung lượng disk theo retention.
 - Security: TLS, authentication (SASL), ACL theo topic, không dùng PLAINTEXT trên production (lab dùng PLAINTEXT nội bộ container chỉ vì mục đích học).
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 - Alert theo lag tuyệt đối thay vì xu hướng/tuổi.
 - Reset offset khi group còn chạy (lệnh sẽ từ chối), hoặc reset nhầm group production.
 - Replay không tách consumer có side effect.
 - Tăng consumer vượt số partition mong giảm lag (vô ích).
 - Quên monitoring bên publisher (outbox chết thì consumer "xanh" vì không có gì đến).
 
-## Tóm tắt
+## Summary
 1. Lỗi async hiện ra là "chậm": theo dõi lag (xu hướng, tuổi), DLQ, outbox backlog.
 2. Replay là sức mạnh của log nhưng đòi hỏi consumer idempotent và tách consumer có side effect.
 3. Rolling deploy nghĩa là hai version cùng xử lý: schema compatible + idempotent.
 4. Breaking change: chạy group mới parallel rồi chuyển.
 
-## Câu hỏi tự kiểm tra
+## Self-check questions
 1. Lag 5000 và đang giảm đều: có đáng báo động không?
 2. Vì sao nên replay vào consumer group mới thay vì reset group đang chạy?
 3. Metric nào cho biết publisher outbox bị chết?
 4. Vì sao tăng consumer từ 8 lên 20 với topic 6 partition không giảm lag?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Không nhất thiết; xem tuổi message và SLO. Xu hướng giảm là tốt.
 2. Group đang chạy phải dừng mới reset được và rủi ro tác động production; group mới chạy parallel rồi chuyển, rollback dễ.

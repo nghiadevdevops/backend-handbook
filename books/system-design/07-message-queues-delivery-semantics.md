@@ -1,8 +1,8 @@
-# Chương 7. Message Queue, delivery semantics và idempotency
+# Chapter 7. Message Queues, Delivery Semantics and Idempotency
 
 > Cập nhật: 2026-11-07.
 
-## 7.1 Message queue giải quyết vấn đề gì?
+## 7.1 What problem does a message queue solve?
 
 **Message queue / message broker** là thành phần trung gian lưu message một cách durable giữa **producer** (bên gửi) và **consumer** (bên xử lý). Lợi ích:
 
@@ -23,13 +23,13 @@ flowchart LR
   Q -. repeated failures .-> DLQ[[Dead-letter queue]]
 ```
 
-## 7.2 Hai mô hình
+## 7.2 Two models
 
 - **Queue (point-to-point)**: mỗi message tới *một* consumer trong group (competing consumers). Dùng để chia việc.
 - **Pub/sub (topic)**: mỗi message tới *mọi* subscriber/group. Dùng để phát event.
 - **Partitioned log (Kafka, Pulsar, Redis Streams...)**: message được ghi nối đuôi vào log, consumer tự giữ **offset**; có thể đọc lại, mỗi consumer group đọc độc lập. Thứ tự đảm bảo *trong một partition*, không toàn cục.
 
-## 7.3 Các sản phẩm hiện nay (tra 2026-11)
+## 7.3 Current products (checked 2026-11)
 
 | Sản phẩm | Đặc điểm cần nhớ |
 |---|---|
@@ -61,7 +61,7 @@ sequenceDiagram
   Note over C: if not idempotent: duplicate write
 ```
 
-### Sự thật về "exactly-once"
+### The truth about "exactly-once"
 
 Không thể có delivery đúng một lần *qua mạng không tin cậy* nếu không có sự hợp tác của phía nhận. Cách thực tế: **at-least-once + xử lý idempotent = side effect chỉ xảy ra một lần (effectively-once)**.
 
@@ -81,7 +81,7 @@ COMMIT;
 
 Nếu `INSERT` vi phạm primary key nghĩa là đã xử lý: bỏ qua. Cách khác: thao tác tự nhiên idempotent (`SET status='shipped'`, upsert theo key), hoặc version để bỏ message cũ. Đây thường gọi là mẫu **inbox**.
 
-## 7.5 Vấn đề ghi DB và gửi event: Transactional Outbox
+## 7.5 The DB write plus event publish problem: Transactional Outbox
 
 Bài toán *dual write*: đơn hàng được lưu vào DB, rồi gửi event `OrderCreated` lên broker. Nếu lưu xong mà crash trước khi gửi → mất event; gửi trước rồi lưu thất bại → phantom event. Không có transaction chung giữa DB và broker.
 
@@ -106,7 +106,7 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 - **Poison message**: message luôn gây lỗi. Retry có giới hạn (exponential backoff + jitter, chương 9) rồi chuyển sang **dead-letter queue (DLQ)** để điều tra, tránh chặn cả queue.
 - **Visibility timeout / ack timeout**: thời gian một message "invisible" khi consumer đang xử lý. Đặt quá ngắn → bị giao lại khi vẫn đang xử lý (duplicate); quá dài → recovery chậm.
 
-## 7.7 Ví dụ thiết kế: gửi email xác nhận đơn hàng
+## 7.7 Design example: sending order confirmation emails
 
 1. API ghi đơn hàng + row outbox trong một transaction, trả 201.
 2. Relay phát `OrderCreated` lên topic.
@@ -114,14 +114,14 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 4. Lỗi tạm (SMTP quá tải) → retry backoff + jitter; lỗi vĩnh viễn → DLQ, alert.
 Đánh đổi: email có thể đến trễ vài giây; đổi lại API nhanh và không mất email. Có thể duplicate email trong ca cực hiếm (gửi xong, crash trước khi lưu "đã xử lý"); chấp nhận, hoặc dùng idempotency key phía nhà cung cấp email nếu có.
 
-## 7.8 Khi phỏng vấn nên nói gì
+## 7.8 What to say in an interview
 
 - "Em dùng at-least-once và làm consumer idempotent bằng message ID; em không hứa exactly-once qua mạng."
 - "Để không mất event khi ghi DB, em dùng transactional outbox với CDC."
 - "Ordering chỉ cần trong một đơn hàng nên em partition theo `order_id`."
 - "Có DLQ cho poison message, và theo dõi consumer lag để scale."
 
-## 7.9 Cạm bẫy
+## 7.9 Pitfalls
 
 - Nói "Kafka đảm bảo exactly-once" mà không giới hạn phạm vi.
 - Gửi event ngay trong code ứng dụng sau `commit` (dual write).
@@ -131,7 +131,7 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 - Dùng queue cho việc cần phản hồi synchronous.
 - Còn nghĩ RabbitMQ có classic mirrored queue (đã gỡ ở 4.0) hoặc Kafka cần ZooKeeper (đã gỡ ở 4.0).
 
-## 7.10 Tóm tắt
+## 7.10 Summary
 
 1. Queue cho tách rời, load leveling, async, retry.
 2. At-most-once mất; at-least-once duplicate; exactly-once thực chất là at-least-once + idempotent.
@@ -139,7 +139,7 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 4. Outbox giải quyết dual write; saga thay cho transaction phân tán.
 5. Quản lý ordering theo partition key, backpressure, DLQ.
 
-## 7.11 Câu hỏi tự kiểm tra
+## 7.11 Self-check questions
 
 1. Consumer xử lý xong, crash trước khi ack. Điều gì xảy ra và làm sao an toàn?
 2. Vì sao dual write nguy hiểm? Outbox sửa thế nào?
@@ -148,7 +148,7 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 5. Poison message là gì và cách xử lý?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. Broker giao lại (at-least-once). An toàn nếu xử lý idempotent (dedup theo message ID trong cùng transaction với side effect).
 2. Hai hệ thống không có transaction chung nên có thể lưu mà không gửi hoặc gửi mà không lưu. Outbox ghi event cùng transaction DB, rồi relay/CDC phát lên broker (at-least-once, nên consumer idempotent).
@@ -158,7 +158,7 @@ Relay có thể gửi duplicate (crash sau khi gửi, trước khi đánh dấu)
 
 </details>
 
-## Nguồn đã tra
+## Sources consulted
 
 - Kafka, Message Delivery Semantics: https://kafka.apache.org/44/design/design/
 - Kafka 4.0 gỡ ZooKeeper (nhiều nguồn, ví dụ): https://softwaremill.com/apache-kafka-4-0-0-released-kraft-queues-better-rebalance-performance/

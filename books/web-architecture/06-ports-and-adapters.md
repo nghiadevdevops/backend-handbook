@@ -1,18 +1,18 @@
-# Chương 6. Ports & Adapters (Hexagonal Architecture)
+# Chapter 6. Ports & Adapters (Hexagonal Architecture)
 
 > Nguồn: Alistair Cockburn, *Hexagonal Architecture* (2005, còn gọi Ports and Adapters).
 
-## 6.1 Vấn đề
+## 6.1 The problem
 
 Chương 5 cho luật "ai biết ai". Nhưng khi core cần nói chuyện ra ngoài (lưu đơn, gửi tin, xem giờ) hoặc khi bên ngoài cần gọi vào (web, CLI, test), ta cần một **hình thức giao tiếp chuẩn**, không để từng chỗ tự tiện.
 
-## 6.2 Động cơ của Cockburn
+## 6.2 Cockburn's motivation
 
 Điều Cockburn muốn giải quyết là: ứng dụng hay bị trộn logic với UI code, đến mức không điều khiển được bằng cách nào khác ngoài UI đó. Ý định của ông: cho phép ứng dụng **được điều khiển như nhau bởi người dùng, chương trình khác, test tự động hay batch script**, và được phát triển, test **độc lập với device và database lúc chạy thật**. Testability chỉ là **hệ quả** của việc cô lập đó, không phải mục tiêu gốc.
 
 Hình lục giác chỉ là hình vẽ chừa chỗ cho nhiều cạnh; số cạnh sáu không có ý nghĩa đặc biệt.
 
-## 6.3 Hai loại port
+## 6.3 Two kinds of port
 
 **Port** là một "cổng" do ứng dụng định nghĩa, bằng interface. **Adapter** là mảnh code dịch giữa một công nghệ bên ngoài và port.
 
@@ -43,7 +43,7 @@ flowchart LR
     SP3 --- A3[NestEventPublisher]
 ```
 
-## 6.4 Primary port: API của ứng dụng
+## 6.4 Primary port: the application's API
 
 File `lab/src/application/port/in/place-order-use-case.ts`:
 
@@ -128,9 +128,9 @@ export class OrderController {
 
 Controller nằm ở outermost layer (chương 5). Nó: nhận body đã được `ValidationPipe` kiểm hình dạng, dựng `PlaceOrderCommand`, **gọi** port, đổi `DomainRuleViolation` thành HTTP 422, rồi trả kết quả. Không một dòng luật nghiệp vụ nào. Chú ý kiểu của hai thuộc tính constructor: `PlaceOrderUseCase` và `OrderSummaryReader` là interface của core, controller không biết `PlaceOrderHandler` hay adapter nào đứng sau.
 
-## 6.5 Secondary port: thứ ứng dụng cần
+## 6.5 Secondary port: what the application needs
 
-### Clock là một port, không phải Factory
+### Clock is a port, not a Factory
 
 Core cần biết "bây giờ" để ghi `placedAt`. Gọi `new Date()` rải rác làm test phải đoán giờ. Giải pháp: một port `Clock`.
 
@@ -166,7 +166,7 @@ export class FixedClock implements Clock {
 
 Quy tắc nhất quán: **chỉ handler (Application) hỏi Clock, rồi truyền thời điểm xuống domain** (`Order.place(..., this.clock.now())`, `markPaid(ref, this.clock.now())`). Domain không tự gọi giờ, nên không có chỗ nào trong core đọc đồng hồ ngầm. Vì `Date` mutable, `FixedClock` luôn trả bản sao mới.
 
-### Port hướng nghiệp vụ, không hướng công nghệ
+### Ports face the business, not the technology
 
 Port nên diễn đạt **điều ứng dụng cần**, không phải **công cụ sẽ dùng**.
 
@@ -192,7 +192,7 @@ interface Mailer     { send(to: string, subject: string, html: string): Promise<
 
 Các interface này vẫn là interface, nhưng **rò rỉ infrastructure**: gọi `insert('orders', {...})` buộc core biết tên table và column, tức biết lưu bằng relational table; gọi `send(to, subject, html)` buộc core biết tin nhắn là email có tiêu đề và HTML, nên đổi sang SMS hay đẩy thông báo thì phải sửa core. Interface hướng nghiệp vụ cho phép đổi công nghệ mà core không đổi: một adapter gửi email, adapter khác gửi SMS.
 
-## 6.6 Listener ở Application không biết mail
+## 6.6 The Application listener doesn't know about mail
 
 Khi `OrderPlaced` xảy ra, ta muốn gửi xác nhận. Listener nằm trong Application, nên chỉ được phụ thuộc port (file `lab/src/application/listener/send-order-confirmation-when-order-placed.ts`):
 
@@ -235,7 +235,7 @@ export class LogOrderNotifier implements OrderNotifier {
 
 Lab ghi log thay vì gửi mail thật để không cần SMTP; adapter thật (nodemailer, dịch vụ email, SMS) chỉ cần implement cùng interface và đổi một dòng trong module (chương 7). Điều này vá một lỗi hay gặp: Application layer gọi trực tiếp class concrete của Infrastructure. Ở đây hướng source code chĩa vào port.
 
-## 6.7 Adapter test là first-class citizen
+## 6.7 Adapter tests are first-class citizens
 
 Vì mọi thứ bên ngoài đều ở sau port, test chỉ việc cắm fake adapter. `RecordingOrderNotifier` ghi lại thay vì gửi (file `lab/src/infrastructure/in-memory/recording-order-notifier.ts`):
 
@@ -257,7 +257,7 @@ export class RecordingOrderNotifier implements OrderNotifier {
 
 Nhờ đó `lab/test/application.test.ts` kiểm "gửi đúng một thông báo với tổng 350 VND" mà không cần mạng.
 
-## 6.8 Cạm bẫy thường gặp
+## 6.8 Common pitfalls
 
 - **Cho controller `implements` primary port.** Controller là adapter gọi vào; handler mới implement.
 - **Port hướng công nghệ** (`insert`, `send(html)`), mục 6.5.
@@ -267,7 +267,7 @@ Nhờ đó `lab/test/application.test.ts` kiểm "gửi đúng một thông báo
 - **Port quá sớm.** Chỉ tạo port khi có thứ ngoài đáng cô lập (DB, mail, giờ, mạng).
 - **Liệt kê "testability" làm mục tiêu số một.** Cockburn nhắm tới việc điều khiển ứng dụng từ nhiều phía và cô lập khỏi thiết bị; test dễ là hệ quả.
 
-## 6.9 Tóm tắt
+## 6.9 Summary
 
 1. Động cơ Cockburn: ứng dụng được điều khiển như nhau bởi người dùng, chương trình, test, batch và cô lập khỏi DB/thiết bị; testability là hệ quả.
 2. Primary port = API ứng dụng (use case); controller/CLI/test là adapter GỌI vào, handler implement.
@@ -275,7 +275,7 @@ Nhờ đó `lab/test/application.test.ts` kiểm "gửi đúng một thông báo
 4. `Clock` là secondary port, không phải Factory; chỉ handler hỏi giờ rồi truyền xuống.
 5. Port hướng nghiệp vụ (`OrderNotifier`) giữ core sạch; port hướng công nghệ (`Connection.insert`) rò rỉ infrastructure.
 
-## 6.10 Tự kiểm tra
+## 6.10 Self-check
 
 1. Ai implement `PlaceOrderUseCase`? Controller làm gì với nó?
 2. `Clock` thuộc loại port nào? Vì sao không phải Factory?
@@ -284,7 +284,7 @@ Nhờ đó `lab/test/application.test.ts` kiểm "gửi đúng một thông báo
 5. Listener ở Application có được gọi thư viện mail trực tiếp không?
 
 <details>
-<summary>Đáp án</summary>
+<summary>Answer</summary>
 
 1. `PlaceOrderHandler` implement; controller dựng command và gọi `handle()`.
 2. Secondary (driven) port, vì nó là nguồn bên ngoài mà core cần. Factory tạo object, Clock không tạo gì cả mà cung cấp thời điểm hiện tại.

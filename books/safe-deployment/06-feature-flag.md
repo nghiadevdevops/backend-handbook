@@ -1,10 +1,10 @@
-# Chương 6. Feature flag, dark launch, kill switch
+# Chapter 6. Feature Flags, Dark Launches, Kill Switches
 
-## 1. Vấn đề
+## 1. The problem
 
 Bạn viết tính năng "thanh toán mới" trong hai tuần. Nếu gộp vào `main` chỉ khi hoàn tất, bạn có nhánh sống lâu, xung đột lớn, release rủi ro cao. **Feature flag** (cờ tính năng) cho phép gộp code sớm nhưng giữ tính năng tắt, rồi bật có kiểm soát. Đây là công cụ chính để tách deploy khỏi release (chương 5).
 
-## 2. Khái niệm
+## 2. Concepts
 
 Feature flag là một điều kiện đọc cấu hình lúc chạy:
 
@@ -54,7 +54,7 @@ Hai điểm thiết kế quan trọng: luôn có **giá trị mặc định** an
 
 Với ứng dụng nhỏ, một flag đọc từ environment variable hoặc file cấu hình (`os.Getenv`, `process.env`) là đủ; OpenFeature có lợi khi cần nhiều service và nhiều ngôn ngữ dùng chung một hệ thống flag.
 
-## 3. Rollout dần
+## 3. Gradual rollout
 
 ```mermaid
 flowchart LR
@@ -67,7 +67,7 @@ flowchart LR
 
 Chia phần trăm nên dựa trên **stable hash** của user id, để một người luôn thuộc cùng nhóm, không nhấp nháy giữa bản cũ và mới.
 
-## 4. Dọn flag (nợ kỹ thuật)
+## 4. Cleaning up flags (technical debt)
 
 Flag không xóa thì thành nhánh `if` chết, mỗi flag nhân đôi số state cần test. Quy tắc:
 
@@ -76,14 +76,14 @@ Flag không xóa thì thành nhánh `if` chết, mỗi flag nhân đôi số sta
 3. Có kiểm tra tự động hoặc báo cáo liệt kê flag quá hạn.
 4. Phân biệt flag ngắn hạn (phải xóa) với flag vận hành dài hạn (kill switch, được giữ có chủ đích).
 
-## 5. Trade-off
+## 5. Trade-offs
 
 - Flag thêm độ phức tạp và kết hợp nhiều flag tạo ra tổ hợp khó kiểm. Giới hạn số flag sống cùng lúc.
 - Đọc flag từ service ngoài thêm latency và điểm lỗi: local cache, đặt giá trị mặc định.
 - Không dùng flag cho thay đổi schema DB: flag không làm schema tương thích; dùng expand/contract (chương 7).
 - Flag bảo mật/quyền không nên chỉ nằm ở UI; phải kiểm tra phía server.
 
-## 6. Cạm bẫy
+## 6. Pitfalls
 
 1. Flag tồn tại hàng năm vì không ai dám xóa.
 2. Tắt flag nhưng dữ liệu tạo bởi đường code mới vẫn còn, đường cũ không hiểu được.
@@ -91,21 +91,21 @@ Flag không xóa thì thành nhánh `if` chết, mỗi flag nhân đôi số sta
 4. Mỗi đội đặt tên flag một kiểu, không có quy ước.
 5. Quên test cả hai giá trị của flag trong CI.
 
-## 7. Tóm tắt
+## 7. Summary
 
 - Feature flag tách deploy khỏi release và làm rollback tính năng chỉ còn là tắt flag.
 - Kill switch là ops flag để mitigate incident; dark launch chạy thử code mới trên traffic thật không lộ ra ngoài.
 - OpenFeature chuẩn hóa API; luôn có giá trị mặc định và evaluation context.
 - Mỗi flag ngắn hạn cần chủ sở hữu và ngày xóa.
 
-## 8. Tự kiểm tra
+## 8. Self-check
 
 1. Khác nhau giữa release flag và kill switch về vòng đời?
 2. Vì sao chia phần trăm theo stable hash của user id?
 3. Giá trị mặc định trong lời gọi OpenFeature dùng khi nào?
 4. Vì sao flag không thay thế expand/contract?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Release flag ngắn hạn và phải xóa; kill switch tồn tại dài hạn có chủ đích.
 2. Để cùng một người luôn thấy cùng một phiên bản, tránh nhấp nháy.

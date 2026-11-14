@@ -1,12 +1,12 @@
-# Chương 10. Rate limiting và session store
+# Chapter 10. Rate limiting and session store
 
-## 1. Vấn đề
+## 1. The problem
 
 API đăng nhập bị dò mật khẩu: 5.000 request mỗi phút từ một IP. API công khai cần giới hạn 100 request/phút mỗi API key. Giới hạn phải **chung cho mọi server ứng dụng**, và việc "đọc counter rồi quyết định rồi ghi" phải **atomic**, nếu không hai request đồng thời cùng thấy "còn 1 lượt" và cùng được qua. Redis/Valkey phù hợp vì nhanh, có hết hạn tự động và chạy Lua/Functions atomic.
 
-## 2. Bốn thuật toán
+## 2. Four algorithms
 
-### Fixed window (window cố định)
+### Fixed window
 
 ```
 INCR rl:fw:user7        -- nếu kết quả = 1 thì EXPIRE rl:fw:user7 60
@@ -27,7 +27,7 @@ Xấp xỉ: kết hợp counter window hiện tại và trước, nhân trọng 
 
 Bucket chứa tối đa `capacity` token, nạp `rate` token mỗi giây. Mỗi request lấy `cost` token. Cho phép **burst** tới `capacity` rồi hạ xuống tốc độ trung bình `rate`. Lưu 2 giá trị: số token và thời điểm cập nhật cuối. Đây là thuật toán thường dùng nhất cho API.
 
-## 3. Cài đặt bằng Function (Redis >= 7.0, Valkey)
+## 3. Implementing it with Functions (Redis >= 7.0, Valkey)
 
 File `lab/ratelimit/ratelimit.lua` nạp một thư viện gồm `token_bucket`, `sliding_window`, `fixed_window`:
 
@@ -62,7 +62,7 @@ Vì sao dùng `TIME` của server thay vì giờ của client: nhiều máy ứn
 
 Lưu ý khi dùng **Cluster**: key truyền trong `KEYS[]` để server biết slot; Function chỉ được đụng các key trong `KEYS`.
 
-## 4. Kết quả lab
+## 4. Lab results
 
 Chạy `lab/ratelimit/run.sh` trên cả Valkey 9.1.3 và Redis 8.10.3, cho **kết quả giống nhau**. `1` là cho phép, `0` là từ chối:
 
@@ -87,7 +87,7 @@ Lưu session trong Redis cho phép nhiều server ứng dụng chia sẻ session
 - **Persistence**: nếu mất session là chấp nhận được (người dùng đăng nhập lại) thì không cần AOF; nếu không thì AOF `everysec` + replica.
 - Concurrency: hai request song song cùng ghi session có thể đè nhau (last write wins); cần khóa theo session hoặc chỉ cập nhật từng field bằng `HSET`.
 
-## 6. Trade-off
+## 6. Trade-offs
 
 | | Fixed | Sliding log | Token bucket |
 |---|---|---|---|
@@ -96,7 +96,7 @@ Lưu session trong Redis cho phép nhiều server ứng dụng chia sẻ session
 | Cho phép burst | ngoài ý muốn | không | có chủ đích |
 | Dùng khi | giới hạn thô, rẻ | cần chính xác, lượng nhỏ | API công khai |
 
-## 7. Cạm bẫy
+## 7. Pitfalls
 
 - `INCR` và `EXPIRE` ở hai lệnh rời.
 - Dùng giờ client để tính window.
@@ -104,14 +104,14 @@ Lưu session trong Redis cho phép nhiều server ứng dụng chia sẻ session
 - Rate limiter **fail-open hay fail-closed** khi Redis lỗi? Quyết định trước: API công khai thường fail-open (cho qua) và alert; đăng nhập thường fail-closed với giới hạn cục bộ dự phòng.
 - Session chung instance với cache bị evict.
 
-## 8. Tóm tắt
+## 8. Summary
 
 - Rate limit chung cần phép kiểm tra-và-ghi atomic: Lua hoặc Function.
 - Token bucket cho phép burst có kiểm soát; sliding window chính xác nhưng tốn RAM; fixed window rẻ nhưng burst ở ranh giới.
 - Dùng `TIME` của server, key truyền qua `KEYS`.
 - Session store: tách chính sách eviction và persistence khỏi cache.
 
-## 9. Câu hỏi tự kiểm tra
+## 9. Self-check questions
 
 1. Mô tả burst ở ranh giới window của fixed window.
 2. Vì sao dùng Lua/Function thay vì `GET` rồi `SET` trong code ứng dụng?
@@ -119,7 +119,7 @@ Lưu session trong Redis cho phép nhiều server ứng dụng chia sẻ session
 4. Vì sao dùng `TIME` của server?
 5. Vì sao không để session chung instance với cache `allkeys-lru`?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. 100 request cuối window cũ và 100 request đầu window mới liên tiếp: 200 request trong vài giây nhưng không window nào vượt 100.
 2. Hai request đồng thời có thể cùng đọc "còn lượt" rồi cùng ghi; script chạy atomic nên không có race.

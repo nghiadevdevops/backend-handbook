@@ -1,6 +1,6 @@
-# Chương 12. Software supply chain
+# Chapter 12. Software Supply Chain
 
-## 1. Vấn đề
+## 1. The problem
 
 Một ứng dụng Node.js điển hình có vài trăm đến hàng nghìn package trong `node_modules/` (kể cả transitive dependency), bạn chỉ chủ động chọn vài chục. Mỗi package là code chạy với quyền của ứng dụng. Attacker không cần vào hệ thống của bạn, chỉ cần: tìm CVE trong phiên bản bạn đang dùng; chiếm tài khoản maintainer; đăng package tên gần giống (typosquatting); hoặc tấn công pipeline build. OWASP Top 10:2025 nâng mục này thành **A03: Software Supply Chain Failures** (mở rộng từ "Vulnerable and Outdated Components").
 
@@ -40,14 +40,14 @@ Công cụ bổ sung (tùy nhu cầu): OSV-Scanner (Google, đa ngôn ngữ, d�
 
 Quét phát hiện **vulnerability đã biết**, không phát hiện package độc hại chưa ai báo cáo (đã có các đợt tấn công chiếm tài khoản maintainer và phát tán mã độc qua npm; hãy theo dõi bản tin bảo mật của npm/GitHub, chưa liệt kê chi tiết từng vụ ở đây).
 
-### Cập nhật có kỷ luật
+### Disciplined updates
 
 - **Dependabot** (GitHub) hoặc **Renovate** (mã nguồn mở, nhiều nền tảng) tự mở pull request nâng phiên bản. Renovate linh hoạt hơn (gộp nhóm, lịch, automerge theo quy tắc); Dependabot tích hợp sẵn trong GitHub, cấu hình đơn giản (`.github/dependabot.yml`).
 - Có test tự động đủ tin cậy thì mới dám automerge patch.
 - Phân loại: patch bảo mật nâng ngay; nâng major theo lịch.
 - Cooldown/release delay (chờ vài ngày trước khi nhận phiên bản mới nhất) giảm rủi ro dính bản độc hại vừa bị đẩy lên (Renovate có `minimumReleaseAge`, pnpm có `minimumReleaseAge`; với npm CLI chưa xác minh tùy chọn tương đương, kiểm tra tài liệu bản bạn dùng).
 
-## 3. Kiểm soát nguồn và phiên bản
+## 3. Controlling sources and versions
 
 - **Commit `package-lock.json`** cho ứng dụng; cài bằng **`npm ci`** (cài đúng theo lockfile, xóa `node_modules` cũ, báo lỗi nếu `package.json` và lockfile lệch nhau), không `npm install` trong CI/production. Lab dùng chính cách này: `lab/app/start.sh` chạy `npm ci --omit=dev`.
 - `npm ci --omit=dev --ignore-scripts` khi build production nếu không có dependency nào cần script cài đặt (lifecycle script `postinstall` là điểm thực thi mã từ package bất kỳ); với package cần build native (như `argon2`) hãy cho phép tường minh từng cái. Lab chạy `argon2` bằng prebuilt binary, không cần compile.
@@ -56,7 +56,7 @@ Quét phát hiện **vulnerability đã biết**, không phát hiện package đ
 - Kiểm tra tên package (typosquatting), ưu tiên package có maintainer rõ ràng và có provenance.
 - Nếu dùng registry riêng (Verdaccio, Artifactory, GitHub Packages), chống **dependency confusion**: dùng package có **scope** (`@acme/...`) và cấu hình `.npmrc` ánh xạ scope đó sang registry riêng, để package nội bộ không bị thay bằng bản công khai trùng tên.
 
-### Provenance của package npm
+### npm package provenance
 
 Package có thể được publish **kèm provenance**: khi publish từ CI hỗ trợ (ví dụ GitHub Actions với quyền `id-token: write`) bằng `npm publish --provenance`, registry lưu một attestation (Sigstore) ghi rõ package được build từ commit nào, bởi workflow nào. Phía người dùng: `npm audit signatures` kiểm tra chữ ký registry và attestation provenance của các package đã cài (cần `node_modules` đã có, nên lab này chưa chạy lệnh đó). Provenance chứng minh "package này đến từ repo/workflow X", không chứng minh code trong repo đó an toàn. Gần đây npm cũng hỗ trợ "trusted publishing" qua OIDC để khỏi giữ token publish dài hạn (chưa xác minh chi tiết trong lần viết này; đối chiếu docs.npmjs.com).
 
@@ -71,7 +71,7 @@ Package có thể được publish **kèm provenance**: khi publish từ CI hỗ
 
 SBOM chỉ là danh sách; phải kết nối với quét vulnerability (VEX giúp ghi nhận "CVE này không ảnh hưởng chúng ta vì...") mới có tác dụng.
 
-## 5. Ký artifact và Sigstore
+## 5. Signing artifacts and Sigstore
 
 Ký image/binary để người nhận **xác minh provenance và integrity**. **Sigstore** là bộ công cụ mã nguồn mở: `cosign` (ký/xác minh), `Fulcio` (CA cấp certificate ngắn hạn gắn với identity OIDC), `Rekor` (transparency log ghi lại chữ ký). Chế độ **keyless**: CI login bằng OIDC (ví dụ identity workflow GitHub Actions), nhận certificate sống vài phút, ký, rồi ghi vào Rekor; không phải giữ private key dài hạn.
 
@@ -93,7 +93,7 @@ Cosign hiện ở dòng 3.x (tra 11/2026 qua gói phân phối; bản mới nh�
 
 Thực hành với GitHub: dùng `actions/attest-build-provenance` hoặc workflow tái sử dụng `slsa-framework/slsa-github-generator` để sinh provenance, rồi xác minh khi deploy (`slsa-verifier`, hoặc `cosign verify-attestation`).
 
-## 7. Các biện pháp quanh pipeline
+## 7. Controls around the pipeline
 
 - Pin GitHub Actions bằng **commit SHA đầy đủ**, không theo tag (tag có thể bị trỏ lại, đã có incident thật khi action bị chiếm).
 - `GITHUB_TOKEN` theo least privilege (`permissions:` khai tường minh); secret chỉ cho job cần.
@@ -102,13 +102,13 @@ Thực hành với GitHub: dùng `actions/attest-build-provenance` hoặc workfl
 - Build có thể tái lập (reproducible) khi khả thi để kiểm chứng artifact.
 - Image base: dùng bản chính thức, pin digest, cập nhật định kỳ.
 
-## 8. Trade-off
+## 8. Trade-offs
 
 - Quét + cập nhật tự động: rẻ, hiệu quả cao; tốn công triage false positive (CVE không ở đường code bạn dùng).
 - Ký + SLSA + SBOM đầy đủ: đáng với phần mềm phân phối cho nhiều bên hoặc ngành quy định; thừa cho ứng dụng nội bộ nhỏ, nơi `npm audit` + lockfile + Dependabot/Renovate đã chiếm phần lớn giá trị.
 - Pin phiên bản cứng: ổn định nhưng dễ tụt hậu patch nếu không có tự động cập nhật.
 
-## 9. Cạm bẫy
+## 9. Pitfalls
 
 - Không commit lockfile, hoặc chạy `npm install` (thay vì `npm ci`) khi build/deploy.
 - Bỏ qua kết quả `npm audit` vì "toàn lỗi nhỏ", rồi lộ critical.
@@ -116,21 +116,21 @@ Thực hành với GitHub: dùng `actions/attest-build-provenance` hoặc workfl
 - Ký image theo tag; không bao giờ xác minh chữ ký (ký mà không verify thì vô nghĩa).
 - Tin `latest` của image base.
 
-## 10. Tóm tắt
+## 10. Summary
 
 - Supply chain là A03:2025; mỗi package là code bạn chạy.
 - `npm audit` (và `npm ci`) trong CI + lockfile + Dependabot/Renovate là nền tảng.
 - SBOM (CycloneDX/SPDX) để query nhanh khi có CVE mới.
 - Ký bằng Sigstore/cosign (keyless), minh bạch qua Rekor; SLSA v1.2 để đánh giá quy trình build; nhớ verify.
 
-## 11. Câu hỏi tự kiểm tra
+## 11. Self-check questions
 
 1. `npm audit` phát hiện được và không phát hiện được gì?
 2. Vì sao ký image theo digest tốt hơn theo tag?
 3. Keyless signing của Sigstore thay thế việc gì?
 4. Dependency confusion là gì?
 
-<details><summary>Đáp án</summary>
+<details><summary>Answer</summary>
 
 1. Phát hiện vulnerability đã có advisory trong package đã cài hoặc có trong lock file; không phát hiện package độc hại chưa được báo cáo hoặc lỗi trong code của bạn.
 2. Tag có thể bị trỏ sang image khác, digest bất biến theo nội dung.
